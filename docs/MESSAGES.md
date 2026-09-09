@@ -25,6 +25,12 @@ already identify their request direction. A caller handling both data directions
 keeps the corresponding codec configurations explicit; an ID or profile cannot
 infer that information. This does not decide whether a session may send a PDU.
 
+The Step 12 [endpoint exchange API](EXCHANGE.md) uses these byte contracts.
+Step 15 [message helpers](MESSAGE_HELPERS.md) add explicit text conversion,
+segmentation/reassembly and receipt parsing separately. Wire codecs continue to
+retain raw payloads and TLVs and do not infer provider conventions or handset
+outcomes. [Simulators](SIMULATORS.md) exercise selected helper conventions.
+
 ## Values and standard fields
 
 `OctetString` copies input and output arrays and compares their contents. The

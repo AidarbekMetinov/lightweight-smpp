@@ -228,3 +228,19 @@ common replies; standalone registry cases exercise all four paired operations.
 Finite alert/outbind smoke runs verify one notification and complete cleanup.
 See [the step review](reviews/0013-common-operations.md) and
 [simulator review](reviews/0013-simulator-integration.md).
+
+## Step 15 helper evidence
+
+Independent GSM/UCS-2 bytes and encoded-length boundaries cover extension units,
+unsupported characters and malformed input. SAR/header fixtures cover byte order,
+part limits, ordering, duplicate/conflicting fragments, namespace isolation,
+expiry and finite retained capacity. Receipt tests preserve original provider
+text, unknown/missing fields, raw state/error values and exact input TLVs.
+The pure helper dependency rule has a permanent ten-edge negative fixture.
+
+Separate-process helper scenarios run under both profiles and verify selected
+content reporting, receiver validation and complete two-connection SAR assembly.
+Invalid scenario/size/role selections fail before file/socket allocation. A real
+interrupted-owner regression verifies both child JVMs receive cleanup. See
+[the helper review](reviews/0014-message-helpers.md) and
+[integration evidence](reviews/0014-simulator-integration.md).

@@ -1,7 +1,7 @@
 # Library contracts
 
-Step 1 design baseline, updated through Step 14. Binding, control, message
-exchange and common-operation endpoint APIs are compiled and tested. Executed contracts are
+Step 1 design baseline, updated through Step 15. Binding, control, message
+exchange, common operations and pure message helpers are compiled and tested. Executed contracts are
 documented in [FRAMING.md](FRAMING.md), [FIELDS.md](FIELDS.md),
 [COMMANDS.md](COMMANDS.md), [MESSAGES.md](MESSAGES.md),
 [SESSIONS.md](SESSIONS.md), [REQUESTS.md](REQUESTS.md),
@@ -208,6 +208,24 @@ Validate outgoing data against profile, command, role, state, and configured bou
 before reserving network work. Decode incoming raw values independently from the
 decision to invoke an application handler. Field and capability checks must not
 be scattered across socket loops.
+
+## Explicit message helpers
+
+The `kg.aidarbek.smpp.message` package depends only on immutable protocol values
+and JDK value/time/collection facilities. `TextEncoding.GSM7_UNPACKED` and `UCS2`
+provide strict encode/decode/encoded-length operations. They do not choose a
+provider coding convention, replace unsupported characters or pack GSM septets.
+`MessageSegments`, `MessageSegment` and `ConcatenationHeader` expose explicit
+SAR or octet-aligned concatenation metadata. `SegmentReassembler` uses caller
+limits, namespace/reference identity and a monotonic clock; incomplete and completed
+deduplication groups remain bounded until the fixed deadline or explicit close.
+
+`DeliveryReceipts` requires EXAMPLE or FLEXIBLE interpretation and retains original
+text plus raw fields. `ReceiptTlvs` retains the original parameter block and
+independent optional ID/state/error views. No helper fabricates dates, delivery
+state, ID normalization or receipt correlation. Applications still choose
+`data_coding`, payload placement and provider semantics. See
+[MESSAGE_HELPERS.md](MESSAGE_HELPERS.md) for exact limits and wire examples.
 
 ## Resource ownership and observability
 

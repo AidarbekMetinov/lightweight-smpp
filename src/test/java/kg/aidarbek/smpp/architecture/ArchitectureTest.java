@@ -8,13 +8,19 @@ import static com.tngtech.archunit.library.dependencies.SlicesRuleDefinition.sli
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.tngtech.archunit.base.DescribedPredicate;
+import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
+import com.tngtech.archunit.lang.ArchRule;
+import java.util.List;
 import kg.aidarbek.smpp.codec.PduFramer;
 import kg.aidarbek.smpp.codec.PduHeaderCodec;
 import kg.aidarbek.smpp.endpoint.EndpointOptions;
 import kg.aidarbek.smpp.endpoint.SmppClient;
+import kg.aidarbek.smpp.message.SegmentReassembler;
+import kg.aidarbek.smpp.message.TextEncoding;
 import kg.aidarbek.smpp.profile.ProtocolProfile;
 import kg.aidarbek.smpp.profile.SmppVersion;
 import kg.aidarbek.smpp.protocol.PduHeader;
@@ -33,6 +39,7 @@ final class ArchitectureTest {
     private static final String SPI = "kg.aidarbek.smpp.spi..";
     private static final String TRANSPORT = "kg.aidarbek.smpp.transport..";
     private static final String ENDPOINT = "kg.aidarbek.smpp.endpoint..";
+    private static final String MESSAGE = "kg.aidarbek.smpp.message..";
     private static final JavaClasses LIBRARY = new ClassFileImporter()
             .withImportOption(ImportOption.Predefined.DO_NOT_INCLUDE_TESTS)
             .importPackages("kg.aidarbek.smpp");
@@ -50,7 +57,66 @@ final class ArchitectureTest {
         assertTrue(LIBRARY.contain(TcpTransportConfig.class));
         assertTrue(LIBRARY.contain(EndpointOptions.class));
         assertTrue(LIBRARY.contain(SmppClient.class));
+        assertTrue(LIBRARY.contain(TextEncoding.class));
+        assertTrue(LIBRARY.contain(SegmentReassembler.class));
         assertFalse(LIBRARY.contain(ArchitectureTest.class));
+        assertFalse(LIBRARY.contain(ForbiddenMessageDependencies.class));
+    }
+
+    @Test
+    void messageHelpersDependOnlyOnHelpersProtocolAndJdkValues() {
+        messageBoundary(resideInAnyPackage(MESSAGE)).check(LIBRARY);
+    }
+
+    @Test
+    void messageBoundaryRejectsStatefulLayersAndRuntimeInfrastructure() {
+        var result = messageBoundary(equivalentTo(ForbiddenMessageDependencies.class))
+                .evaluate(new ClassFileImporter().importClasses(ForbiddenMessageDependencies.class));
+        assertTrue(result.hasViolation(), "The helper boundary must reject the forbidden dependency fixture");
+        String violations = result.getFailureReport().toString();
+        for (Class<?> forbidden : List.of(
+                PduHeaderCodec.class,
+                ProtocolProfile.class,
+                SessionState.class,
+                RequestOptions.class,
+                WriteClass.class,
+                TcpTransportConfig.class,
+                EndpointOptions.class,
+                java.net.Socket.class,
+                java.nio.file.Path.class,
+                java.util.concurrent.Executor.class)) {
+            assertTrue(violations.contains(forbidden.getName()), forbidden.getName());
+        }
+    }
+
+    private static ArchRule messageBoundary(DescribedPredicate<? super JavaClass> owners) {
+        return classes()
+                .that(owners)
+                .should()
+                .onlyDependOnClassesThat()
+                .resideInAnyPackage(
+                        MESSAGE,
+                        PROTOCOL,
+                        "java.lang..",
+                        "java.math..",
+                        "java.time..",
+                        "java.util",
+                        "java.util.function..",
+                        "java.util.regex..",
+                        "java.util.stream..");
+    }
+
+    static final class ForbiddenMessageDependencies {
+        PduHeaderCodec codec;
+        ProtocolProfile profile;
+        SessionState session;
+        RequestOptions request;
+        WriteClass port;
+        TcpTransportConfig transport;
+        EndpointOptions endpoint;
+        java.net.Socket socket;
+        java.nio.file.Path path;
+        java.util.concurrent.Executor executor;
     }
 
     @Test

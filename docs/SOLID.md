@@ -171,3 +171,14 @@ and [seven simulator integration identities](reviews/0013-simulator-integration.
 Its integrated snapshot contains 357 current types. The public API dependency
 rule admits explicit profile/session policy values without permitting a second
 request engine; endpoint core still depends on transport ports.
+
+Step 15 adds [23 helper/architecture reviews](reviews/0014-message-helpers.md),
+including the separate [pure-package boundary review](reviews/0014-message-architecture.md),
+[nine integration reviews](reviews/0014-simulator-integration.md) and
+[two process-fixture reviews](reviews/0014-simulator-integration-types.md).
+The final snapshot contains 381 current identities. Whole-source hashes and
+coverage match; no known finding remains in the reviewed types. The pure message
+rule rejects codec/profile/session/request/port/transport/endpoint and JDK
+network/file/executor dependencies with a permanent negative probe. Public helper
+APIs are permitted for simulator composition without permitting request-engine
+ownership in the tool.

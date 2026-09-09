@@ -17,6 +17,7 @@ record SimulatorConfig(
         int window,
         Duration connectInterval,
         String operation,
+        String content,
         LoadPlan load,
         int payloadBytes,
         long seed,
@@ -56,6 +57,8 @@ record SimulatorConfig(
         LoadPlan.bounded(connectInterval, true, Duration.ofSeconds(10));
         if (operation == null || !operation.matches("[a-z][a-z0-9-]{0,31}"))
             throw new IllegalArgumentException("Operation name is invalid");
+        if (content == null || !content.matches("[a-z][a-z0-9-]{0,31}"))
+            throw new IllegalArgumentException("Content name is invalid");
         if (runId == null || !runId.matches("[A-Za-z0-9_.-]{1,96}"))
             throw new IllegalArgumentException("Run identity is invalid");
         if (revision == null || !revision.matches("[0-9a-f]{40}([+][0-9a-f]{64})?"))

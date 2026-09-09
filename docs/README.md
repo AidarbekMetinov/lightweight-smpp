@@ -254,8 +254,28 @@ See [common-operation contracts](COMMON_OPERATIONS.md),
 [standalone simulator integration](reviews/0013-simulator-integration.md).
 The integrated checks pass 615 library cases, 47 simulator cases and 60 review-tool
 cases; all 357 current Java identities have matching reviews. Four fresh installed
-alert/outbind checks completed successfully. Message helpers are Step 15; broadcast
-and full SMPP 5.0 inventory completion remain Step 16.
+alert/outbind checks completed successfully.
+
+## Step 15 message helpers
+
+Session-independent helpers provide strict unpacked GSM and UCS-2 conversion,
+encoded-octet segmentation, explicit SAR/concatenation headers, bounded timed
+reassembly and raw-preserving text/TLV receipts. Provider conventions remain
+explicit; codecs still expose the original bytes. The simulator selects GSM,
+UCS-2, SAR and receipt variants with early preflight, per-connection segment
+ordinals and receiver validation. Its receipt scenarios originate from the MC
+by policy; no automatic receipt correlation or retransmission is implied.
+
+See [helper APIs and conventions](MESSAGE_HELPERS.md),
+[helper TDD/SOLID evidence](reviews/0014-message-helpers.md), and
+[integration evidence](reviews/0014-simulator-integration.md).
+The final checks pass 634 library cases, 57 simulator cases and 60 review-tool
+cases; all 381 Java identities have current reviews. Fourteen fresh installed-tool
+content scenarios passed, including two-connection multipart multiple submission.
+
+Next is Step 16: broadcast and the remaining declared SMPP 5.0 inventory.
+TLS/lifecycle hardening, full heavy-load qualification and independent-peer
+interoperability remain Steps 17–19.
 
 ## References
 

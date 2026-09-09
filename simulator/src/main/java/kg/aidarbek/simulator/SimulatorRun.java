@@ -18,11 +18,19 @@ final class SimulatorRun {
                 : Optional.of(MessageTraffic.find(config.operation(), config)
                         .or(() -> CommonTraffic.find(config.operation(), config))
                         .orElseThrow(() -> new IllegalArgumentException("Unknown operation")));
-        var content = new RawContent(config.payloadBytes(), config.seed());
+        if (!config.content().equals("raw")
+                && operation.isPresent()
+                && !HelperContentPlans.supports(config.content(), config.operation()))
+            throw new IllegalArgumentException("Content does not support the originating operation");
+        if (operation.isPresent()
+                && config.content().startsWith("receipt")
+                && config.mode() != SimulatorConfig.Mode.SERVER)
+            throw new IllegalArgumentException("Receipt traffic must originate from the message center");
+        var content = content(config);
         var environment = RunEnvironment.describe();
         Instant started = Instant.now();
         try (var writer = new ReportWriter(config.report());
-                var replies = new ReplyController(config, () -> new RawContent(config.payloadBytes(), config.seed()))) {
+                var replies = new ReplyController(config, () -> content(config))) {
             var sampler = new ResourceSampler(writer);
             Runnable maintenance = () -> {
                 replies.advance(System.nanoTime());
@@ -49,7 +57,7 @@ final class SimulatorRun {
                                                 .send(
                                                         sessions.get(
                                                                 (int) Math.floorMod(index, (long) sessions.size())),
-                                                        content.next(index),
+                                                        content.next(index / sessions.size()),
                                                         index)),
                                         System::nanoTime,
                                         SimulatorRun::pause,
@@ -95,6 +103,12 @@ final class SimulatorRun {
                     + " report=" + config.report().resolve("report.json"));
             return failures.isEmpty() ? 0 : 1;
         }
+    }
+
+    private static ContentPlan content(SimulatorConfig config) {
+        return config.content().equals("raw")
+                ? new RawContent(config.payloadBytes(), config.seed())
+                : HelperContentPlans.create(config.content(), config.payloadBytes(), config.seed());
     }
 
     private static void stopReceiver(ReplyController replies) {

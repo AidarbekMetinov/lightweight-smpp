@@ -5,7 +5,7 @@ runnable client and server simulators for functional and heavy-load testing.
 The [research report](RESEARCH.md) explains the protocol targets and architecture.
 The [simulator plan](SIMULATORS.md) defines workloads and measurement requirements.
 
-Current stage: **research and Steps 1–14 completed; Step 15 is next**.
+Current stage: **research and Steps 1–15 completed; Step 16 is next**.
 Java 21, Gradle, JUnit, strict compiler warnings, local caching, formatting, and Git
 are configured. Header values, a binary header codec, bounded framing, behavior
 tests, and meaningful architecture rules are implemented. Automatic review-evidence
@@ -427,6 +427,13 @@ tests, simulator coverage, and documented application responsibilities.
 Suggested commit: `Add remaining common operations`.
 
 ## 15. Add message encoding and receipt helpers
+
+Completed: [explicit helper contracts](MESSAGE_HELPERS.md),
+[encoding/receipt/reassembly reviews](reviews/0014-message-helpers.md),
+[pure-package architecture evidence](reviews/0014-message-architecture.md), and
+[simulator integration](reviews/0014-simulator-integration.md). Helpers preserve raw
+values, reject unsupported conversion and bound retained assembly state. Simulator
+scenarios cover explicit payload/receipt conventions under both profiles.
 
 Add explicit GSM alphabet and UCS-2 handling, segmentation/reassembly where
 required, and delivery-receipt helpers while retaining direct raw payload access.

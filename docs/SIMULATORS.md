@@ -8,8 +8,8 @@ SMPP 3.4 and 5.0 according to the library's implemented feature inventory.
 Step 13 supplies the first usable pair in the separate `simulator` application.
 Submission, delivery and bidirectional `data_sm` traffic run through the public
 endpoint API. Step 14 adds query/cancel/replace/multi traffic and finite alert/
-outbind checks. The broader scenarios below remain the staged target for Steps
-15–18; this first pair does not establish production capacity or independent-peer
+outbind checks. Step 15 adds explicit encoding, SAR and receipt content fixtures.
+The broader scenarios below remain the staged target for Steps 16–18; this first pair does not establish production capacity or independent-peer
 interoperability.
 
 [Workload criteria](WORKLOADS.md) now define the Step 1 provisional profiles,
@@ -102,6 +102,37 @@ sample. A stalled decision withholds application completion until tool cleanup;
 the library's handler deadline still applies and can generate a negative reply.
 Delay release is polled by the tool owner, so scheduling stalls can extend it.
 The simulator never weakens protocol validation to generate malformed wire data.
+
+## Explicit content fixtures
+
+`--content=raw` remains the default binary DCS4 workload. Both peers can select
+`gsm7`, `ucs2`, `sar`, `receipt`, `receipt-flexible` or `receipt-tlv`. Select the
+same content, size and seed at both ends. [The helper guide](MESSAGE_HELPERS.md)
+defines exact byte/field bounds and supported operations:
+
+| Variant | Payload option and behavior |
+| --- | --- |
+| `gsm7` | Exact encoded octets using the explicitly agreed unpacked GSM convention at coding 0; no septet packing. |
+| `ucs2` | Exact even encoded octets, coding 8; unsupported surrogate/non-BMP characters are rejected by the helper. |
+| `sar` | One logical 161–39015-octet GSM fixture, split at 153 encoded octets into at most 255 parts. Each connection receives its own part sequence and validates isolated bounded assembly. |
+| `receipt` | Final receipt text-field length 0–20, plus canonical example metadata. |
+| `receipt-flexible` | Final text-field length 0–2000, with provider fields and deliberately missing optional fields. |
+| `receipt-tlv` | Payload must be 0; ID/state/network-error TLVs carry the fixture. |
+
+Text/SAR fixtures support submit/deliver/data/multi. Receipt fixtures are an
+explicit MC/server-originated deliver/data scenario; receive-only clients validate
+them. This tool policy does not restrict SMPP 5.0's additional ESME-originated
+receipt message types. Helper fixtures do not support replacement because that
+command lacks encoding/receipt fields; raw replacement retains its documented
+assumption about the original message.
+
+Invalid names, sizes, scenario pairs and originating roles fail before reports
+or endpoints are created. Defaults are not silently truncated: for example,
+`--content=receipt` also requires an explicit `--payload` at most 20. Raw payload
+access remains available through the public library APIs. SAR repetitions reuse
+one fixed fixture reference and retained duplicate history; they are not distinct
+logical message counts. A partial received fixture makes the run fail at cleanup.
+Automatic submission-to-receipt correlation remains later tooling work.
 
 ## Common-operation runs
 

@@ -28,7 +28,7 @@ final class RunReport {
         inputs.put("window", config.window());
         inputs.put("connectIntervalNanos", config.connectInterval().toNanos());
         inputs.put("operation", config.operation());
-        inputs.put("content", "raw");
+        inputs.put("content", config.content());
         inputs.put("payloadBytes", config.payloadBytes());
         inputs.put("seed", config.seed());
         inputs.put("source", config.source());

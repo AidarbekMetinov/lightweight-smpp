@@ -248,6 +248,21 @@ HdrHistogram 2.2.2 is
 Later commits/builds have their own fingerprints; these results belong to this
 recorded snapshot. Build-cache hits did not replay any measurement process.
 
+## Step 15 finite content checks
+
+Fourteen additional fresh installed client/server pairs exercised GSM, UCS-2 and
+SAR `submit_multi`, 4 KiB UCS-2 delivery, and example/flexible/TLV receipt variants
+under both profiles. Each pair planned four requests and observed four successful
+responses/four received requests, with zero invalid or incomplete content and
+complete cleanup. SAR multi used two connections with two parts per fixture.
+These are content/assembly checks, not additional performance comparisons.
+The exact configurations, source/binary fingerprints and reports are retained
+locally under `build/runs/step15-variants-20260909/`, with manifest SHA-256
+`ccfac137fea11b28ba7f821962d22403482c4251042eaafee2914fda09cb52bf`.
+See [integration evidence](reviews/0014-simulator-integration.md). The Step 13
+performance measurements above remain tied to their original snapshot and keep
+their recorded failed workload criteria.
+
 ## Decisions still awaiting real requirements
 
 Production peak and sustained rates, maximum simultaneous sessions, acceptable

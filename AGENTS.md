@@ -34,7 +34,7 @@ artifact. Follow [the simulator plan](docs/SIMULATORS.md); use TDD and SOLID rev
 for simulator code as well as library code. Actual load measurements must execute
 freshly, even though compilation and deterministic tests can use build caches.
 
-Research and Steps 1–14 are complete. Step 15, message helpers, is next.
+Research and Steps 1–15 are complete. Step 16, the remaining SMPP 5.0 inventory, is next.
 Bounded fields, raw TLVs, explicit profiles, bind/control
 and message codecs, deterministic session/version policies, and bounded request
 ownership are implemented. See [field contracts](docs/FIELDS.md), [command contracts](docs/COMMANDS.md),
@@ -48,6 +48,8 @@ handlers, ordered bounded replies and handler cleanup. The separate simulator
 application supplies client/server workloads, bounded faults and fresh reports.
 [Common operations](docs/COMMON_OPERATIONS.md) add typed query/cancel/replace/multi
 services, one-way alerts and explicit authenticated outbind owners.
+[Message helpers](docs/MESSAGE_HELPERS.md) add explicit encoding, bounded
+segmentation/reassembly and raw-preserving receipt interpretation.
 The design baseline uses one library artifact, no initial runtime dependencies,
 one asynchronous request mechanism, and focused
 endpoint capabilities. Simulator tooling is a separate application subproject.
@@ -91,7 +93,7 @@ completed.
   compiler, coverage report, or architecture test alone does not establish SOLID
   compliance. ArchUnit core is available to Jupiter tests; project architecture
   rules cover production protocol, codec, profile, session, request, frame-port
-  and transport packages, plus endpoint composition and its coordinator-to-port boundary. `solidReview`
+  and transport packages, pure message helpers, plus endpoint composition and its coordinator-to-port boundary. `solidReview`
   checks review coverage and freshness, including the tool's own Java sources and
   tests.
 - Keep abstractions purposeful. SOLID does not require an interface for every

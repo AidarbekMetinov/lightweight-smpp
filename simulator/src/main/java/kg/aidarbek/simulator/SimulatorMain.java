@@ -16,6 +16,7 @@ public final class SimulatorMain {
                                 + "Operations: client submit/data/query/cancel/replace/multi/none; server deliver/data/none. Versions: 3.4, 5.0; bind: tx/rx/trx.\n"
                                 + "Load: --model=arrival|concurrency --rates=10,100,10 --count=100 --duration=PT10S --warmup=PT0S --drain=PT30S\n"
                                 + "Bounds: --connections=1 --window=32 --payload=160 --timeout=PT2S --connect-interval=PT0S\n"
+                                + "Content: --content=raw|gsm7|ucs2|sar|receipt|receipt-flexible|receipt-tlv (see docs/SIMULATORS.md for size/operation rules).\n"
                                 + "Peer: --host=127.0.0.1 --port=2775 --source=1000 --destination=2000\n"
                                 + "Faults: --seed=1 --reject=0 --delay=0 --stall=0 --delay-duration=PT0.2S --reject-status=0x58 --disconnect-after=0\n"
                                 + "Reports: --report=<fresh directory> --run-id=<name> --expect-failures=false --minimum-rate-ratio=0 --p99-ms=0\n"

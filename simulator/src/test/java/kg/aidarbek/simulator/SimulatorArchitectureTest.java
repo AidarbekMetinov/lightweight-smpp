@@ -23,7 +23,8 @@ class SimulatorArchitectureTest {
                         String name = type.getName();
                         if (!name.startsWith("kg.aidarbek.smpp.")) return true;
                         if (name.startsWith("kg.aidarbek.smpp.endpoint.")
-                                || name.startsWith("kg.aidarbek.smpp.protocol."))
+                                || name.startsWith("kg.aidarbek.smpp.protocol.")
+                                || name.startsWith("kg.aidarbek.smpp.message."))
                             return type.getModifiers().contains(JavaModifier.PUBLIC);
                         return Set.of(
                                         "kg.aidarbek.smpp.profile.SmppVersion",
