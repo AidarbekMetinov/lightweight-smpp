@@ -50,10 +50,10 @@ be revisited when the library's scope is settled.
   metrics, and reproducible heavy-load results.
 
 SMPP 5.0 is the latest public standard verified in the research. The report also
-explains the unresolved “5.1” terminology in older Oracle documentation. No SMPP
-version is implemented in this project yet. Java formatting is configured and
-ArchUnit core is available. Project architecture rules and review-coverage
-automation are the next tooling increments; SOLID and TDD policies apply now.
+explains the unresolved “5.1” terminology in older Oracle documentation. The shared
+header/framing layer is implemented for both profiles; complete version support
+remains pending. Formatting and real architecture rules are active. Automatic
+review coverage is the next tooling increment; SOLID and TDD policies apply now.
 
 ## Step 1 design baseline
 
@@ -69,7 +69,8 @@ automation are the next tooling increments; SOLID and TDD policies apply now.
 The baseline uses one asynchronous request mechanism and focused capabilities,
 one library artifact without initial runtime dependencies, and a separate
 application subproject for simulator tooling. API class names remain sketches
-until implementation tests establish them. No library or simulator is implemented.
+until implementation tests establish them. Header/framing code is the first library
+increment; endpoint APIs and simulators remain planned.
 
 ## Remaining design choices
 
@@ -89,8 +90,14 @@ reuse were verified with an isolated fixture. See the
 [tooling review](reviews/0001-code-checks.md) and
 [development commands](DEVELOPMENT.md).
 
-Next: Step 3 starts protocol implementation with the first failing header/framing
-test and architecture rules against actual production types.
+## Step 3 framing
+
+Immutable unsigned header values, network-order header translation, and bounded
+stream assembly are implemented with permanent behavior tests. Five architecture
+checks select actual production types. See [framing contracts](FRAMING.md) and
+[the TDD/SOLID review](reviews/0002-pdu-framing.md).
+
+Next: Step 4 checks the coverage and freshness of recorded SOLID reviews.
 
 ## References
 

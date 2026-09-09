@@ -5,9 +5,9 @@ The requirement applies to production code, tests, fixtures, and Java build
 logic, including records, enums, interfaces, and nested or local types. Review
 all five principles even when a particular obligation is not applicable.
 
-This policy is active now. ArchUnit core is configured for use through Jupiter;
-project architecture rules and automatic review-coverage checks are planned for
-Steps 3 and 4 in the [roadmap](ROADMAP.md).
+This policy is active now. ArchUnit rules run through Jupiter against actual
+protocol/framing types. Automatic review-coverage checks follow in Step 4 of
+the [roadmap](ROADMAP.md).
 The [research report](RESEARCH.md) explains the supporting design literature and
 the distinction between structural checks and behavioral review.
 
@@ -127,7 +127,8 @@ evaluate the substance of the design; a recorded verdict is not a machine proof.
 
 ## Current status
 
-No production Java types or permanent test classes exist yet. Step 2's isolated
-tooling fixture has a [recorded review](reviews/0001-code-checks.md). That review
-does not establish compliance of the future library. Each implementation step
-must create its own review record and demonstrate applicable checks on actual code.
+Step 3's three production types and four test classes have a complete
+[framing review](reviews/0002-pdu-framing.md), with final source hashes and
+principle-by-principle findings. Actual package rules run in `ArchitectureTest`.
+Each later implementation step must provide current evidence for every affected
+type; historical reports do not cover changed source.

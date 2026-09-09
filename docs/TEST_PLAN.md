@@ -1,7 +1,9 @@
 # First behavior scenarios and verification evidence
 
-Step 1 test-design baseline. The protocol, API, session, and simulator scenarios
-below are **planned**, not executed tests. Write only the next scenario needed by
+Step 1 test-design baseline, updated after Step 3. Header/framing scenarios
+`FRAME-01` through `FRAME-08` now have executed evidence in
+[the framing review](reviews/0002-pdu-framing.md). Field, command, API, session,
+and simulator scenarios remain **planned**. Write only the next scenario needed by
 the active roadmap step, observe its relevant failure, implement the smallest
 passing behavior, then refactor and review every affected type. Follow
 [TDD.md](TDD.md) and [SOLID.md](SOLID.md).
@@ -98,11 +100,11 @@ Convert behavioral defects discovered under load into regression tests before fi
 ## Structural checks and evidence
 
 Step 2 verified formatting detection and cache-compatible tooling with an isolated
-fixture; see [the tooling review](reviews/0001-code-checks.md). Step 3 introduces
+fixture; see [the tooling review](reviews/0001-code-checks.md). Step 3 now runs
 architecture rules against actual production types:
 allowed dependency directions, no package cycles, and transport-independent core
-contracts. Show that an isolated forbidden dependency is detected; do not accept
-an empty class selection as evidence.
+contracts. Isolated forbidden dependencies and a package cycle were detected; the final
+rules select real, nonempty production packages.
 
 Step 4 introduces the review-coverage validator, with failing cases for missing or
 stale type evidence, new nested types, and unresolved findings. Its metadata result

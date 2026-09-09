@@ -5,12 +5,11 @@ runnable client and server simulators for functional and heavy-load testing.
 The [research report](RESEARCH.md) explains the protocol targets and architecture.
 The [simulator plan](SIMULATORS.md) defines workloads and measurement requirements.
 
-Current stage: **research and Steps 1–2 completed; Step 3 is next**.
-Java 21, Gradle, JUnit, strict compiler warnings, local caching, and Git are
-configured. Java formatting is enforced and ArchUnit core is available to Jupiter.
-The repository still has no Java sources or permanent tests; Step 2 used an
-isolated tooling fixture. Project architecture rules and the review-evidence
-validator remain planned for Steps 3 and 4 respectively.
+Current stage: **research and Steps 1–3 completed; Step 4 is next**.
+Java 21, Gradle, JUnit, strict compiler warnings, local caching, formatting, and Git
+are configured. Header values, a binary header codec, bounded framing, behavior
+tests, and meaningful architecture rules are implemented. Automatic review-evidence
+coverage is the next tooling increment.
 
 Each step delivers one coherent result. Larger steps contain several small TDD
 cycles and may use several simple commits. Follow [TDD](TDD.md), review every
@@ -101,6 +100,12 @@ configured checks, and verify configuration-cache reuse for matching invocations
 Suggested commit: `Set up code checks`.
 
 ## 3. Add the PDU header and bounded framing
+
+Status: **completed**. [Framing contracts](FRAMING.md) describe the raw unsigned
+header and bounded pull-style assembly. [The review](reviews/0002-pdu-framing.md)
+records executed TDD, final source hashes, per-type SOLID findings, and real
+architecture-rule violation probes. Command bodies and session legality remain
+separate later steps.
 
 Introduce the smallest header values and binary header codec needed by the first
 fixtures. Keep stream assembly separate from command-body parsing. Define

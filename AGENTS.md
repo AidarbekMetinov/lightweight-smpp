@@ -31,8 +31,8 @@ artifact. Follow [the simulator plan](docs/SIMULATORS.md); use TDD and SOLID rev
 for simulator code as well as library code. Actual load measurements must execute
 freshly, even though compilation and deterministic tests can use build caches.
 
-Research and Steps 1–2 are complete. Step 3, PDU headers/framing and the first
-project architecture rules, is next. The design baseline uses one library artifact,
+Research and Steps 1–3 are complete. Step 4, automatic review-evidence coverage
+and freshness checks, is next. The design baseline uses one library artifact,
 no initial runtime dependencies, one asynchronous request mechanism, and focused
 endpoint capabilities. Simulator tooling will be a separate application subproject.
 Do not implement later roadmap steps without a request to proceed with them.
@@ -73,7 +73,8 @@ completed.
 - Use architecture checks and contract tests to support review. A passing linter,
   compiler, coverage report, or architecture test alone does not establish SOLID
   compliance. ArchUnit core is available to Jupiter tests; project architecture
-  rules begin in Step 3 and the review-evidence validator in Step 4.
+  rules cover the production header/framing packages; the review-evidence validator
+  is the next increment in Step 4.
 - Keep abstractions purposeful. SOLID does not require an interface for every
   class, a subclass hierarchy for every command, or separate Gradle modules.
 
@@ -127,8 +128,9 @@ completed.
   ```
 
 - Report clearly when a successful build had no tests to run.
-- Step 2 tooling and cache evidence, including the temporary Java fixture's SOLID
-  review, is recorded in [the code-check review](docs/reviews/0001-code-checks.md).
+- Step 2 tooling evidence is in [the code-check review](docs/reviews/0001-code-checks.md).
+  Step 3 framing contracts and evidence are in [the framing guide](docs/FRAMING.md)
+  and [the framing review](docs/reviews/0002-pdu-framing.md).
 
 ## References
 

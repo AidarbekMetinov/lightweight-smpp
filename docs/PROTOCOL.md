@@ -1,8 +1,10 @@
 # Protocol support inventory
 
-Step 1 baseline, 9 September 2026. Everything below is **planned**. No codec,
-session, simulator, or independent-peer result has been implemented or verified.
-This is a traceability inventory, not a replacement for either specification.
+Step 1 baseline, updated after Step 3. Operation/body codecs, sessions, simulators,
+and independent-peer results below remain **planned**. The shared header and
+bounded framer now have [executed evidence](reviews/0002-pdu-framing.md); this
+does not establish any complete operation codec. This is a traceability inventory,
+not a replacement for either specification.
 
 `C` means our ESME client and `S` our message-center server. `TX`, `RX`, and `TRX`
 are SMPP bind modes, independent of TCP connection direction. `B` means any bound

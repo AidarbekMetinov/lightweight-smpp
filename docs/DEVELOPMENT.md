@@ -99,14 +99,12 @@ review. Keep the pinned build formatter as the shared result across editors;
 See [Spotless](https://github.com/diffplug/spotless/tree/main/plugin-gradle) and
 [Palantir Java Format](https://github.com/palantir/palantir-java-format/tree/2.96.0).
 
-The repository has no Java sources or permanent tests yet. Step 2 verified
-compilation, formatting, Jupiter discovery, and an ArchUnit rule using an isolated
-fixture. [The review record](reviews/0001-code-checks.md) contains its observed
-failures, passing run, and per-type SOLID review. Root `test NO-SOURCE` is not
-evidence that SMPP behavior has been tested.
+Step 3 supplies permanent header/framing behavior tests and architecture checks
+against real production types. See [the framing guide](FRAMING.md) and
+[its TDD/SOLID evidence](reviews/0002-pdu-framing.md). Step 2
+[tooling evidence](reviews/0001-code-checks.md) remains a historical isolated probe.
 
-Project architecture rules begin with actual classes in Step 3. The automatic
-review-evidence validator remains planned for Step 4. Simulators will have
+The automatic review-evidence validator remains planned for Step 4. Simulators will have
 deterministic behavior tests and separate explicit load-run commands; see
 [the simulator design](SIMULATORS.md).
 
