@@ -1,0 +1,127 @@
+# Development guide
+
+## Build baseline
+
+- Use the checked-in Gradle wrapper: `./gradlew` on Linux/macOS or `gradlew.bat` on
+  Windows. The current wrapper version is 9.6.0.
+- Install JDK 21. The build selects it through a Gradle toolchain and compiles for
+  Java 21. Preview features are disabled.
+- Keep runtime dependencies small and purposeful. Declare internal dependencies
+  as `implementation`; use `api` when a dependency's types are part of the public
+  API. See [Gradle's Java Library plugin](https://docs.gradle.org/current/userguide/java_library_plugin.html).
+- Java compilation uses UTF-8, `-Xlint:all`, and `-Werror` for production and test
+  code. Fix warnings and keep unavoidable suppressions narrow and documented.
+  See the [Java 21 compiler options](https://docs.oracle.com/en/java/javase/21/docs/specs/man/javac.html).
+- JUnit Jupiter is configured for testing. The build also produces source and
+  Javadoc archives, with deterministic archive ordering and timestamps.
+- `.editorconfig` defines UTF-8, four-space indentation, final newlines, and a
+  120-column Java line-length preference. These are editor conventions; an
+  automatic Java formatter is not configured yet.
+- `.gitattributes` keeps text line endings consistent across platforms and uses
+  CRLF for Windows batch scripts.
+
+## Java coding conventions
+
+- Keep classes and methods focused. Prefer straightforward code and composition;
+  introduce an interface or abstraction when it has a concrete purpose.
+- Keep the public API small. Use the narrowest useful visibility and keep
+  implementation details out of public method signatures.
+- Prefer immutable value objects. Records are useful for values, but arrays and
+  mutable collections still require defensive copies or an explicit ownership
+  contract.
+- Use descriptive names, generics, and named constants for protocol values. Avoid
+  raw types, unchecked casts, and unexplained numbers.
+- State nullability and validate inputs at API boundaries. Use explicit character
+  encodings and byte order. Check wire lengths before allocating or reading
+  buffers, and preserve unsigned protocol values correctly.
+- Separate protocol encoding, session state, transport, and application callbacks
+  so they can be reasoned about and tested independently.
+- Document public APIs with Javadoc, including units, valid ranges, failure modes,
+  ownership, and thread-safety guarantees.
+- Model timeouts with explicit units, preferably `Duration`. Bound queues and
+  outstanding requests. Keep application callbacks from blocking network progress.
+- Give sockets, executors, and other resources clear owners and cleanup paths.
+  Use `AutoCloseable` and try-with-resources where appropriate. Preserve thread
+  interruption when handling interrupted operations.
+- Use exceptions that identify the operation and failure. Never silently swallow
+  exceptions. Keep credentials and message contents out of diagnostic output.
+- Optimize based on measurements. Add complexity only when a measured problem or
+  required use case justifies it.
+
+## Tests and everyday commands
+
+Use known protocol bytes as fixtures, cover malformed input and boundary values,
+and test failures as well as successful requests. Round-trip encoding tests alone
+can miss matching encoder/decoder mistakes.
+
+Use a local test peer for networking tests. Make timeouts bounded and coordinate
+threads explicitly instead of relying on arbitrary sleeps. Keep unit tests
+independent of external SMSCs and credentials.
+
+Run from the project root:
+
+```sh
+./gradlew test --console=plain
+./gradlew check --console=plain
+./gradlew build --console=plain
+```
+
+Choose the command for the current change: `test` runs tests, `check` runs all
+configured verification, and `build` also assembles the library archives. Once
+tests exist, use `--tests 'fully.qualified.TestClass'` to focus a test run.
+
+There are no Java sources or tests yet. A successful build at this stage verifies
+the build configuration, not SMPP behavior or compiler checks on application code.
+
+## Caching and build speed
+
+Project settings live in `gradle.properties`.
+
+| Mechanism | Configuration | Benefit |
+| --- | --- | --- |
+| Local task output cache | `org.gradle.caching=true` | Reuses outputs of cacheable tasks when their inputs match. |
+| Configuration cache | `org.gradle.configuration-cache=true` | Reuses the configured task graph for a matching invocation and configuration inputs. |
+| Dependency cache | Automatic Gradle behavior | Reuses downloaded dependencies and cached resolution metadata. |
+| Incremental Java compilation | Enabled by the Java plugin by default | Recompiles classes affected by changes. |
+| Up-to-date checks | Automatic Gradle behavior | Skips tasks whose inputs and outputs have not changed. |
+| Gradle daemon | `org.gradle.daemon=true` | Reuses a warmed JVM between builds. |
+| File-system watching | `org.gradle.vfs.watch=true` | Retains file-system state between builds on supported file systems. |
+| Parallel project execution | `org.gradle.parallel=true` | Allows independent projects to run together if this single-module build grows. |
+
+These settings follow Gradle's documentation for the
+[build cache](https://docs.gradle.org/current/userguide/build_cache.html),
+[configuration cache](https://docs.gradle.org/current/userguide/configuration_cache_enabling.html),
+[dependency cache](https://docs.gradle.org/current/userguide/dependency_caching.html),
+[Java plugin](https://docs.gradle.org/current/userguide/java_plugin.html),
+[file-system watching](https://docs.gradle.org/current/userguide/file_system_watching.html),
+and [performance](https://docs.gradle.org/current/userguide/performance.html).
+
+Configuration-cache problems fail the build. Keep new build logic compatible and
+declare task inputs and outputs correctly so changes invalidate cached results.
+Retain Gradle's per-task cacheability rules; forcing every task to be cacheable can
+produce incorrect results or unnecessary overhead.
+
+Use ordinary builds for day-to-day work. Run `clean` only when it serves a specific
+purpose. Use `--refresh-dependencies` when dependency resolution needs refreshing,
+and `--rerun-tasks` when intentionally checking fresh execution.
+
+To check configuration-cache reuse, run `./gradlew build --console=plain` twice;
+the second invocation should report `Configuration cache entry reused`. Once Java
+sources and tests exist, task output reuse can also be checked by rebuilding after
+`clean` and looking for `FROM-CACHE` on cacheable tasks.
+
+The project uses local caches. A shared remote cache needs a backend and can be a
+separate step when team development or CI calls for it. Parallel configuration
+cache storage is incubating in Gradle 9.6.0 and is left at its default; see the
+[version-specific configuration cache guide](https://docs.gradle.org/9.6.0/userguide/configuration_cache_enabling.html).
+
+## Git
+
+Use short, plain commit messages describing the change, for example:
+
+- `Set up project`
+- `Add PDU header`
+- `Fix bind timeout`
+
+Keep each commit focused on a coherent change and run the relevant checks first.
+Generated builds, Gradle caches, and local IDE settings are ignored by Git.
