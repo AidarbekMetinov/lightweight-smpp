@@ -5,6 +5,9 @@
 Build a lightweight, simple Java SMPP library in this project. Use Cloudhopper
 SMPP and Cloudhopper Commons as reference projects.
 
+The project uses [Apache License 2.0](LICENSE). Preserve the project attribution
+in [NOTICE](NOTICE); the binary, source, and Javadoc JARs include both files.
+
 ## Working agreement
 
 - Develop the project step by step. Keep work focused on the current step requested

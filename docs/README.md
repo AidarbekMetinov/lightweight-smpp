@@ -3,6 +3,14 @@
 A personal Java library for the Short Message Peer-to-Peer (SMPP) protocol, focused
 on a small implementation and a simple API.
 
+## License
+
+Copyright 2026 Aidarbek Metinov. This project is licensed under the
+[Apache License, Version 2.0](../LICENSE) (`Apache-2.0`). See [NOTICE](../NOTICE)
+for the project attribution. Binary, source, and Javadoc JARs include both files
+under `META-INF/`. The license text is the
+[official Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0.txt).
+
 ## Agreed direction
 
 - Build our own lightweight SMPP library.

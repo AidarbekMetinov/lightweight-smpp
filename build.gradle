@@ -139,6 +139,12 @@ tasks.withType(AbstractArchiveTask).configureEach {
     reproducibleFileOrder = true
 }
 
+tasks.withType(Jar).configureEach {
+    from(['LICENSE', 'NOTICE']) {
+        into 'META-INF'
+    }
+}
+
 tasks.withType(Test).configureEach {
     useJUnitPlatform()
     testLogging {
