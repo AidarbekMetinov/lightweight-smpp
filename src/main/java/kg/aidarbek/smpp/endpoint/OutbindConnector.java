@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.function.Consumer;
 import kg.aidarbek.smpp.profile.ProtocolProfile;
 import kg.aidarbek.smpp.protocol.Outbind;
 import kg.aidarbek.smpp.protocol.Pdu;
@@ -17,6 +18,7 @@ import kg.aidarbek.smpp.transport.TcpTransportConfig;
 public final class OutbindConnector implements AutoCloseable {
     private final OutbindConnectorConfig config;
     private final EndpointOptions options;
+    private final ConnectionLifecycle lifecycle;
     private final BindAuthenticator authenticator;
     private final ExchangeConfig exchange;
     private final AuthenticationDispatcher authentication;
@@ -31,6 +33,22 @@ public final class OutbindConnector implements AutoCloseable {
             EndpointOptions options,
             BindAuthenticator authenticator,
             ExchangeConfig exchange) {
+        this(config, options, authenticator, exchange, ConnectionLifecycle.defaults());
+    }
+    /** Creates a reversed connector with explicit transport lifecycle policy.
+     * @param config message-center bind policy
+     * @param options finite endpoint resources
+     * @param authenticator asynchronous follow-up bind decision
+     * @param exchange exchange policy
+     * @param lifecycle optional TLS client and keepalive policy */
+    public OutbindConnector(
+            OutbindConnectorConfig config,
+            EndpointOptions options,
+            BindAuthenticator authenticator,
+            ExchangeConfig exchange,
+            ConnectionLifecycle lifecycle) {
+        this.lifecycle = Objects.requireNonNull(lifecycle, "lifecycle");
+        lifecycle.validateRole(true, options);
         this.config = Objects.requireNonNull(config, "config");
         this.options = Objects.requireNonNull(options, "options");
         this.authenticator = Objects.requireNonNull(authenticator, "authenticator");
@@ -39,6 +57,7 @@ public final class OutbindConnector implements AutoCloseable {
                 new AuthenticationDispatcher(config.authenticationConcurrency(), config.authenticationQueue(), null);
         resources = new EndpointResources(options, authentication, exchange);
     }
+
     /** Starts one resolved TCP attempt with one notification on that connection.
      * @param remoteAddress resolved ESME listener address; DNS resolution belongs to the caller
      * @param notification immutable outbind credentials, preflighted before connection admission
@@ -65,7 +84,8 @@ public final class OutbindConnector implements AutoCloseable {
                             8,
                             65536,
                             0),
-                    started + EndpointOptions.durationNanos(options.connectTimeout()));
+                    started + EndpointOptions.durationNanos(options.connectTimeout()),
+                    lifecycle.tls().orElse(null));
             connection = EndpointConnection.outbindConnector(
                     transport,
                     remoteAddress,
@@ -77,22 +97,43 @@ public final class OutbindConnector implements AutoCloseable {
                     resources.handlers,
                     exchange,
                     notification);
+            connection.configureStartup(lifecycle.startupNanos(options, true), true);
+            connection.configureKeepalive(lifecycle.keepalive().orElse(null));
             permit.attach(connection);
             connection.start();
-            return new ConnectionAttempt(connection.bound(), connection::cancelBind);
+            return new ConnectionAttempt(connection, permit.retirement());
         } catch (RuntimeException failure) {
             if (connection != null) {
                 connection.fail(failure);
-                return new ConnectionAttempt(connection.bound(), connection::cancelBind);
+                return new ConnectionAttempt(connection, permit.retirement());
             }
             if (transport != null) {
                 if (permit != null) permit.retire(transport.termination());
                 transport.close();
             } else if (permit != null) permit.release();
             return new ConnectionAttempt(
-                    CompletableFuture.<BoundSession>failedFuture(failure).minimalCompletionStage(), () -> false);
+                    failure, permit == null ? CompletableFuture.completedFuture(null) : permit.retirement());
         }
     }
+    /** Explicitly repeats connection establishment, outbind and follow-up bind within a finite policy.
+     * Only connection authentication is repeated; no message request is copied across generations.
+     * @param remoteAddress resolved ESME listener
+     * @param notification fixed outbind credentials
+     * @param policy finite connection attempt and delay bounds
+     * @param observer bounded off-I/O notification for each fresh binding
+     * @return cancellation and terminal observation ownership */
+    public ReconnectHandle reconnect(
+            InetSocketAddress remoteAddress,
+            Outbind notification,
+            ReconnectPolicy policy,
+            Consumer<BoundSession> observer) {
+        Objects.requireNonNull(remoteAddress, "remoteAddress");
+        Objects.requireNonNull(notification, "notification");
+        Objects.requireNonNull(policy, "policy");
+        Objects.requireNonNull(observer, "observer");
+        return resources.reconnect(policy, () -> connectAttempt(remoteAddress, notification), observer);
+    }
+
     /** Returns bound MC sessions created by explicit successful attempts.
      * @return immutable snapshot */
     public List<BoundSession> sessions() {

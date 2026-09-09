@@ -18,6 +18,7 @@ import kg.aidarbek.smpp.transport.TcpTransportConfig;
 public final class SmppServer implements AutoCloseable {
     private final ServerConfig config;
     private final EndpointOptions options;
+    private final ConnectionLifecycle lifecycle;
     private final BindAuthenticator authenticator;
     private final Consumer<BoundSession> boundListener;
     private final AuthenticationDispatcher authentication;
@@ -75,6 +76,34 @@ public final class SmppServer implements AutoCloseable {
             Consumer<BoundSession> boundListener,
             Executor authenticationExecutor,
             ExchangeConfig exchange) {
+        this(
+                config,
+                options,
+                authenticator,
+                boundListener,
+                authenticationExecutor,
+                exchange,
+                ConnectionLifecycle.defaults());
+    }
+
+    /** Creates a server with explicit connection lifecycle policy.
+     * @param config listener and authentication admission
+     * @param options finite endpoint resources and deadlines
+     * @param authenticator asynchronous bind decision
+     * @param boundListener off-I/O bound notification
+     * @param authenticationExecutor supplied authentication executor or null
+     * @param exchange typed exchange policy
+     * @param lifecycle optional TLS and keepalive policy */
+    public SmppServer(
+            ServerConfig config,
+            EndpointOptions options,
+            BindAuthenticator authenticator,
+            Consumer<BoundSession> boundListener,
+            Executor authenticationExecutor,
+            ExchangeConfig exchange,
+            ConnectionLifecycle lifecycle) {
+        this.lifecycle = Objects.requireNonNull(lifecycle, "lifecycle");
+        lifecycle.validateRole(false, options);
         this.exchange = Objects.requireNonNull(exchange, "exchange");
         this.config = Objects.requireNonNull(config, "config");
         this.options = Objects.requireNonNull(options, "options");
@@ -104,6 +133,7 @@ public final class SmppServer implements AutoCloseable {
                             8,
                             65536,
                             0),
+                    lifecycle.tls().orElse(null),
                     this::accept);
             resources.listener(listener::close, listener.termination());
             return CompletableFuture.completedFuture(listener.localAddress()).minimalCompletionStage();
@@ -133,6 +163,8 @@ public final class SmppServer implements AutoCloseable {
                     boundListener,
                     resources.handlers,
                     exchange);
+            connection.configureStartup(lifecycle.startupNanos(options, false), false);
+            connection.configureKeepalive(lifecycle.keepalive().orElse(null));
             permit.attach(connection);
             connection.start();
             return true;

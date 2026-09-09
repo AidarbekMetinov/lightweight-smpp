@@ -19,6 +19,7 @@ import kg.aidarbek.smpp.protocol.BindRequest;
 import kg.aidarbek.smpp.protocol.DeliverSm;
 import kg.aidarbek.smpp.protocol.DeliverSmResponse;
 import kg.aidarbek.smpp.protocol.MessageResponse;
+import kg.aidarbek.smpp.protocol.QuerySm;
 import kg.aidarbek.smpp.request.BoundedNotifications;
 import kg.aidarbek.smpp.session.SessionState;
 import org.junit.jupiter.api.Test;
@@ -78,7 +79,11 @@ class ExchangeConnectionTest {
             transport.receive(hex("00000016800000090000000000000001000210000134"));
             BoundSession session = connection.bound().toCompletableFuture().get(2, TimeUnit.SECONDS);
             transport.deferWrites = true;
-            for (int index = 0; index < 8; index++) session.enquireLink();
+            for (int index = 0; index < 8; index++)
+                session.query()
+                        .orElseThrow()
+                        .send(new QuerySm(
+                                "id", CommonOperationsEndpointTest.SOURCE, CommonOperationsEndpointTest.EMPTY));
             for (int index = 0; index < 8; index++) transport.receive(RawPeer.header(0x15, 0, index + 1));
             assertEquals(
                     SessionState.BOUND_TRX,
@@ -188,7 +193,11 @@ class ExchangeConnectionTest {
             while (decision.getNumberOfDependents() == 0 && System.nanoTime() - bound < 0) Thread.onSpinWait();
             assertTrue(decision.getNumberOfDependents() > 0);
             transport.deferWrites = true;
-            for (int index = 0; index < 8; index++) session.enquireLink();
+            for (int index = 0; index < 8; index++)
+                session.query()
+                        .orElseThrow()
+                        .send(new QuerySm(
+                                "id", CommonOperationsEndpointTest.SOURCE, CommonOperationsEndpointTest.EMPTY));
             assertEquals(8, transport.deferred.size());
             decision.complete(new HandlerResponse<>(
                     0, new DeliverSmResponse(new MessageResponse(Optional.of(""), EndpointPdus.NO_PARAMETERS))));
@@ -199,7 +208,7 @@ class ExchangeConnectionTest {
             assertTrue(transport.writes.isEmpty());
             while (!transport.deferred.isEmpty()) {
                 transport.deferred.remove().send();
-                assertEquals(0x15, RawPeer.command(transport.writes.remove()));
+                assertEquals(3, RawPeer.command(transport.writes.remove()));
             }
             transport.deferWrites = false;
             if (expire) clock.addAndGet(TimeUnit.SECONDS.toNanos(11));

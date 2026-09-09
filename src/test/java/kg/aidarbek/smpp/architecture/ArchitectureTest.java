@@ -2,6 +2,7 @@ package kg.aidarbek.smpp.architecture;
 
 import static com.tngtech.archunit.core.domain.JavaClass.Predicates.equivalentTo;
 import static com.tngtech.archunit.core.domain.JavaClass.Predicates.resideInAnyPackage;
+import static com.tngtech.archunit.core.domain.properties.HasName.Predicates.nameMatching;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import static com.tngtech.archunit.library.dependencies.SlicesRuleDefinition.slices;
@@ -61,6 +62,9 @@ final class ArchitectureTest {
         assertTrue(LIBRARY.contain(SegmentReassembler.class));
         assertFalse(LIBRARY.contain(ArchitectureTest.class));
         assertFalse(LIBRARY.contain(ForbiddenMessageDependencies.class));
+        assertFalse(LIBRARY.contain(TlsTransportDependencies.class));
+        assertFalse(LIBRARY.contain(ForbiddenTransportEndpointDependency.class));
+        assertFalse(LIBRARY.contain(ForbiddenCoordinatorInfrastructure.class));
     }
 
     @Test
@@ -208,9 +212,23 @@ final class ArchitectureTest {
 
     @Test
     void transportsDependOnlyOnPortsCodecsProtocolAndJdkInfrastructure() {
-        classes()
-                .that()
-                .resideInAPackage(TRANSPORT)
+        transportBoundary(resideInAnyPackage(TRANSPORT)).check(LIBRARY);
+    }
+
+    @Test
+    void transportBoundaryAdmitsJdkTlsAndRejectsEndpointPolicy() {
+        var permitted = transportBoundary(equivalentTo(TlsTransportDependencies.class))
+                .evaluate(new ClassFileImporter().importClasses(TlsTransportDependencies.class));
+        assertFalse(permitted.hasViolation(), permitted.getFailureReport().toString());
+        var forbidden = transportBoundary(equivalentTo(ForbiddenTransportEndpointDependency.class))
+                .evaluate(new ClassFileImporter().importClasses(ForbiddenTransportEndpointDependency.class));
+        assertTrue(forbidden.hasViolation());
+        assertTrue(forbidden.getFailureReport().toString().contains(EndpointOptions.class.getName()));
+    }
+
+    private static ArchRule transportBoundary(DescribedPredicate<? super JavaClass> owners) {
+        return classes()
+                .that(owners)
                 .should()
                 .onlyDependOnClassesThat()
                 .resideInAnyPackage(
@@ -222,10 +240,10 @@ final class ArchitectureTest {
                         "java.math..",
                         "java.io..",
                         "java.net..",
+                        "javax.net.ssl..",
                         "java.nio..",
                         "java.time..",
-                        "java.util..")
-                .check(LIBRARY);
+                        "java.util..");
     }
 
     @Test
@@ -256,9 +274,23 @@ final class ArchitectureTest {
 
     @Test
     void connectionCoordinatorUsesPortsAndNetworkMetadata() {
-        classes()
-                .that()
-                .haveNameMatching("kg[.]aidarbek[.]smpp[.]endpoint[.]EndpointConnection([$].*)?")
+        coordinatorBoundary(nameMatching("kg[.]aidarbek[.]smpp[.]endpoint[.]EndpointConnection([$].*)?"))
+                .check(LIBRARY);
+    }
+
+    @Test
+    void coordinatorBoundaryRejectsTlsAndConcreteSockets() {
+        var result = coordinatorBoundary(equivalentTo(ForbiddenCoordinatorInfrastructure.class))
+                .evaluate(new ClassFileImporter().importClasses(ForbiddenCoordinatorInfrastructure.class));
+        assertTrue(result.hasViolation());
+        String violations = result.getFailureReport().toString();
+        assertTrue(violations.contains(javax.net.ssl.SSLContext.class.getName()));
+        assertTrue(violations.contains(java.net.Socket.class.getName()));
+    }
+
+    private static ArchRule coordinatorBoundary(DescribedPredicate<? super JavaClass> owners) {
+        return classes()
+                .that(owners)
                 .should()
                 .onlyDependOnClassesThat(resideInAnyPackage(
                                 ENDPOINT,
@@ -273,8 +305,22 @@ final class ArchitectureTest {
                                 "java.nio",
                                 "java.time..",
                                 "java.util..")
-                        .or(equivalentTo(java.net.SocketAddress.class)))
-                .check(LIBRARY);
+                        .or(equivalentTo(java.net.SocketAddress.class)));
+    }
+
+    static final class TlsTransportDependencies {
+        javax.net.ssl.SSLContext context;
+        javax.net.ssl.SSLSocket socket;
+        javax.net.ssl.SSLParameters parameters;
+    }
+
+    static final class ForbiddenTransportEndpointDependency {
+        EndpointOptions options;
+    }
+
+    static final class ForbiddenCoordinatorInfrastructure {
+        javax.net.ssl.SSLContext context;
+        java.net.Socket socket;
     }
 
     @Test

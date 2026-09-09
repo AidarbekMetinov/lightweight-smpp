@@ -3,9 +3,11 @@ package kg.aidarbek.smpp.endpoint;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -13,6 +15,8 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
 import kg.aidarbek.smpp.request.BoundedNotifications;
 
 /** Owns endpoint-wide admission, deadline ticking, notification capacity and bounded shutdown. */
@@ -26,6 +30,7 @@ final class EndpointResources implements AutoCloseable {
     private final ReentrantLock lock = new ReentrantLock();
     private final Condition changed = lock.newCondition();
     private final Map<Permit, EndpointConnection> connections = new LinkedHashMap<>();
+    private final Set<ReconnectHandle> reconnects = new LinkedHashSet<>();
     private final List<Throwable> failures = new ArrayList<>();
     private final CompletableFuture<EndpointTermination> terminated = new CompletableFuture<>();
     private final CompletionStage<EndpointTermination> termination = terminated.minimalCompletionStage();
@@ -51,6 +56,43 @@ final class EndpointResources implements AutoCloseable {
                 1, Thread.ofPlatform().daemon().name("smpp-deadlines-", 0).factory());
         timer.setRemoveOnCancelPolicy(true);
         timer.scheduleWithFixedDelay(this::tick, 5, 5, TimeUnit.MILLISECONDS);
+    }
+
+    ReconnectHandle reconnect(
+            ReconnectPolicy policy, Supplier<ConnectionAttempt> factory, Consumer<BoundSession> observer) {
+        lock.lock();
+        try {
+            if (stopping || reconnects.size() >= options.maximumConnections())
+                throw new EndpointException(
+                        stopping ? EndpointException.Reason.CLOSED : EndpointException.Reason.CAPACITY,
+                        new UUID(0, 0),
+                        -1,
+                        -1);
+            ReconnectHandle handle = new ReconnectHandle(this, policy, factory, observer);
+            reconnects.add(handle);
+            return handle;
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    void reconnectFinished(ReconnectHandle handle) {
+        lock.lock();
+        try {
+            reconnects.remove(handle);
+            changed.signalAll();
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    private List<ReconnectHandle> reconnectSnapshot() {
+        lock.lock();
+        try {
+            return List.copyOf(reconnects);
+        } finally {
+            lock.unlock();
+        }
     }
 
     Permit reserve() {
@@ -121,6 +163,7 @@ final class EndpointResources implements AutoCloseable {
                 connection.close();
             }
         }
+        for (ReconnectHandle reconnect : reconnectSnapshot()) reconnect.tick(now);
     }
 
     CompletionStage<EndpointTermination> termination() {
@@ -146,6 +189,7 @@ final class EndpointResources implements AutoCloseable {
         }
         if (!launch && !abort) return termination;
         stopListener.run();
+        for (ReconnectHandle reconnect : reconnectSnapshot()) reconnect.endpointClosing();
         for (EndpointConnection connection : snapshot()) {
             if (abort) connection.close();
             else connection.beginShutdown(shutdownDeadline);
@@ -236,6 +280,16 @@ final class EndpointResources implements AutoCloseable {
     final class Permit {
         private boolean released;
         private boolean attached;
+        private final CompletableFuture<Void> retirement = new CompletableFuture<>();
+
+        CompletionStage<Void> retirement() {
+            return retirement.minimalCompletionStage();
+        }
+
+        void failedRetirement(Throwable failure) {
+            recordFailure(failure);
+            retirement.completeExceptionally(failure);
+        }
 
         void attach(EndpointConnection connection) {
             lock.lock();
@@ -248,7 +302,7 @@ final class EndpointResources implements AutoCloseable {
             }
             connection.ioTermination().whenComplete((ignored, failure) -> {
                 if (failure == null) release();
-                else recordFailure(failure);
+                else failedRetirement(failure);
             });
             if (stopping) connection.close();
         }
@@ -263,7 +317,7 @@ final class EndpointResources implements AutoCloseable {
             }
             cleanup.whenComplete((ignored, failure) -> {
                 if (failure == null) release();
-                else recordFailure(failure);
+                else failedRetirement(failure);
             });
         }
 
@@ -277,6 +331,7 @@ final class EndpointResources implements AutoCloseable {
             } finally {
                 lock.unlock();
             }
+            retirement.complete(null);
         }
     }
 }

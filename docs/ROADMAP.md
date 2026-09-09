@@ -5,7 +5,7 @@ runnable client and server simulators for functional and heavy-load testing.
 The [research report](RESEARCH.md) explains the protocol targets and architecture.
 The [simulator plan](SIMULATORS.md) defines workloads and measurement requirements.
 
-Current stage: **research and Steps 1–16 completed; Step 17 is next**.
+Current stage: **research and Steps 1–17 completed; Step 18 is next**.
 Java 21, Gradle, JUnit, strict compiler warnings, local caching, formatting, and Git
 are configured. Header values, a binary header codec, bounded framing, behavior
 tests, and meaningful architecture rules are implemented. Automatic review-evidence
@@ -481,6 +481,14 @@ the inventory. Complete this step before claiming the planned 5.0 scope is ready
 Suggested commit: `Complete SMPP 5 support`.
 
 ## 17. Harden connection lifecycle
+
+Completed: [lifecycle contracts](LIFECYCLE.md),
+[per-type and TDD evidence](reviews/0016-connection-lifecycle.md),
+[transport/coordinator architecture](reviews/0016-lifecycle-architecture.md), and
+[simulator TLS boundary](reviews/0016-simulator-architecture.md). All four endpoint
+owners support explicit TLS and keepalives; initiating owners share bounded
+reconnect control without message replay. The simulator's tested lifecycle
+configuration adapter is composed into workload CLI scenarios in Step 18.
 
 Add TLS for both endpoints, keepalives, explicit reconnect policy, and complete
 cleanup under slow peers and handlers. Keep reconnection independent of message

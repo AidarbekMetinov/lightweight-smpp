@@ -14,6 +14,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
+import javax.net.ssl.SSLSocket;
 import kg.aidarbek.smpp.codec.PduFramer;
 import kg.aidarbek.smpp.spi.FrameListener;
 import kg.aidarbek.smpp.spi.FrameTransport;
@@ -26,6 +27,8 @@ import kg.aidarbek.smpp.spi.WriteObserver;
 public final class TcpTransport implements FrameTransport {
     private final Socket socket;
     private final TcpTransportConfig config;
+    private final TlsConfig tls;
+    private volatile Socket ioSocket;
     private final InetSocketAddress remote;
     private final long connectDeadline;
     private final CompletableFuture<Void> termination = new CompletableFuture<>();
@@ -42,13 +45,27 @@ public final class TcpTransport implements FrameTransport {
     private FrameListener listener;
     private boolean started;
     private boolean connected;
+    private boolean tcpConnected;
+    private boolean handshaking;
+    private long handshakeDeadline;
     private boolean closeFinished;
     private long notifying;
     private Throwable cleanupFailure;
     private volatile TransportFailure closure;
 
     private TcpTransport(Socket socket, TcpTransportConfig config, InetSocketAddress remote, long connectDeadline) {
+        this(socket, config, remote, connectDeadline, null);
+    }
+
+    private TcpTransport(
+            Socket socket, TcpTransportConfig config, InetSocketAddress remote, long connectDeadline, TlsConfig tls) {
         this.socket = socket;
+        this.ioSocket = socket;
+        this.tls = tls;
+        tcpConnected = remote == null;
+        handshaking = tls != null && remote == null;
+        if (handshaking)
+            handshakeDeadline = System.nanoTime() + tls.handshakeTimeout().toNanos();
         this.config = config;
         this.remote = remote;
         this.connectDeadline = connectDeadline;
@@ -72,6 +89,22 @@ public final class TcpTransport implements FrameTransport {
         return new TcpTransport(new Socket(Proxy.NO_PROXY), config, remote, deadlineNanos);
     }
 
+    /** Creates an explicit TLS connection attempt.
+     * @param remote resolved TCP destination
+     * @param config frame bounds
+     * @param deadlineNanos absolute TCP connect deadline
+     * @param tls TLS client policy
+     * @return owned unstarted transport */
+    public static TcpTransport connect(
+            InetSocketAddress remote, TcpTransportConfig config, long deadlineNanos, TlsConfig tls) {
+        Objects.requireNonNull(remote, "remote");
+        Objects.requireNonNull(config, "config");
+        if (remote.isUnresolved()) throw new IllegalArgumentException("TCP address must already be resolved");
+        if (tls != null && !tls.clientMode())
+            throw new IllegalArgumentException("Connecting requires TLS client policy");
+        return new TcpTransport(new Socket(Proxy.NO_PROXY), config, remote, deadlineNanos, tls);
+    }
+
     /**
      * Transfers ownership of an open connected socket after argument validation and option setup.
      * On failure, the caller still owns and must close the socket; options may be partly changed.
@@ -83,6 +116,16 @@ public final class TcpTransport implements FrameTransport {
      * @throws IOException if socket options cannot be configured
      */
     public static TcpTransport adopt(Socket socket, TcpTransportConfig config) throws IOException {
+        return adopt(socket, config, null);
+    }
+
+    /** Adopts a connected socket with an independently bounded TLS handshake after start.
+     * @param socket connected blocking socket; ownership transfers after validation and option setup
+     * @param config frame allocation/admission bounds
+     * @param tls explicit TLS role and identity policy, or null for plain TCP
+     * @return owned unstarted transport
+     * @throws IOException socket option setup failed; caller still owns the socket */
+    public static TcpTransport adopt(Socket socket, TcpTransportConfig config, TlsConfig tls) throws IOException {
         Objects.requireNonNull(socket, "socket");
         Objects.requireNonNull(config, "config");
         if (!socket.isConnected()
@@ -92,7 +135,7 @@ public final class TcpTransport implements FrameTransport {
                 || (socket.getChannel() != null && !socket.getChannel().isBlocking()))
             throw new IllegalArgumentException("Adoption requires an open connected blocking socket");
         configure(socket, config);
-        return new TcpTransport(socket, config, null, 0);
+        return new TcpTransport(socket, config, null, 0, tls);
     }
 
     private static void configure(Socket socket, TcpTransportConfig config) throws IOException {
@@ -136,8 +179,34 @@ public final class TcpTransport implements FrameTransport {
             lock.lock();
             try {
                 if (closure != null) return;
-                if (remote != null && System.nanoTime() - connectDeadline >= 0)
+                long now = System.nanoTime();
+                if (remote != null && now - connectDeadline >= 0)
                     throw new SocketTimeoutException("Connect deadline expired");
+                tcpConnected = true;
+                if (tls != null && remote != null) {
+                    handshaking = true;
+                    handshakeDeadline = now + tls.handshakeTimeout().toNanos();
+                }
+                changed.signalAll();
+            } finally {
+                lock.unlock();
+            }
+            if (tls != null) {
+                try {
+                    SSLSocket secured = tls.layer(socket);
+                    ioSocket = secured;
+                    tls.configure(secured);
+                    secured.startHandshake();
+                } catch (IOException | RuntimeException | Error failure) {
+                    throw new TransportFailure(TransportFailure.Kind.TLS_HANDSHAKE_FAILED, false, failure);
+                }
+            }
+            lock.lock();
+            try {
+                if (closure != null) return;
+                if (tls != null && System.nanoTime() - handshakeDeadline >= 0)
+                    throw new TransportFailure(TransportFailure.Kind.TLS_HANDSHAKE_TIMEOUT, false, null);
+                handshaking = false;
                 connected = true;
                 changed.signalAll();
             } finally {
@@ -150,7 +219,7 @@ public final class TcpTransport implements FrameTransport {
             }
             byte[] buffer = new byte[Math.min(8192, config.maximumFrameLength())];
             while (closure == null) {
-                int count = socket.getInputStream().read(buffer);
+                int count = ioSocket.getInputStream().read(buffer);
                 if (count < 0) {
                     framer.endOfInput();
                     closeWith(new TransportFailure(TransportFailure.Kind.EOF, false, null));
@@ -169,7 +238,7 @@ public final class TcpTransport implements FrameTransport {
                 }
             }
         } catch (IOException failure) {
-            TransportFailure.Kind kind = remote != null && !connected
+            TransportFailure.Kind kind = remote != null && !tcpConnected
                     ? failure instanceof SocketTimeoutException
                             ? TransportFailure.Kind.CONNECT_TIMEOUT
                             : TransportFailure.Kind.CONNECT_FAILED
@@ -183,6 +252,13 @@ public final class TcpTransport implements FrameTransport {
             closeWith(new TransportFailure(TransportFailure.Kind.OBSERVER_FAILED, false, failure));
         } finally {
             closeWith(new TransportFailure(TransportFailure.Kind.CLOSED, false, null));
+            if (ioSocket != socket) {
+                try {
+                    ioSocket.close();
+                } catch (IOException | RuntimeException | Error failure) {
+                    recordCleanupFailure(failure);
+                }
+            }
             try {
                 listener.closed(closure);
             } catch (RuntimeException | Error failure) {
@@ -293,7 +369,7 @@ public final class TcpTransport implements FrameTransport {
                         closeWith(new TransportFailure(TransportFailure.Kind.WRITE_TIMEOUT, true, null), pending);
                         continue;
                     }
-                    socket.getOutputStream().write(pending.frame);
+                    ioSocket.getOutputStream().write(pending.frame);
                     finish(pending, null);
                 } catch (IOException failure) {
                     closeWith(new TransportFailure(TransportFailure.Kind.WRITE_FAILED, true, failure));
@@ -313,14 +389,20 @@ public final class TcpTransport implements FrameTransport {
                 List<PendingWrite> expired = new ArrayList<>();
                 PendingWrite expiredActive = null;
                 boolean connectExpired = false;
+                boolean handshakeExpired = false;
                 lock.lockInterruptibly();
                 try {
                     if (closure != null) return;
                     long now = System.nanoTime();
                     long remaining = Long.MAX_VALUE;
-                    if (remote != null && !connected) {
+                    if (remote != null && !tcpConnected) {
                         long delay = connectDeadline - now;
                         if (delay <= 0) connectExpired = true;
+                        else remaining = Math.min(remaining, delay);
+                    }
+                    if (handshaking) {
+                        long delay = handshakeDeadline - now;
+                        if (delay <= 0) handshakeExpired = true;
                         else remaining = Math.min(remaining, delay);
                     }
                     for (ArrayDeque<PendingWrite> queue : List.of(ordinary, control)) {
@@ -339,7 +421,7 @@ public final class TcpTransport implements FrameTransport {
                         if (delay <= 0) expiredActive = active;
                         else remaining = Math.min(remaining, delay);
                     }
-                    if (expired.isEmpty() && expiredActive == null && !connectExpired) {
+                    if (expired.isEmpty() && expiredActive == null && !connectExpired && !handshakeExpired) {
                         if (remaining == Long.MAX_VALUE) changed.await();
                         else changed.awaitNanos(remaining);
                         continue;
@@ -350,6 +432,8 @@ public final class TcpTransport implements FrameTransport {
                 for (PendingWrite pending : expired)
                     finish(pending, new TransportFailure(TransportFailure.Kind.WRITE_TIMEOUT, false, null));
                 if (connectExpired) closeWith(new TransportFailure(TransportFailure.Kind.CONNECT_TIMEOUT, false, null));
+                if (handshakeExpired)
+                    closeWith(new TransportFailure(TransportFailure.Kind.TLS_HANDSHAKE_TIMEOUT, false, null));
                 if (expiredActive != null)
                     closeWith(new TransportFailure(TransportFailure.Kind.WRITE_TIMEOUT, true, null), expiredActive);
             }

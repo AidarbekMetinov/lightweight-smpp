@@ -89,6 +89,14 @@ public final class BoundSession implements AutoCloseable {
 
     private final EndpointConnection connection;
 
+    /** Samples bounded request and paired application-reply ownership for this generation.
+     * Counters exclude one-way notifications, control replies and transport buffers. Concurrent
+     * request settlement may occur between independent counter reads; this is diagnostic data.
+     * @return immutable current observation */
+    public SessionResources resources() {
+        return connection.resources();
+    }
+
     BoundSession(EndpointConnection connection) {
         this.connection = connection;
     }
@@ -167,6 +175,13 @@ public final class BoundSession implements AutoCloseable {
      * @return request handle */
     public RequestHandle<ControlCommand> unbind(RequestOptions options) {
         return connection.control(ControlCommand.Type.UNBIND, options);
+    }
+    /** Returns an observed local or peer lifecycle failure after closure.
+     * Explicit close and successful peer unbind normally have no failure. Request failures retain their
+     * original certainty and cause; this observation does not wait for notification dispatch.
+     * @return original failure when available, otherwise empty */
+    public Optional<RuntimeException> closeReason() {
+        return connection.closeReason();
     }
     /** Observes physical transport cleanup on the endpoint's bounded notification workers.
      * @return protected completion */

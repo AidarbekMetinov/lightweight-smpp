@@ -1,5 +1,10 @@
 # TCP frame transport
 
+[TLS lifecycle contracts](LIFECYCLE.md) extend this adapter with explicit JDK
+trust/identity configuration and bounded negotiation for both TCP roles. The
+same frame-port contracts and ownership bounds apply to plain and TLS sockets.
+The connection coordinator receives no cryptographic context or concrete socket.
+
 Step 10 supplies complete-frame I/O over direct TCP, with JDK 21 sockets and
 virtual threads. `spi` contains the network-independent session ports;
 `transport` implements them and owns listening sockets. Both use only the JDK.

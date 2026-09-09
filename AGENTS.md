@@ -38,7 +38,7 @@ artifact. Follow [the simulator plan](docs/SIMULATORS.md); use TDD and SOLID rev
 for simulator code as well as library code. Actual load measurements must execute
 freshly, even though compilation and deterministic tests can use build caches.
 
-Research and Steps 1–16 are complete. Step 17, connection lifecycle hardening, is next.
+Research and Steps 1–17 are complete. Step 18, heavy-load scenarios and reporting, is next.
 Bounded fields, raw TLVs, explicit profiles, bind/control
 and message codecs, deterministic session/version policies, and bounded request
 ownership are implemented. See [field contracts](docs/FIELDS.md), [command contracts](docs/COMMANDS.md),
@@ -58,6 +58,10 @@ segmentation/reassembly and raw-preserving receipt interpretation.
 64-tag inventory, including typed broadcast services and matched-response
 congestion observation. Application storage, radio delivery and rate policy
 remain explicit collaborators; external interoperability is separate evidence.
+[Connection lifecycle](docs/LIFECYCLE.md) adds opt-in TLS, automatic idle enquiries,
+bounded explicit reconnect without message replay, and sampled request/reply
+ownership. TLS stays in transport; the connection coordinator continues to use
+frame ports. Callback and provider retention remain explicit at shutdown bounds.
 The design baseline uses one library artifact, no initial runtime dependencies,
 one asynchronous request mechanism, and focused
 endpoint capabilities. Simulator tooling is a separate application subproject.

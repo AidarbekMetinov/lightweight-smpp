@@ -1,7 +1,7 @@
 package kg.aidarbek.simulator;
 
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.tngtech.archunit.base.DescribedPredicate;
 import com.tngtech.archunit.core.domain.JavaClass;
@@ -34,6 +34,7 @@ class SimulatorArchitectureTest {
                                         "kg.aidarbek.smpp.session.SessionState",
                                         "kg.aidarbek.smpp.session.EndpointRole",
                                         "kg.aidarbek.smpp.codec.PduLimits",
+                                        "kg.aidarbek.smpp.transport.TlsConfig",
                                         "kg.aidarbek.smpp.request.RequestHandle",
                                         "kg.aidarbek.smpp.request.RequestOptions",
                                         "kg.aidarbek.smpp.request.RequestOutcome",

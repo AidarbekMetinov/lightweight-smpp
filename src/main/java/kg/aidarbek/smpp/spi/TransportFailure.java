@@ -22,6 +22,10 @@ public final class TransportFailure extends RuntimeException {
         CONNECT_FAILED,
         /** Connection deadline expired. */
         CONNECT_TIMEOUT,
+        /** TLS trust, identity or handshake negotiation failed before frame readiness. */
+        TLS_HANDSHAKE_FAILED,
+        /** TLS handshake exceeded its independent absolute deadline. */
+        TLS_HANDSHAKE_TIMEOUT,
         /** Physical output failed after the writer claimed the guard. */
         WRITE_FAILED,
         /** Admission, queued work, or the active write exceeded its absolute deadline. */

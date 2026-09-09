@@ -1,6 +1,6 @@
 # Protocol support inventory
 
-Step 1 baseline, updated after Step 16. Bind/control codecs have
+Step 1 baseline, updated after Step 17. Bind/control codecs have
 [Step 6 evidence](reviews/0005-session-command-codecs.md), and basic message codecs
 have [Step 7 evidence](reviews/0006-message-codecs.md) for both profiles.
 The shared [framing](reviews/0002-pdu-framing.md) and
@@ -16,8 +16,9 @@ senders/handlers, ordered reply bounds and handler cleanup. [Step 13](SIMULATORS
 adds runnable simulators. [Step 14](COMMON_OPERATIONS.md) adds common-operation
 codecs/services, one-way alerts and authenticated outbind. [Step 16](BROADCAST.md)
 adds all three broadcast services and completes the 5.0 field/TLV inventory,
-including matched-response congestion observation. Scheduled keepalives and
-independent-peer results remain **planned**. This inventory complements the specifications.
+including matched-response congestion observation. [Step 17](LIFECYCLE.md) adds
+scheduled keepalives and explicit secure connection lifecycle. Independent-peer
+results remain **planned**. This inventory complements the specifications.
 
 `C` means our ESME client and `S` our message-center server. `TX`, `RX`, and `TRX`
 are SMPP bind modes, independent of TCP connection direction. `B` means any bound
@@ -45,7 +46,7 @@ evidence and do not establish that claim.
 | `bind_transceiver` | `00000009` / `80000009` | C in OPEN; S responds | 3.4, 5.0 | 4.1.5–6 / 4.1.1.5–6 | 6, 11 | [Step 6](reviews/0005-session-command-codecs.md) | [Step 11](reviews/0010-client-server-binding.md) | — |
 | `outbind` | `0000000B` / none | S in OPEN; C receives and initiates bind | 3.4, 5.0 | 4.1.7 / 4.1.1.7 | 14 | [Step 14](reviews/0013-common-operations.md) | [Step 14](COMMON_OPERATIONS.md) | — |
 | `unbind` | `00000006` / `80000006` | C or S in B | 3.4, 5.0 | 4.2 / 4.1.1.8–9 | 6, 11 | [Step 6](reviews/0005-session-command-codecs.md) | [Step 11](reviews/0010-client-server-binding.md) | — |
-| `enquire_link` | `00000015` / `80000015` | C or S; see control-state note | 3.4, 5.0 | 4.11 / 4.1.2 | 6, 11, 17 | [Step 6](reviews/0005-session-command-codecs.md) | [Step 11 manual controls](ENDPOINTS.md) | — |
+| `enquire_link` | `00000015` / `80000015` | C or S; see control-state note | 3.4, 5.0 | 4.11 / 4.1.2 | 6, 11, 17 | [Step 6](reviews/0005-session-command-codecs.md) | [Manual controls](ENDPOINTS.md) and [automatic keepalives](LIFECYCLE.md) | — |
 | `generic_nack` | none / `80000000` | C or S as error response | 3.4, 5.0 | 4.3 / 4.1.4 | 6, 8, 11 | [Step 6](reviews/0005-session-command-codecs.md) | [Step 11 error paths](ENDPOINTS.md) | — |
 | `submit_sm` | `00000004` / `80000004` | C in TX or TRX | 3.4, 5.0 | 4.4 / 4.2.1 | 7, 12 | [Step 7](reviews/0006-message-codecs.md) | [Step 12](reviews/0011-message-exchange.md) | — |
 | `deliver_sm` | `00000005` / `80000005` | S in RX or TRX | 3.4, 5.0 | 4.6 / 4.3.1 | 7, 12 | [Step 7](reviews/0006-message-codecs.md) | [Step 12](reviews/0011-message-exchange.md) | — |
@@ -108,8 +109,9 @@ define this boundary and composition with the implemented codecs. No full
 `Session` or `Independent` table cell is completed by state-policy tests alone.
 Step 11 session evidence is recorded separately in its [endpoint review](reviews/0010-client-server-binding.md);
 Step 12 message lifecycle evidence is in the [exchange review](reviews/0011-message-exchange.md).
-Manual enquire-link is implemented; scheduled keepalives remain Step 17. Binding
-under 5.0 does not establish the remaining 5.0 command and application services.
+Manual and optional automatic enquiries are implemented. The complete declared
+5.0 command inventory has the separate codec and endpoint evidence above;
+binding alone does not establish command or remote application-service support.
 
 ## Header and standard-field inventory
 

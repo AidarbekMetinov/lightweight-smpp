@@ -18,6 +18,7 @@ public final class TcpListener implements AutoCloseable {
     private final ReentrantLock lock = new ReentrantLock();
     private final Condition changed = lock.newCondition();
     private final TcpTransportConfig config;
+    private final TlsConfig tls;
     private final AcceptListener listener;
     private final Thread acceptor;
     private volatile boolean closed;
@@ -27,7 +28,8 @@ public final class TcpListener implements AutoCloseable {
     private boolean closeFinished;
     private Throwable cleanupFailure;
 
-    private TcpListener(ServerSocket socket, TcpTransportConfig config, AcceptListener listener) {
+    private TcpListener(ServerSocket socket, TcpTransportConfig config, TlsConfig tls, AcceptListener listener) {
+        this.tls = tls;
         this.socket = socket;
         this.config = config;
         this.listener = listener;
@@ -48,15 +50,30 @@ public final class TcpListener implements AutoCloseable {
     public static TcpListener bind(
             InetSocketAddress local, int backlog, TcpTransportConfig config, AcceptListener listener)
             throws IOException {
+        return bind(local, backlog, config, null, listener);
+    }
+
+    /** Binds an optionally secured listener; handshakes start only after accepted ownership.
+     * @param local resolved local address
+     * @param backlog positive OS backlog hint
+     * @param config frame admission bounds
+     * @param tls TLS server policy, or null for plain TCP
+     * @param listener internal nonblocking ownership callback
+     * @return started listener
+     * @throws IOException listener binding failed */
+    public static TcpListener bind(
+            InetSocketAddress local, int backlog, TcpTransportConfig config, TlsConfig tls, AcceptListener listener)
+            throws IOException {
         Objects.requireNonNull(local, "local");
         Objects.requireNonNull(config, "config");
         Objects.requireNonNull(listener, "listener");
         if (local.isUnresolved() || backlog < 1)
             throw new IllegalArgumentException("Listener requires a resolved address and positive backlog");
+        if (tls != null && tls.clientMode()) throw new IllegalArgumentException("Listening requires TLS server policy");
         ServerSocket socket = new ServerSocket();
         try {
             socket.bind(local, backlog);
-            TcpListener result = new TcpListener(socket, config, listener);
+            TcpListener result = new TcpListener(socket, config, tls, listener);
             result.acceptor.start();
             Thread.ofVirtual().name("smpp-tcp-listener-cleanup").start(result::awaitAcceptor);
             return result;
@@ -72,7 +89,7 @@ public final class TcpListener implements AutoCloseable {
                 Socket accepted = socket.accept();
                 TcpTransport transport;
                 try {
-                    transport = TcpTransport.adopt(accepted, config);
+                    transport = TcpTransport.adopt(accepted, config, tls);
                 } catch (IOException | RuntimeException | Error rejected) {
                     accepted.close();
                     continue;

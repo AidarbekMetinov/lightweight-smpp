@@ -171,6 +171,10 @@ final class MessageExchange {
         return pending.size();
     }
 
+    long retainedBytes() {
+        return retainedBytes;
+    }
+
     void close() {
         for (Entry entry : List.copyOf(pending)) {
             cancel(entry);

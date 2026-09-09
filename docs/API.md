@@ -6,7 +6,8 @@ documented in [FRAMING.md](FRAMING.md), [FIELDS.md](FIELDS.md),
 [COMMANDS.md](COMMANDS.md), [MESSAGES.md](MESSAGES.md),
 [SESSIONS.md](SESSIONS.md), [REQUESTS.md](REQUESTS.md),
 [TRANSPORT.md](TRANSPORT.md), [ENDPOINTS.md](ENDPOINTS.md) and
-[EXCHANGE.md](EXCHANGE.md) and [COMMON_OPERATIONS.md](COMMON_OPERATIONS.md). Refine future API
+[EXCHANGE.md](EXCHANGE.md), [COMMON_OPERATIONS.md](COMMON_OPERATIONS.md),
+[BROADCAST.md](BROADCAST.md) and [LIFECYCLE.md](LIFECYCLE.md). Refine future API
 names through tests while preserving the behavior or documenting an intentional change.
 
 ## Scope and decisions
@@ -43,6 +44,14 @@ same connection/bind workflow before a `BoundSession` exists. Its result uses th
 same protected readiness stage; cancelling a derived future only changes that
 observation. A failed or expired bind closes its connection, and reconnect never
 replays outstanding requests.
+
+`reconnect(config, policy, observer)` explicitly owns a bounded sequence of fresh
+client connections. OutbindConnector has the analogous initiating-owner method.
+The attempt bound includes the initial connection and admission failures; a new
+generation waits for physical retirement, backoff and the previous observer's
+return. `ReconnectHandle` owns cancellation and a protected terminal result.
+Already-offered callbacks retain their notification ownership after cancellation.
+No transmitted or pending message is copied to a replacement connection.
 
 `SmppServer` receives listener/version configuration, endpoint resource limits,
 a focused `BindAuthenticator` and a bound-session notification callback. Supplied
@@ -151,7 +160,20 @@ writing, and waiting for a response. The terminal transition uses monotonic time
 Endpoint configuration controls TCP connection, binding/authentication, manual
 requests and shutdown deadlines. `ExchangeOptions` controls message-handler
 completion from complete-frame arrival, including owner waits and queueing. TLS
-and scheduled keepalive deadlines remain future work.
+handshake bounds are explicit in `TlsConfig`. An accepted connection's total
+bind budget includes TLS and authentication; initiating endpoints start their
+bind budget after TLS readiness. `KeepalivePolicy` retains the original idle-plus-
+response deadline across request-window, byte and notification saturation.
+Both manual and automatic enquiries use bounded CONTROL transport capacity
+while sharing the ordinary request window; no extra request slot is implied.
+
+`ConnectionLifecycle` supplies optional TLS and keepalive settings to each owner.
+Existing constructors retain plain TCP and manual enquiries. TLS role follows
+TCP origin, independently of SMPP role; clients require an explicit certificate
+identity and normal trust verification. Caller-supplied SSLContext/key/trust
+configuration remains caller-owned. See [lifecycle contracts](LIFECYCLE.md) for
+provider/callback cooperation and the distinction between socket abort and full
+physical termination.
 
 The implemented defaults are 5 seconds for TCP connection and 10 seconds for
 binding, requests, handler decisions and abort cleanup. These configurable values
@@ -304,14 +326,14 @@ remain outside the library. Dependencies never point back to simulator tooling.
 | Endpoint composition | Construct variable infrastructure at the boundary; keep session policies independent of concrete adapters. |
 | Simulators | Separate schedules, response policies, counters, and report output; consume the public API. |
 
-The diagram distinguishes implemented endpoint/message layers from planned
-simulator tooling. It does not establish SOLID compliance for future types. When code
+The diagram distinguishes library layers from the separate simulator application.
+It does not establish SOLID compliance for future types. When code
 arrives, review every affected type under [the SOLID policy](SOLID.md) and record
 real [TDD evidence](TDD.md).
 
 The first scenarios and acceptance evidence are in [the test plan](TEST_PLAN.md).
 The first [TCP experiment](TRANSPORT.md) uses JDK sockets and Java 21 virtual
-threads. TLS and broader lifecycle hardening remain Step 17. External performance
+threads, with explicit TLS and [lifecycle policies](LIFECYCLE.md). External performance
 targets and provider-specific exceptions remain open until supplied or measured.
 
 ## Sources

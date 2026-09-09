@@ -21,6 +21,7 @@ import kg.aidarbek.smpp.transport.TcpTransportConfig;
 public final class OutbindListener implements AutoCloseable {
     private final OutbindListenerConfig config;
     private final EndpointOptions options;
+    private final ConnectionLifecycle lifecycle;
     private final OutbindAuthenticator authenticator;
     private final Consumer<BoundSession> boundListener;
     private final ExchangeConfig exchange;
@@ -39,6 +40,24 @@ public final class OutbindListener implements AutoCloseable {
             OutbindAuthenticator authenticator,
             Consumer<BoundSession> boundListener,
             ExchangeConfig exchange) {
+        this(config, options, authenticator, boundListener, exchange, ConnectionLifecycle.defaults());
+    }
+    /** Creates a reversed listener with explicit transport lifecycle policy.
+     * @param config accepted connection bind settings
+     * @param options finite endpoint resources
+     * @param authenticator asynchronous outbind decision
+     * @param boundListener off-I/O bound notification
+     * @param exchange exchange policy
+     * @param lifecycle optional TLS server and keepalive policy */
+    public OutbindListener(
+            OutbindListenerConfig config,
+            EndpointOptions options,
+            OutbindAuthenticator authenticator,
+            Consumer<BoundSession> boundListener,
+            ExchangeConfig exchange,
+            ConnectionLifecycle lifecycle) {
+        this.lifecycle = Objects.requireNonNull(lifecycle, "lifecycle");
+        lifecycle.validateRole(false, options);
         this.config = Objects.requireNonNull(config, "config");
         this.options = Objects.requireNonNull(options, "options");
         this.authenticator = Objects.requireNonNull(authenticator, "authenticator");
@@ -46,6 +65,7 @@ public final class OutbindListener implements AutoCloseable {
         this.exchange = Objects.requireNonNull(exchange, "exchange");
         resources = new EndpointResources(options, null, exchange);
     }
+
     /** Opens the configured listener once.
      * @return protected resolved bound local address */
     public synchronized CompletionStage<InetSocketAddress> start() {
@@ -70,6 +90,7 @@ public final class OutbindListener implements AutoCloseable {
                             8,
                             65536,
                             0),
+                    lifecycle.tls().orElse(null),
                     this::accept);
             resources.listener(listener::close, listener.termination());
             return CompletableFuture.completedFuture(listener.localAddress()).minimalCompletionStage();
@@ -99,6 +120,8 @@ public final class OutbindListener implements AutoCloseable {
                     exchange,
                     authenticator,
                     boundListener);
+            connection.configureStartup(lifecycle.startupNanos(options, false), false);
+            connection.configureKeepalive(lifecycle.keepalive().orElse(null));
             permit.attach(connection);
             connection.start();
             return true;

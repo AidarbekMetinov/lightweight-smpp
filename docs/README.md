@@ -291,8 +291,28 @@ See [broadcast contracts and source interpretations](BROADCAST.md),
 The integrated checks pass 664 library cases, 61 simulator cases and 60 review-tool
 cases; all 412 current type identities have matching reviews. Seven fresh
 installed-tool pairs verified both TX/TRX broadcast services and rejection.
-TLS/lifecycle hardening, full heavy-load qualification and independent-peer
-interoperability remain Steps 17–19.
+
+## Step 17 connection lifecycle
+
+All four endpoint owners support explicit TLS with peer identity verification,
+bounded handshakes and optional mutual authentication. Automatic idle enquiries
+retain their original deadline across capacity saturation. Manual and automatic
+enquiries use bounded control-write capacity while sharing the request window.
+Initiating owners provide finite reconnect policies that wait for physical
+retirement and never replay messages with uncertain outcomes.
+
+Protected termination observations report resources still retained at the
+shutdown bound. Blocked application callbacks or caller-supplied TLS providers
+cannot be forcibly stopped; socket abort and their physical retirement remain
+distinct. The simulator's lifecycle adapter loads explicit key/trust material
+without putting password values in configuration or reports.
+
+See [lifecycle APIs and ownership](LIFECYCLE.md),
+[TDD/SOLID evidence](reviews/0016-connection-lifecycle.md),
+[transport/coordinator architecture](reviews/0016-lifecycle-architecture.md), and
+[simulator TLS boundary](reviews/0016-simulator-architecture.md).
+Complete heavy-load scenarios and release/interoperability evidence remain
+Steps 18–19.
 
 ## References
 
@@ -300,3 +320,9 @@ interoperability remain Steps 17–19.
 - [Cloudhopper Commons](https://github.com/twitter/cloudhopper-commons): supporting utilities, including message character encoding and request tracking.
 - [SMPP 3.4 specification, issue 1.2](https://smpp.org/SMPP_v3_4_Issue1_2.pdf): protocol definitions and wire format.
 - [SMPP 5.0 specification](https://smpp.org/SMPP_v5.pdf): latest verified public protocol specification.
+
+The integrated Step 17 checks pass 738 library cases, 67 simulator cases and
+60 review-tool cases, with all 447 current Java identities covered by fresh
+source-hash reviews. Binary, source, Javadoc and simulator archives retain their
+exact licensing and artifact boundaries. These are correctness and packaging
+checks; heavy-load measurements and release evidence follow in Steps 18–19.

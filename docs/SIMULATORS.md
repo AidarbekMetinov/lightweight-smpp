@@ -9,8 +9,10 @@ Step 13 supplies the first usable pair in the separate `simulator` application.
 Submission, delivery and bidirectional `data_sm` traffic run through the public
 endpoint API. Step 14 adds query/cancel/replace/multi traffic and finite alert/
 outbind checks. Step 15 adds explicit encoding, SAR and receipt content fixtures.
-Step 16 adds 5.0 broadcast submission, query and cancellation. The broader
-scenarios below remain the staged target for Steps 17–18; this pair does not establish production capacity or independent-peer
+Step 16 adds 5.0 broadcast submission, query and cancellation. Step 17 supplies
+the tested [lifecycle configuration adapter](LIFECYCLE.md) for TLS, keepalives
+and explicit reconnect. Its workload CLI composition and the broader scenarios
+below are Step 18; this pair does not establish production capacity or independent-peer
 interoperability.
 
 [Workload criteria](WORKLOADS.md) now define the Step 1 provisional profiles,
@@ -231,7 +233,8 @@ Required configuration includes peer/listen address, protocol version, bind mode
 connection count and ramp, request-window size, payload size and encoding mix,
 operation mix, rate or concurrency model, message count/duration, warmup, drain
 deadline, request timeouts, deterministic seed, fault policy, and report path.
-Add TLS configuration when the transport supports it. Keep secrets out of reports.
+The transport now supports [explicit TLS](LIFECYCLE.md); Step 18 composes its
+tested configuration adapter into the workload CLI. Keep secrets out of reports.
 
 Document whether rates and limits apply globally or per connection. Give generated
 traffic stable run and message identifiers so duplicates and missing outcomes can

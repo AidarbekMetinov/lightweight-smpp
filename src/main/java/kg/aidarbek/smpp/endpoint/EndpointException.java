@@ -32,6 +32,8 @@ public final class EndpointException extends RuntimeException {
         VERSION_REJECTED,
         /** A response or frame violated the supported wire contract. */
         PROTOCOL,
+        /** A peer returned a negative response to an automatic link enquiry. */
+        KEEPALIVE_REJECTED,
         /** TCP connection or transport progress failed. */
         TRANSPORT
     }

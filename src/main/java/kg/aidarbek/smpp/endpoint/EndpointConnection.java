@@ -131,7 +131,13 @@ final class EndpointConnection implements FrameListener, AutoCloseable {
     private int pendingReplies;
     private boolean closeWhenFlushed;
     private RuntimeException closeReason;
-    private final long connectDeadline;
+    private final long createdAt;
+    private long connectDeadline;
+    private boolean outgoingTcp;
+    private boolean startInvoked;
+    private KeepalivePolicy keepalive;
+    private RequestHandle<ControlCommand> heartbeat;
+    private long lastInbound;
     private long bindDeadline;
     private OutbindFlow outbindFlow;
     private boolean boundResultExpected;
@@ -159,6 +165,9 @@ final class EndpointConnection implements FrameListener, AutoCloseable {
         this.options = Objects.requireNonNull(options, "options");
         this.nanoClock = nanoClock;
         long now = nanoClock.getAsLong();
+        createdAt = now;
+        lastInbound = now;
+        outgoingTcp = client != null;
         connectDeadline = now + EndpointOptions.durationNanos(options.connectTimeout());
         bindDeadline = now + EndpointOptions.durationNanos(options.bindTimeout());
         this.authentication = authentication;
@@ -486,6 +495,15 @@ final class EndpointConnection implements FrameListener, AutoCloseable {
         return handle;
     }
 
+    synchronized Optional<RuntimeException> closeReason() {
+        return closed ? Optional.ofNullable(closeReason) : Optional.empty();
+    }
+
+    synchronized SessionResources resources() {
+        return new SessionResources(
+                window.pendingCount(), window.pendingBytes(), messages.pendingCount(), messages.retainedBytes());
+    }
+
     CompletionStage<Void> termination() {
         return termination;
     }
@@ -557,7 +575,8 @@ final class EndpointConnection implements FrameListener, AutoCloseable {
     synchronized void tick(long now) {
         if (closed) return;
         if (machine.state() == SessionState.CONNECTING && now - connectDeadline >= 0) {
-            closeReason = failure(EndpointException.Reason.TRANSPORT);
+            closeReason =
+                    failure(outgoingTcp ? EndpointException.Reason.TRANSPORT : EndpointException.Reason.BIND_TIMEOUT);
             close();
             return;
         }
@@ -579,10 +598,56 @@ final class EndpointConnection implements FrameListener, AutoCloseable {
             close();
             return;
         }
+        maintainKeepalive(now);
         advanceShutdown();
     }
 
+    private void maintainKeepalive(long now) {
+        if (keepalive == null || draining || !boundState()) return;
+        if (heartbeat != null) {
+            if (!heartbeat.isDone()) return;
+            var outcome = heartbeat.terminalOutcome().orElseThrow();
+            if (outcome.failure().isPresent()) {
+                fail(outcome.failure().orElseThrow());
+                return;
+            }
+            long status = outcome.response().orElseThrow().commandStatus();
+            if (status != 0) {
+                fail(new EndpointException(EndpointException.Reason.KEEPALIVE_REJECTED, id, status, -1));
+                return;
+            }
+            heartbeat = null;
+        }
+        long due = lastInbound + keepalive.idleInterval().toNanos();
+        if (now - due >= 0) {
+            try {
+                heartbeat = sendControl(
+                        ControlCommand.Type.ENQUIRE_LINK, RequestOptions.timeout(keepalive.responseTimeout()), due);
+            } catch (RequestFailure unavailable) {
+                if (unavailable.reason() != RequestFailure.Reason.WINDOW_FULL
+                        && unavailable.reason() != RequestFailure.Reason.BYTE_LIMIT
+                        && unavailable.reason() != RequestFailure.Reason.NOTIFICATION_BACKLOG) fail(unavailable);
+            }
+        }
+    }
+
+    synchronized void configureKeepalive(KeepalivePolicy policy) {
+        if (startInvoked) throw new IllegalStateException("Keepalive policy must be fixed before starting");
+        keepalive = policy;
+    }
+
+    synchronized void configureStartup(long timeoutNanos, boolean outgoing) {
+        if (startInvoked || timeoutNanos <= 0)
+            throw new IllegalStateException("Startup policy must be fixed before starting");
+        outgoingTcp = outgoing;
+        connectDeadline = createdAt + timeoutNanos;
+    }
+
     void start() {
+        synchronized (this) {
+            if (startInvoked) throw new IllegalStateException("Connection already started");
+            startInvoked = true;
+        }
         transport.start(this);
     }
 
@@ -591,9 +656,9 @@ final class EndpointConnection implements FrameListener, AutoCloseable {
         if (closed) return;
         try {
             machine.connected();
+            if (outgoingTcp)
+                bindDeadline = nanoClock.getAsLong() + EndpointOptions.durationNanos(options.bindTimeout());
             if (client != null || outbindFlow != null) {
-                long started = nanoClock.getAsLong();
-                bindDeadline = started + EndpointOptions.durationNanos(options.bindTimeout());
                 if (outbindFlow == null) beginClientBind();
                 else outbindFlow.connected();
             }
@@ -642,6 +707,7 @@ final class EndpointConnection implements FrameListener, AutoCloseable {
 
     private void receiveFrame(byte[] frame, long arrived) {
         if (closed) return;
+        if (arrived - lastInbound > 0) lastInbound = arrived;
         PduHeader raw;
         try {
             raw = EndpointPdus.header(frame);
@@ -838,7 +904,9 @@ final class EndpointConnection implements FrameListener, AutoCloseable {
         try {
             transport.write(
                     frame,
-                    handle == unbind ? WriteClass.CONTROL : WriteClass.ORDINARY,
+                    (handle == unbind || handle.requestHeader().commandId() == 0x15)
+                            ? WriteClass.CONTROL
+                            : WriteClass.ORDINARY,
                     handle.deadlineNanos(),
                     new RequestWrite(handle));
         } catch (RuntimeException failure) {
@@ -882,6 +950,7 @@ final class EndpointConnection implements FrameListener, AutoCloseable {
         synchronized (this) {
             if (closed || notified) return;
             notified = true;
+            lastInbound = nanoClock.getAsLong();
         }
         boundNotification.dispatch(() -> {
             if (boundResultExpected) bound.complete(facade);
@@ -901,7 +970,7 @@ final class EndpointConnection implements FrameListener, AutoCloseable {
                             : bindDeadline,
                     new ReplyWrite(closeAfter, afterWrite));
         } catch (RuntimeException failure) {
-            close();
+            fail(failure);
         }
     }
 
@@ -1053,7 +1122,7 @@ final class EndpointConnection implements FrameListener, AutoCloseable {
 
         @Override
         public void failed(TransportFailure failure) {
-            close();
+            fail(failure);
         }
     }
 

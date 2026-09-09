@@ -6,8 +6,9 @@ transmitter and transceiver binds. `BoundSession` also exposes focused submissio
 delivery and data-message capabilities with optional asynchronous handlers,
 described in [EXCHANGE.md](EXCHANGE.md). [Common operations](COMMON_OPERATIONS.md)
 add management/multiple-submission senders, alerts and reversed outbind owners.
-[Simulators](SIMULATORS.md) exercise both roles. Automatic enquiry, reconnect/retry
-and TLS remain later work.
+[Simulators](SIMULATORS.md) exercise both roles. [Lifecycle policies](LIFECYCLE.md)
+add opt-in TLS for all four owners, automatic idle enquiries and explicit bounded
+reconnect for initiating owners. Reconnect never replays application requests.
 
 The endpoint package composes the existing [session policy](SESSIONS.md),
 [request window](REQUESTS.md) and [TCP frame transport](TRANSPORT.md). The

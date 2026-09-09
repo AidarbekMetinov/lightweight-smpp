@@ -1,7 +1,7 @@
 package kg.aidarbek.smpp.endpoint;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
-import java.util.function.BooleanSupplier;
 
 /**
  * Cancellation ownership before a bound session is ready. Cancelling a derived result future changes
@@ -9,11 +9,34 @@ import java.util.function.BooleanSupplier;
  */
 public final class ConnectionAttempt {
     private final CompletionStage<BoundSession> result;
-    private final BooleanSupplier cancellation;
+    private final CompletionStage<Void> cleanup;
+    private final EndpointConnection connection;
+    private final RuntimeException rejection;
 
-    ConnectionAttempt(CompletionStage<BoundSession> result, BooleanSupplier cancellation) {
-        this.result = result;
-        this.cancellation = cancellation;
+    ConnectionAttempt(EndpointConnection connection, CompletionStage<Void> cleanup) {
+        this.connection = connection;
+        this.cleanup = cleanup;
+        rejection = null;
+        result = connection.bound();
+    }
+
+    ConnectionAttempt(RuntimeException rejection, CompletionStage<Void> cleanup) {
+        this.rejection = rejection;
+        this.cleanup = cleanup;
+        connection = null;
+        result = CompletableFuture.<BoundSession>failedFuture(rejection).minimalCompletionStage();
+    }
+
+    EndpointConnection connection() {
+        return connection;
+    }
+
+    RuntimeException rejection() {
+        return rejection;
+    }
+
+    CompletionStage<Void> cleanup() {
+        return cleanup;
     }
 
     /** Returns the protected bind result, published outside transport progress.
@@ -29,6 +52,6 @@ public final class ConnectionAttempt {
      * @return true only if this cancellation won
      */
     public boolean cancel() {
-        return cancellation.getAsBoolean();
+        return connection != null && connection.cancelBind();
     }
 }
