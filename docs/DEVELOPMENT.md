@@ -22,6 +22,10 @@
 
 ## Java coding conventions
 
+Apply the mandatory [SOLID review policy](SOLID.md) to every created or updated
+type, including nested types, simulator code, and tests. Use the
+[TDD workflow](TDD.md) for behavior changes.
+
 - Keep classes and methods focused. Prefer straightforward code and composition;
   introduce an interface or abstraction when it has a concrete purpose.
 - Keep the public API small. Use the narrowest useful visibility and keep
@@ -50,6 +54,11 @@
 
 ## Tests and everyday commands
 
+Select one behavior, observe its relevant test failure, implement the smallest
+passing change, then refactor and review every affected type. Record actual
+commands and outcomes in the change report under `docs/reviews/`. Bug fixes start
+with a failing regression test. See [TDD](TDD.md) for the complete workflow.
+
 Use known protocol bytes as fixtures, cover malformed input and boundary values,
 and test failures as well as successful requests. Round-trip encoding tests alone
 can miss matching encoder/decoder mistakes.
@@ -72,6 +81,11 @@ tests exist, use `--tests 'fully.qualified.TestClass'` to focus a test run.
 
 There are no Java sources or tests yet. A successful build at this stage verifies
 the build configuration, not SMPP behavior or compiler checks on application code.
+
+ArchUnit rules, deterministic formatting, and the review-evidence validator are
+planned in [the roadmap](ROADMAP.md), not installed yet. Simulators will have
+deterministic behavior tests and separate explicit load-run commands; see
+[the simulator design](SIMULATORS.md).
 
 ## Caching and build speed
 
@@ -100,6 +114,11 @@ Configuration-cache problems fail the build. Keep new build logic compatible and
 declare task inputs and outputs correctly so changes invalidate cached results.
 Retain Gradle's per-task cacheability rules; forcing every task to be cacheable can
 produce incorrect results or unnecessary overhead.
+
+Performance and load runs are measurements of the current environment. They must
+execute when requested, with fresh reports, while simulator compilation and
+deterministic tests retain normal caching. Do not cache a past benchmark result
+and present it as a new measurement.
 
 Use ordinary builds for day-to-day work. Run `clean` only when it serves a specific
 purpose. Use `--refresh-dependencies` when dependency resolution needs refreshing,

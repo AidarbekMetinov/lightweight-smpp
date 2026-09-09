@@ -20,9 +20,20 @@ SMPP and Cloudhopper Commons as reference projects.
 
 ## Current planning context
 
-The SMPP implementation is at the scope and API discussion stage. SMPP 3.4, a
-single module, no initial runtime dependencies, and client support first have been
-suggested. Protocol and client/server scope remain open.
+The project must support both SMPP clients and servers. The protocol targets are
+SMPP 5.0, the latest verified public specification, and SMPP 3.4 for interoperability.
+Track support by operation, version, and endpoint role; partial support must be
+described accurately. SMPP 3.3 is a possible later compatibility addition.
+
+Client and server simulators are also required, including configurable heavy-load
+and fault scenarios. Keep their tooling dependencies outside the library runtime
+artifact. Follow [the simulator plan](docs/SIMULATORS.md); use TDD and SOLID review
+for simulator code as well as library code. Actual load measurements must execute
+freshly, even though compilation and deterministic tests can use build caches.
+
+The current step is research and planning. A single module and no initial runtime
+dependencies remain design recommendations. Do not implement the entire roadmap
+without a request to proceed with those steps.
 
 The user wants strong Java coding practices and development caching. The build
 now uses a Java 21 toolchain as the development baseline, matching the installed
@@ -34,6 +45,47 @@ The existing Gradle project uses the group `kg.aidarbek`, the project name
 Read [the project overview](docs/README.md) and [the roadmap](docs/ROADMAP.md) for
 planning context. Update the documents as decisions are made and steps are
 completed.
+
+## Mandatory SOLID review
+
+- Review every project-owned Java class or other type created or updated against
+  all five SOLID principles. Include records, enums, interfaces, nested types,
+  test classes, fixtures, and Java build logic. Review the whole affected type,
+  its contracts, and affected consumers, not just changed lines.
+- Follow [the SOLID review policy](docs/SOLID.md). Record the type inventory,
+  source revisions or hashes, principle-by-principle findings, and test evidence
+  in a change-specific Markdown report under `docs/reviews/`.
+- Fix identified violations within the current step before declaring it complete.
+  Do not silently skip a type, mark unexplained checks as passed, or disable a
+  rule to obtain a successful build. Any non-applicable check needs a specific
+  explanation; existing inherited contracts must still be considered.
+- Recheck the review after refactoring or other source changes. A review of an
+  older version of a class does not cover its current implementation.
+- Use architecture checks and contract tests to support review. A passing linter,
+  compiler, coverage report, or architecture test alone does not establish SOLID
+  compliance. The planned automated checks are not installed yet.
+- Keep abstractions purposeful. SOLID does not require an interface for every
+  class, a subclass hierarchy for every command, or separate Gradle modules.
+
+## Mandatory TDD
+
+- Follow [the TDD workflow](docs/TDD.md) for new or changed behavior: select one
+  scenario, observe a relevant failing test, make the smallest implementation
+  pass, then refactor with tests passing.
+- For a bug fix, demonstrate the bug with a failing regression test first.
+- Record actual red, green, and final verification commands and outcomes in the
+  change report. Do not invent an earlier failing run or substitute an unrelated
+  compilation, dependency, or environment failure for behavioral evidence.
+- For behavior-preserving refactors, establish the existing tests are green,
+  refactor, and verify them again. Add characterization tests first when the
+  affected behavior is not adequately covered.
+- Keep tests focused on observable contracts and independently derived protocol
+  expectations. Do not weaken assertions or copy implementation output into
+  expected values to make a test pass.
+- Apply SOLID review during refactoring and before completion. TDD and SOLID are
+  both required; neither replaces the other.
+- Documentation-only changes need document verification, not artificial failing
+  Java tests. Report when no Java types or behavior changed.
 
 ## Implementation and verification
 
@@ -67,3 +119,5 @@ completed.
 - [Cloudhopper SMPP](https://github.com/fizzed/cloudhopper-smpp)
 - [Cloudhopper Commons](https://github.com/twitter/cloudhopper-commons)
 - [SMPP 3.4 specification, issue 1.2](https://smpp.org/SMPP_v3_4_Issue1_2.pdf)
+- [SMPP 5.0 specification](https://smpp.org/SMPP_v5.pdf)
+- [Research and architecture recommendations](docs/RESEARCH.md)

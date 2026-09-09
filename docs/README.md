@@ -6,10 +6,14 @@ on a small implementation and a simple API.
 ## Agreed direction
 
 - Build our own lightweight SMPP library.
+- Support both client and server endpoints, targeting SMPP 5.0 and 3.4.
+- Provide client and server simulators for functional and heavy-load testing.
 - Develop it step by step, keeping each piece small and understandable.
 - Use Cloudhopper SMPP and Cloudhopper Commons as reference projects.
 - Keep project planning documents in this directory.
 - Use strong Java coding practices and caching to keep development efficient.
+- Review every created or updated Java type against all five SOLID principles.
+- Use TDD for new behavior and bug fixes, with recorded failing and passing tests.
 - Keep Git commit messages short and simple.
 
 Project working guidance is recorded in [AGENTS.md](../AGENTS.md).
@@ -34,20 +38,37 @@ See the [development guide](DEVELOPMENT.md) for coding conventions, commands, an
 caching details. Java 21 is the current build target; release compatibility can
 be revisited when the library's scope is settled.
 
-## Proposed starting point
+## Research and working policies
+
+- [Research report](RESEARCH.md): primary sources, version findings, Cloudhopper
+  lessons, architecture, design principles, testing, and tradeoffs.
+- [Implementation plan](ROADMAP.md): ordered milestones, behavior tests, per-type
+  review requirements, and completion criteria.
+- [SOLID policy](SOLID.md): mandatory review coverage, evidence, and planned checks.
+- [TDD workflow](TDD.md): observed red, minimal green, refactoring, and regression tests.
+- [Simulator design](SIMULATORS.md): client/server modes, workloads, fault scenarios,
+  metrics, and reproducible heavy-load results.
+
+SMPP 5.0 is the latest public standard verified in the research. The report also
+explains the unresolved “5.1” terminology in older Oracle documentation. No SMPP
+version is implemented in this project yet. Formatting, architecture, and review
+coverage automation are planned; the written SOLID and TDD policies apply now.
+
+## Remaining design choices
 
 These choices are open for discussion:
 
-- SMPP 3.4 as the initial protocol version.
-- One library module.
+- One library module, adding a separate simulator application when needed.
 - No runtime dependencies initially, adding them when a concrete need justifies it.
-- Client support first; whether the first version also needs a server remains open.
+- JDK sockets with virtual threads as the first transport experiment.
+- Public API and callback details, workload targets, and compatibility policies.
 
-The next step is to settle the initial scope and sketch a small usage example.
-See the [roadmap](ROADMAP.md) for the proposed sequence.
+The next step is to sketch client and server usage examples, define the detailed
+version/role support inventory, and set workload criteria for the simulators.
 
 ## References
 
 - [Cloudhopper SMPP](https://github.com/fizzed/cloudhopper-smpp): protocol and session implementation reference.
 - [Cloudhopper Commons](https://github.com/twitter/cloudhopper-commons): supporting utilities, including message character encoding and request tracking.
 - [SMPP 3.4 specification, issue 1.2](https://smpp.org/SMPP_v3_4_Issue1_2.pdf): protocol definitions and wire format.
+- [SMPP 5.0 specification](https://smpp.org/SMPP_v5.pdf): latest verified public protocol specification.
