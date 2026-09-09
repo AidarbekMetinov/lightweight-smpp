@@ -1,12 +1,14 @@
 # Protocol support inventory
 
-Step 1 baseline, updated after Step 7. Bind/control codecs have
+Step 1 baseline, updated after Step 8. Bind/control codecs have
 [Step 6 evidence](reviews/0005-session-command-codecs.md), and basic message codecs
 have [Step 7 evidence](reviews/0006-message-codecs.md) for both profiles.
 The shared [framing](reviews/0002-pdu-framing.md) and
 [field/profile](reviews/0004-fields-profiles.md) evidence establishes their binary
-foundation. Complete sessions, remaining operation codecs, simulators, and
-independent-peer results remain **planned**. This inventory complements the specifications.
+foundation. [Step 8](reviews/0007-session-state.md) adds deterministic state and
+permission evidence described separately below. Complete endpoint sessions,
+remaining operation codecs, simulators, and independent-peer results remain
+**planned**. This inventory complements the specifications.
 
 `C` means our ESME client and `S` our message-center server. `TX`, `RX`, and `TRX`
 are SMPP bind modes, independent of TCP connection direction. `B` means any bound
@@ -20,7 +22,9 @@ The role rules and wire identifiers reference SMPP 3.4 §2.3/§4/§5 and SMPP 5.
 
 Each row has a planned test identity `OP-<request name>`. That identity covers the
 request, response when present, both profiles where applicable, and both of our
-endpoint implementations. Separate evidence columns start at `—` (no evidence).
+endpoint implementations. `Session` means the full endpoint contract, including
+correlation, callbacks, deadlines and cleanup. The Step 8 policy subset is recorded
+separately below. `—` means no evidence for the complete column scope.
 
 | Operation | Request / response ID (hex) | Origin and bind permission | Versions | 3.4 / 5.0 sections | Step | Codec | Session | Independent |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -71,6 +75,23 @@ Names in this table use the command definitions: the 3.4 summary's
 
 These observations concern the cited document editions. They are not claims that
 every deployed peer follows the same interpretation.[^1][^2]
+
+## Executed state-policy evidence
+
+[Step 8](reviews/0007-session-state.md) verifies the role/state subset independently
+of byte parsing or networking. These cases run for both roles and both profiles:
+
+| Scope | Executed evidence | Remaining endpoint scope |
+| --- | --- | --- |
+| All catalogue request permissions | `SessionPermissionsTest` enumerates defined requests, modeled states and originating roles, including data/replace/enquiry version differences. | Remaining operation codecs and real sender/handler capabilities. |
+| Bind RX/TX/TRX and version policy | `SessionStateMachineTest` and `VersionNegotiationTest` cover both endpoints, accepted/rejected/duplicate binds, raw advertisements and restricted field requirements. | Authentication, actual writes, connection deadlines and cleanup. |
+| Unbind and closure | `SessionStateMachineTest` covers either initiator, crossed equal sequences, draining state and repeated close. | General pending-window settlement, bounded flush and socket shutdown. |
+| Ordinary responses and protocol errors | `SessionResponsePermissionTest` covers paired commands/directions/sequences, explicit correlation context, negative replies and invalid-header nack sequences. | Generation/late-response ownership and exactly-once terminal completion in Step 9. |
+
+Implementation declarations are explicit inputs. A permitted catalogue operation
+does not imply a local codec or service exists. [Session contracts](SESSIONS.md)
+define this boundary and composition with the implemented codecs. No full
+`Session` or `Independent` table cell is completed by state-policy tests alone.
 
 ## Header and standard-field inventory
 

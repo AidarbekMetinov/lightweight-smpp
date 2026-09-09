@@ -84,7 +84,7 @@ Run from the project root:
 `spotlessCheck` reports formatting differences without changing sources;
 `spotlessApply` rewrites them into the configured format. `test` runs tests,
 `check` runs tests and formatting verification, and `build` also assembles the
-library archives. Once tests exist, use `--tests 'fully.qualified.TestClass'` to
+library archives. Use `--tests 'fully.qualified.TestClass'` to
 focus a TDD run.
 
 Formatting targets `src/*/java/**/*.java`, including main/test Java and similarly
@@ -100,11 +100,15 @@ See [Spotless](https://github.com/diffplug/spotless/tree/main/plugin-gradle) and
 [Palantir Java Format](https://github.com/palantir/palantir-java-format/tree/2.96.0).
 
 Steps 3 and 5 supply permanent header, framing, field, TLV, and profile tests,
-with architecture checks against real protocol/codec/profile types.
+with architecture checks against real protocol/codec/profile types. Step 8 adds
+session policy checks and [architecture evidence](reviews/0007-session-architecture.md)
+covering all four production package boundaries.
 [Field contracts](FIELDS.md) explain the completed binary foundation. Step 6
 adds [bind/control codec contracts](COMMANDS.md), independent wire fixtures, and
 shared extension/ownership/boundary tests. Step 7 adds [message contracts](MESSAGES.md),
-exact profile/direction TLV table fixtures and original-request response tests. See
+exact profile/direction TLV table fixtures and original-request response tests.
+[Session contracts](SESSIONS.md) describe the Step 8 transition, permission and
+negotiation scenarios, executed deterministically without clocks or sockets. See
 [the framing guide](FRAMING.md) and
 [its TDD/SOLID evidence](reviews/0002-pdu-framing.md). Step 2
 [tooling evidence](reviews/0001-code-checks.md) remains a historical isolated probe.

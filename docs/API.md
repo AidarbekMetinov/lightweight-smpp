@@ -1,10 +1,10 @@
 # Library contracts
 
-Step 1 design baseline, updated through Step 7. The endpoint usage examples below
+Step 1 design baseline, updated through Step 8. The endpoint usage examples below
 remain design sketches. Implemented low-level APIs and executed contracts are
 documented in [FRAMING.md](FRAMING.md), [FIELDS.md](FIELDS.md),
-[COMMANDS.md](COMMANDS.md), and [MESSAGES.md](MESSAGES.md). Refine endpoint names
-through tests while preserving
+[COMMANDS.md](COMMANDS.md), [MESSAGES.md](MESSAGES.md), and
+[SESSIONS.md](SESSIONS.md). Refine endpoint names through tests while preserving
 the behavior or documenting an intentional change.
 
 ## Scope and decisions

@@ -3,8 +3,9 @@
 Step 7 supplies immutable values and complete bounded body codecs for `submit_sm`,
 `deliver_sm`, `data_sm` and their three responses in SMPP 3.4 and 5.0. The codecs
 compose with Step 6's `PduCodec`, `Pdu` and `PduLimits`. This is binary codec
-support; sessions, endpoint permission checks, receipt parsing, text conversion,
-segmentation and independent-peer interoperability remain later work.
+support. Step 8 supplies separate [session/permission policies](SESSIONS.md);
+live endpoints, receipt parsing, text conversion, segmentation and independent-peer
+interoperability remain later work.
 
 ```java
 var profile = ProtocolProfile.forVersion(SmppVersion.V5_0);

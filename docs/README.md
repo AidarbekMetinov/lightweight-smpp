@@ -60,8 +60,9 @@ be revisited when the library's scope is settled.
 
 SMPP 5.0 is the latest public standard verified in the research. The report also
 explains the unresolved “5.1” terminology in older Oracle documentation. The shared
-header/framing, field/TLV foundations, bind/control and basic message codecs are implemented
-for both profiles; complete version support remains pending. Formatting, real
+header/framing, field/TLV foundations, bind/control and message codecs, and
+deterministic session policies are implemented for both profiles. Complete
+version support and live endpoints remain pending. Formatting, real
 architecture rules, and automatic review coverage/freshness checks are active;
 SOLID and TDD policies apply to every change.
 
@@ -80,8 +81,8 @@ The baseline uses one asynchronous request mechanism and focused capabilities,
 one library artifact without initial runtime dependencies, and a separate
 application subproject for simulator tooling. API class names remain sketches
 until implementation tests establish them. Binary framing, fields, TLVs, and profile
-foundations, bind/control codecs, and basic message codecs are implemented;
-endpoint APIs and simulators remain planned.
+foundations, bind/control and message codecs, and session policies are implemented;
+live endpoint APIs and simulators remain planned.
 
 ## Remaining design choices
 
@@ -104,8 +105,8 @@ reuse were verified with an isolated fixture. See the
 ## Step 3 framing
 
 Immutable unsigned header values, network-order header translation, and bounded
-stream assembly are implemented with permanent behavior tests. Five architecture
-checks select actual production types. See [framing contracts](FRAMING.md) and
+stream assembly are implemented with permanent behavior tests. Step 3 introduced
+five architecture checks against actual production types; later layers extend them. See [framing contracts](FRAMING.md) and
 [the TDD/SOLID review](reviews/0002-pdu-framing.md).
 
 ## Step 4 review coverage
@@ -142,7 +143,22 @@ conditions are separate from decoding. See [message contracts](MESSAGES.md) and
 the [TDD/SOLID review](reviews/0006-message-codecs.md), including the documented
 SMPP 5.0 error-body interpretation.
 
-Next: Step 8 implements session state and endpoint permissions.
+## Step 8 session policies
+
+Client and server roles share deterministic bind/unbind transitions, exact
+3.4/5.0 operation permissions, version negotiation, outgoing field requirements,
+and response authorization. Crossed unbinds keep their directional identities,
+and ordinary responses require caller-supplied correlation context. Seven
+architecture checks enforce the implemented package boundaries. See
+[session contracts](SESSIONS.md), the [TDD/SOLID review](reviews/0007-session-state.md),
+and [architecture evidence](reviews/0007-session-architecture.md).
+
+The integrated build passes 341 library/architecture cases, plus 60 unchanged
+review-tool cases reused from cache. Current SOLID evidence covers all 113 Java
+type identities. Runtime dependencies remain empty; build/configuration caching
+and licensed binary/source/Javadoc archives are verified.
+
+Next: Step 9 adds request correlation, deadlines, and bounded admission.
 
 ## References
 

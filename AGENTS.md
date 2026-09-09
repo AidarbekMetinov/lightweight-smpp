@@ -34,10 +34,12 @@ artifact. Follow [the simulator plan](docs/SIMULATORS.md); use TDD and SOLID rev
 for simulator code as well as library code. Actual load measurements must execute
 freshly, even though compilation and deterministic tests can use build caches.
 
-Research and Steps 1–7 are complete. Step 8, session state and endpoint
-permissions, is next. Bounded fields, raw TLVs, explicit profiles, bind/control
-codecs, and basic message codecs are implemented; see [field contracts](docs/FIELDS.md),
-[command contracts](docs/COMMANDS.md), and [message contracts](docs/MESSAGES.md).
+Research and Steps 1–8 are complete. Step 9, request correlation, deadlines and
+bounded admission, is next. Bounded fields, raw TLVs, explicit profiles, bind/control
+and message codecs, and deterministic session/version policies are implemented;
+see [field contracts](docs/FIELDS.md), [command contracts](docs/COMMANDS.md),
+[message contracts](docs/MESSAGES.md), and [session contracts](docs/SESSIONS.md).
+Live client/server transports, application handlers, and simulators remain planned.
 The design baseline uses one library artifact, no initial runtime dependencies,
 one asynchronous request mechanism, and focused
 endpoint capabilities. Simulator tooling will be a separate application subproject.
@@ -79,7 +81,7 @@ completed.
 - Use architecture checks and contract tests to support review. A passing linter,
   compiler, coverage report, or architecture test alone does not establish SOLID
   compliance. ArchUnit core is available to Jupiter tests; project architecture
-  rules cover the production protocol, codec, and profile packages. `solidReview`
+  rules cover the production protocol, codec, profile, and session packages. `solidReview`
   checks review coverage and freshness, including the tool's own Java sources and
   tests.
 - Keep abstractions purposeful. SOLID does not require an interface for every
@@ -146,6 +148,8 @@ completed.
   [the field review](docs/reviews/0004-fields-profiles.md). Step 6 command codec
   evidence is in [the command review](docs/reviews/0005-session-command-codecs.md).
   Step 7 evidence is in [the message review](docs/reviews/0006-message-codecs.md).
+  Step 8 evidence is in [the session review](docs/reviews/0007-session-state.md)
+  and [the architecture review](docs/reviews/0007-session-architecture.md).
 
 ## References
 

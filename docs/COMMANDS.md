@@ -150,3 +150,6 @@ without interpreting them. See [TLVS.md](TLVS.md) and the
 
 Session transitions, usable endpoint permissions, authentication, timers, TCP,
 and independent peer interoperability are outside this codec step.
+
+Step 8 implements the separate [session/version policy layer](SESSIONS.md);
+that layer consumes the preserved command data without importing these codecs.

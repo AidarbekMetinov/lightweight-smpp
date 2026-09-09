@@ -5,14 +5,15 @@ runnable client and server simulators for functional and heavy-load testing.
 The [research report](RESEARCH.md) explains the protocol targets and architecture.
 The [simulator plan](SIMULATORS.md) defines workloads and measurement requirements.
 
-Current stage: **research and Steps 1–7 completed; Step 8 is next**.
+Current stage: **research and Steps 1–8 completed; Step 9 is next**.
 Java 21, Gradle, JUnit, strict compiler warnings, local caching, formatting, and Git
 are configured. Header values, a binary header codec, bounded framing, behavior
 tests, and meaningful architecture rules are implemented. Automatic review-evidence
 coverage and freshness checks run through the normal verification lifecycle.
 Bounded fields, ordered raw TLVs, explicit 3.4/5.0 catalogues, initial occurrence
 rules, typed interpretation, bind/control codecs, and basic message codecs are
-implemented. Session policies and live endpoint behavior remain later steps.
+implemented. Deterministic session/version policies now cover both endpoint
+roles; request tracking and live endpoint behavior remain later steps.
 
 Each step delivers one coherent result. Larger steps contain several small TDD
 cycles and may use several simple commits. Follow [TDD](TDD.md), review every
@@ -234,6 +235,14 @@ It must still show session and independent interoperability evidence as pending.
 Suggested commit: `Add message codecs`.
 
 ## 8. Model session state and endpoint permissions
+
+Status: **completed**. [Session contracts](SESSIONS.md) define the serialized
+lifecycle, precise role/profile operation tables, explicit implementation and
+field requirements, negotiation, negative replies, and crossed unbinds.
+[The session review](reviews/0007-session-state.md) records executed TDD and
+per-type SOLID evidence; [the architecture review](reviews/0007-session-architecture.md)
+records actual forbidden-dependency probes. Ordinary correlation ownership,
+deadlines, sockets and application services remain separate later layers.
 
 Define connection, binding, bound-mode, unbinding, and closed behavior independently
 of real networking. Specify unexpected requests and responses and both roles'

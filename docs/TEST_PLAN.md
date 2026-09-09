@@ -1,14 +1,15 @@
 # First behavior scenarios and verification evidence
 
-Step 1 test-design baseline, updated after Step 7. Header/framing scenarios
+Step 1 test-design baseline, updated after Step 8. Header/framing scenarios
 `FRAME-01` through `FRAME-08` now have executed evidence in
 [the framing review](reviews/0002-pdu-framing.md). Generic field/TLV primitives,
 initial typed interpretation, and profile occurrence scenarios have
 [Step 5 evidence](reviews/0004-fields-profiles.md). Bind/control wire scenarios
 have [Step 6 evidence](reviews/0005-session-command-codecs.md). Basic message wire,
 field, TLV and original-request conditions have
-[Step 7 evidence](reviews/0006-message-codecs.md). Endpoint API, full session and
-simulator scenarios remain **planned**. Write only the next scenario needed by
+[Step 7 evidence](reviews/0006-message-codecs.md). Pure session, version and
+permission scenarios have [Step 8 evidence](reviews/0007-session-state.md). Live
+endpoint API, full session and simulator scenarios remain **planned**. Write only the next scenario needed by
 the active roadmap step, observe its relevant failure, implement the smallest
 passing behavior, then refactor and review every affected type. Follow
 [TDD.md](TDD.md) and [SOLID.md](SOLID.md).
@@ -61,6 +62,15 @@ body variants. These cases address concrete ambiguity or cross-version risk.
 
 ## API and session contracts
 
+Step 8 executes the network-independent policy portions of `API-02`, `API-03`,
+`SESSION-01` and `SESSION-04`: version decisions, current permissions, bind
+transitions and opposite-direction response matching. Its 158 session cases
+include both roles/profiles, all bind modes, duplicate/failed binds, unbinding,
+error responses and idempotent close. They use no sleeps or sockets.
+`SessionPermissionsTest`, `VersionNegotiationTest`, `SessionStateMachineTest`
+and `SessionResponsePermissionTest` supply the evidence. The complete endpoint
+scenarios below still require their later correlation, transport and handler layers.
+
 | ID | Planned scenario |
 | --- | --- |
 | `API-01` | Connect succeeds only after a positive bind; rejected/expired binds close the socket and fail readiness. |
@@ -109,7 +119,9 @@ fixture; see [the tooling review](reviews/0001-code-checks.md). Step 3 now runs
 architecture rules against actual production types:
 allowed dependency directions, no package cycles, and transport-independent core
 contracts. Isolated forbidden dependencies and a package cycle were detected; the final
-rules select real, nonempty production packages.
+rules select real, nonempty production packages. Step 8 extends them to session
+policies, with seven current cases and
+[actual session-to-codec/executor violation probes](reviews/0007-session-architecture.md).
 
 Step 4 provides `reviewTest` and `solidReview`, with executed failing/passing
 cases for missing or stale evidence, new nested/local/anonymous types, malformed

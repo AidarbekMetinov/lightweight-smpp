@@ -14,12 +14,14 @@ import kg.aidarbek.smpp.codec.PduHeaderCodec;
 import kg.aidarbek.smpp.profile.ProtocolProfile;
 import kg.aidarbek.smpp.profile.SmppVersion;
 import kg.aidarbek.smpp.protocol.PduHeader;
+import kg.aidarbek.smpp.session.SessionState;
 import org.junit.jupiter.api.Test;
 
 final class ArchitectureTest {
     private static final String PROTOCOL = "kg.aidarbek.smpp.protocol..";
     private static final String CODEC = "kg.aidarbek.smpp.codec..";
     private static final String PROFILE = "kg.aidarbek.smpp.profile..";
+    private static final String SESSION = "kg.aidarbek.smpp.session..";
     private static final JavaClasses LIBRARY = new ClassFileImporter()
             .withImportOption(ImportOption.Predefined.DO_NOT_INCLUDE_TESTS)
             .importPackages("kg.aidarbek.smpp");
@@ -31,6 +33,7 @@ final class ArchitectureTest {
         assertTrue(LIBRARY.contain(PduFramer.class));
         assertTrue(LIBRARY.contain(ProtocolProfile.class));
         assertTrue(LIBRARY.contain(SmppVersion.class));
+        assertTrue(LIBRARY.contain(SessionState.class));
         assertFalse(LIBRARY.contain(ArchitectureTest.class));
     }
 
@@ -76,10 +79,22 @@ final class ArchitectureTest {
     }
 
     @Test
-    void protocolProfilesAndCodecsDoNotDependOnInfrastructurePackages() {
+    void sessionsDependOnlyOnSessionPolicyProfilesProtocolAndJdkValues() {
+        classes()
+                .that()
+                .resideInAPackage(SESSION)
+                .should()
+                .onlyDependOnClassesThat()
+                .resideInAnyPackage(
+                        SESSION, PROFILE, PROTOCOL, "java.lang..", "java.math..", "java.time..", "java.util..")
+                .check(LIBRARY);
+    }
+
+    @Test
+    void protocolProfilesCodecsAndSessionsDoNotDependOnInfrastructurePackages() {
         noClasses()
                 .that()
-                .resideInAnyPackage(PROTOCOL, PROFILE, CODEC)
+                .resideInAnyPackage(PROTOCOL, PROFILE, CODEC, SESSION)
                 .should()
                 .dependOnClassesThat()
                 .resideInAnyPackage(
