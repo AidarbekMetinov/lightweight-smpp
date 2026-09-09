@@ -101,7 +101,9 @@ See [Spotless](https://github.com/diffplug/spotless/tree/main/plugin-gradle) and
 
 Steps 3 and 5 supply permanent header, framing, field, TLV, and profile tests,
 with architecture checks against real protocol/codec/profile types.
-[Field contracts](FIELDS.md) explain the completed binary foundation. See
+[Field contracts](FIELDS.md) explain the completed binary foundation. Step 6
+adds [bind/control codec contracts](COMMANDS.md), independent wire fixtures, and
+shared extension/ownership/boundary tests. See
 [the framing guide](FRAMING.md) and
 [its TDD/SOLID evidence](reviews/0002-pdu-framing.md). Step 2
 [tooling evidence](reviews/0001-code-checks.md) remains a historical isolated probe.

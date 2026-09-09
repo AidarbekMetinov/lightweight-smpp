@@ -5,14 +5,14 @@ runnable client and server simulators for functional and heavy-load testing.
 The [research report](RESEARCH.md) explains the protocol targets and architecture.
 The [simulator plan](SIMULATORS.md) defines workloads and measurement requirements.
 
-Current stage: **research and Steps 1–5 completed; Step 6 is next**.
+Current stage: **research and Steps 1–6 completed; Step 7 is next**.
 Java 21, Gradle, JUnit, strict compiler warnings, local caching, formatting, and Git
 are configured. Header values, a binary header codec, bounded framing, behavior
 tests, and meaningful architecture rules are implemented. Automatic review-evidence
 coverage and freshness checks run through the normal verification lifecycle.
 Bounded fields, ordered raw TLVs, explicit 3.4/5.0 catalogues, initial occurrence
-rules, and typed interpretation are implemented; complete command codecs and
-endpoint behavior remain later steps.
+rules, typed interpretation, and complete bind/control codecs are implemented.
+Basic messaging codecs and endpoint behavior remain later steps.
 
 Each step delivers one coherent result. Larger steps contain several small TDD
 cycles and may use several simple commits. Follow [TDD](TDD.md), review every
@@ -183,6 +183,12 @@ the inventory and all type reviews with the final source.
 Suggested commit: `Add fields and protocol profiles`.
 
 ## 6. Add binding and control codecs
+
+Status: **completed**. [Command contracts](COMMANDS.md) document immutable
+envelopes, extensible bounded dispatch, all bind modes, and control responses
+for both profiles. [The review](reviews/0005-session-command-codecs.md) records
+independent wire fixtures, malformed-input and extension contract tests, actual
+TDD cycles, and per-type SOLID findings. Session permissions remain a separate step.
 
 Implement all bind modes and responses, `unbind`, `enquire_link`, and
 `generic_nack`. Keep requested interface version, peer advertisement, and

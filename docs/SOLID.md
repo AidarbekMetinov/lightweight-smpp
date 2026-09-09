@@ -137,6 +137,8 @@ The validator's 13 Java types also have a complete
 [tooling review](reviews/0003-review-coverage.md), and it checks those same records
 alongside library/test types. Step 5 adds 23 types and updates ArchitectureTest;
 [its review](reviews/0004-fields-profiles.md) supplies current evidence for all 24
-affected identities. The combined inventory contains 43 current types. Each later
-step must provide evidence for every affected type; historical reports do not
-cover changed source.
+affected identities, bringing that snapshot to 43 types. Step 6 adds complete
+[command codec reviews](reviews/0005-session-command-codecs.md), including
+registry extensions and every nested test fixture. The latest review records the
+current integrated inventory. Each later step must provide evidence for every
+affected type; historical reports do not cover changed source.

@@ -1,9 +1,10 @@
 # Library contracts
 
-Step 1 design baseline, 9 September 2026. These are implementation contracts and
-illustrative Java usage examples, not compiled APIs. Refine names through the
-first tests while preserving the behavior or documenting an intentional change.
-No Java types or behavior tests exist yet.
+Step 1 design baseline, updated through Step 6. The endpoint usage examples below
+remain design sketches. Implemented low-level APIs and executed contracts are
+documented in [FRAMING.md](FRAMING.md), [FIELDS.md](FIELDS.md), and
+[COMMANDS.md](COMMANDS.md). Refine endpoint names through tests while preserving
+the behavior or documenting an intentional change.
 
 ## Scope and decisions
 

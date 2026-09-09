@@ -1,6 +1,6 @@
 # TLV support inventory
 
-Step 1 baseline, updated after Step 5. Raw bounded TLV encoding/decoding and
+Step 1 baseline, updated after Step 6. Raw bounded TLV encoding/decoding and
 ordered immutable storage are implemented. Typed interpretation currently covers
 `0210` and `0428` in the contexts below; other typed semantics remain **planned**.
 Profile catalogues contain all 44 distinct 3.4 tags and 64 distinct 5.0 tags.
@@ -126,7 +126,7 @@ The [field/profile review](reviews/0004-fields-profiles.md) records these tests:
 | Scope | Executed evidence | Remaining scope |
 | --- | --- | --- |
 | Raw TLV framing/storage | `TlvCodecTest`, `TlvTest`, `OptionalParametersTest`: independent bytes, malformed lengths, byte/count bounds, unknown/repeated values, ownership and equality. | Per-tag meanings and full command bodies. |
-| `TLV-0210` | `TypedTlvRegistryTest`, `UnsignedByteTlvCodecTest`: one raw version octet in all three bind responses for both profiles, including unknown values. | Bind negotiation, successful/error response policy, endpoint behavior. |
+| `TLV-0210` | `TypedTlvRegistryTest`, `UnsignedByteTlvCodecTest`: one raw version octet in all three bind responses for both profiles, including unknown values. | Bind negotiation and endpoint behavior; Step 6 now verifies successful/error body policy. |
 | `TLV-0428` / `TLV-CONGESTION` | Same typed tests: 5.0 response context, exact length, supported 0..100 range, reserved incoming values ignored semantically. | Session observation/admission policy and independent peers. |
 | `TLV-REPEAT` / `TLV-BROADCAST` | `ProtocolProfileTest`, `TlvRulesTest`: required/singleton/repeatable occurrence checks, preserved unknown input, and immediate-priority repetition exception. | Other command contexts, value semantics and per-area/callback correlations. |
 | `TLV-EXTENSION` | `TypedTlvRegistryTest`: scoped registration, duplicate rejection, immutable extension, and continued raw block bounds. | Provider-specific interoperability evidence. |
@@ -135,6 +135,16 @@ Catalogue equality is verified separately from supported interpretation. These
 checks apply to network-independent binary/profile behavior and establish no
 session or independent-peer result. [The field guide](FIELDS.md) states exact
 API contracts and composition order.
+
+## Executed command evidence
+
+[Step 6](reviews/0005-session-command-codecs.md) adds complete bind/control
+wire fixtures: version advertisement presence/absence and raw unknown values,
+5.0 congestion on operation responses, singleton validation, ignored reserved
+incoming values, and bounded preservation of unexpected extensions.
+[Command contracts](COMMANDS.md) distinguish failed-bind body omission from
+control-response congestion and document the specification interpretations.
+These codec results do not establish negotiated endpoint capabilities.
 
 ## Planned validation for every tag
 
