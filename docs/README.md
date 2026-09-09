@@ -51,8 +51,9 @@ be revisited when the library's scope is settled.
 
 SMPP 5.0 is the latest public standard verified in the research. The report also
 explains the unresolved “5.1” terminology in older Oracle documentation. No SMPP
-version is implemented in this project yet. Formatting, architecture, and review
-coverage automation are planned; the written SOLID and TDD policies apply now.
+version is implemented in this project yet. Java formatting is configured and
+ArchUnit core is available. Project architecture rules and review-coverage
+automation are the next tooling increments; SOLID and TDD policies apply now.
 
 ## Step 1 design baseline
 
@@ -79,8 +80,17 @@ These choices remain open:
 - Provider-specific exceptions backed by interoperability evidence.
 - Exact API names and additional dependencies justified by implementation needs.
 
-Next: Step 2 sets up the test and deterministic formatting workflow. Step 3 starts
-the protocol implementation with the first failing header/framing test.
+## Step 2 tooling
+
+Spotless 8.10.2 and Palantir Java Format 2.96.0 enforce Java formatting through
+`check`. ArchUnit core 1.4.2 is ready for ordinary Jupiter 6.0.0 tests. Formatting
+failures, real test discovery, rule violations, successful correction, and cache
+reuse were verified with an isolated fixture. See the
+[tooling review](reviews/0001-code-checks.md) and
+[development commands](DEVELOPMENT.md).
+
+Next: Step 3 starts protocol implementation with the first failing header/framing
+test and architecture rules against actual production types.
 
 ## References
 

@@ -50,6 +50,10 @@ direction, and contracts as needed. Review every affected type using the
 [SOLID policy](SOLID.md), including tests and helper classes introduced during the
 cycle. Rerun the relevant tests after the refactoring.
 
+Apply the pinned formatter with `./gradlew spotlessApply --console=plain` before
+recording final source hashes and completing the review. `check` verifies the
+format without rewriting source files.
+
 A behavior-preserving refactoring starts from passing tests and returns to
 passing tests. If existing coverage does not establish the behavior being
 preserved, add characterization tests before restructuring the implementation.
@@ -90,7 +94,8 @@ For a focused cycle, once the test class exists:
 
 Use `./gradlew check --console=plain` before completing a class-changing step.
 Record the actual scope of that command: only configured checks can run. In the
-current empty project, architecture and review-coverage checks are still planned.
+current empty project, formatting is configured; architecture rules and
+review-coverage checks are still planned. ArchUnit core is available to Jupiter.
 
 Retain normal Gradle caching. Source and test changes should invalidate relevant
 task results. When fresh execution is specifically needed to establish evidence,

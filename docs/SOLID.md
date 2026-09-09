@@ -5,8 +5,9 @@ The requirement applies to production code, tests, fixtures, and Java build
 logic, including records, enums, interfaces, and nested or local types. Review
 all five principles even when a particular obligation is not applicable.
 
-This policy is active now. Automated architecture and review-coverage checks are
-planned in the [roadmap](ROADMAP.md); they are not installed in the current build.
+This policy is active now. ArchUnit core is configured for use through Jupiter;
+project architecture rules and automatic review-coverage checks are planned for
+Steps 3 and 4 in the [roadmap](ROADMAP.md).
 The [research report](RESEARCH.md) explains the supporting design literature and
 the distinction between structural checks and behavioral review.
 
@@ -126,6 +127,7 @@ evaluate the substance of the design; a recorded verdict is not a machine proof.
 
 ## Current status
 
-No project Java types exist yet. No class-level compliance result is claimed for
-the empty project. The first implementation step must create its own review
-record and demonstrate the applicable checks on actual code.
+No production Java types or permanent test classes exist yet. Step 2's isolated
+tooling fixture has a [recorded review](reviews/0001-code-checks.md). That review
+does not establish compliance of the future library. Each implementation step
+must create its own review record and demonstrate applicable checks on actual code.

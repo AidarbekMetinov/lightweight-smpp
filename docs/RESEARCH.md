@@ -43,6 +43,11 @@ Step 1 has since established [API contracts](API.md), the
 Use those documents for current design decisions; this report records their
 research background.
 
+Step 2 configured deterministic formatting and ArchUnit core for Jupiter tests.
+Its [tooling review](reviews/0001-code-checks.md) records the selected versions,
+isolated fixture results, and cache verification. Actual project architecture
+rules still begin with production classes in Step 3.
+
 ## Protocol versions and compatibility
 
 ### Version targets

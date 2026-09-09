@@ -4,19 +4,23 @@
 
 - Use the checked-in Gradle wrapper: `./gradlew` on Linux/macOS or `gradlew.bat` on
   Windows. The current wrapper version is 9.6.0.
-- Install JDK 21. The build selects it through a Gradle toolchain and compiles for
-  Java 21. Preview features are disabled.
+- Install JDK 21 and run Gradle with it (`JAVA_HOME` or the IDE's Gradle JVM).
+  Palantir uses that JVM to format Java 21 syntax. The build also selects a Java 21
+  toolchain for compilation. Preview features are disabled.
 - Keep runtime dependencies small and purposeful. Declare internal dependencies
   as `implementation`; use `api` when a dependency's types are part of the public
   API. See [Gradle's Java Library plugin](https://docs.gradle.org/current/userguide/java_library_plugin.html).
 - Java compilation uses UTF-8, `-Xlint:all`, and `-Werror` for production and test
   code. Fix warnings and keep unavoidable suppressions narrow and documented.
   See the [Java 21 compiler options](https://docs.oracle.com/en/java/javase/21/docs/specs/man/javac.html).
-- JUnit Jupiter is configured for testing. The build also produces source and
-  Javadoc archives, with deterministic archive ordering and timestamps.
+- JUnit Jupiter 6.0.0 is configured for testing. ArchUnit core 1.4.2 is available
+  to ordinary Jupiter tests, without an additional ArchUnit test engine. Both are
+  test dependencies; the library runtime classpath remains empty.
+- The build produces source and Javadoc archives with deterministic archive
+  ordering and timestamps.
 - `.editorconfig` defines UTF-8, four-space indentation, final newlines, and a
-  120-column Java line-length preference. These are editor conventions; an
-  automatic Java formatter is not configured yet.
+  120-column Java line-length preference. Spotless 8.10.2 with Palantir Java
+  Format 2.96.0 now verifies Java formatting using that style.
 - `.gitattributes` keeps text line endings consistent across platforms and uses
   CRLF for Windows batch scripts.
 
@@ -70,20 +74,39 @@ independent of external SMSCs and credentials.
 Run from the project root:
 
 ```sh
+./gradlew spotlessCheck --console=plain
+./gradlew spotlessApply --console=plain
 ./gradlew test --console=plain
 ./gradlew check --console=plain
 ./gradlew build --console=plain
 ```
 
-Choose the command for the current change: `test` runs tests, `check` runs all
-configured verification, and `build` also assembles the library archives. Once
-tests exist, use `--tests 'fully.qualified.TestClass'` to focus a test run.
+`spotlessCheck` reports formatting differences without changing sources;
+`spotlessApply` rewrites them into the configured format. `test` runs tests,
+`check` runs tests and formatting verification, and `build` also assembles the
+library archives. Once tests exist, use `--tests 'fully.qualified.TestClass'` to
+focus a TDD run.
 
-There are no Java sources or tests yet. A successful build at this stage verifies
-the build configuration, not SMPP behavior or compiler checks on application code.
+Formatting targets `src/*/java/**/*.java`, including main/test Java and similarly
+named source sets. UTF-8 and LF are explicit. Palantir's standard style uses
+four-space indentation and a 120-column wrapping preference. Generated build
+output and Java-looking documentation snippets are outside the target. Configure
+additional modules or nonstandard source directories when they are introduced.
 
-ArchUnit rules, deterministic formatting, and the review-evidence validator are
-planned in [the roadmap](ROADMAP.md), not installed yet. Simulators will have
+Apply formatting before recording final source hashes and completing the SOLID
+review. Keep the pinned build formatter as the shared result across editors;
+`.editorconfig` alone does not configure every editor's Java formatting engine.
+See [Spotless](https://github.com/diffplug/spotless/tree/main/plugin-gradle) and
+[Palantir Java Format](https://github.com/palantir/palantir-java-format/tree/2.96.0).
+
+The repository has no Java sources or permanent tests yet. Step 2 verified
+compilation, formatting, Jupiter discovery, and an ArchUnit rule using an isolated
+fixture. [The review record](reviews/0001-code-checks.md) contains its observed
+failures, passing run, and per-type SOLID review. Root `test NO-SOURCE` is not
+evidence that SMPP behavior has been tested.
+
+Project architecture rules begin with actual classes in Step 3. The automatic
+review-evidence validator remains planned for Step 4. Simulators will have
 deterministic behavior tests and separate explicit load-run commands; see
 [the simulator design](SIMULATORS.md).
 
@@ -128,6 +151,12 @@ To check configuration-cache reuse, run `./gradlew build --console=plain` twice;
 the second invocation should report `Configuration cache entry reused`. Once Java
 sources and tests exist, task output reuse can also be checked by rebuilding after
 `clean` and looking for `FROM-CACHE` on cacheable tasks.
+
+Step 2 demonstrated output restoration for `compileTestJava`, `test`, and
+`spotlessJava` in its isolated fixture build. The repository's warm build reused
+the configuration cache, and an info-level diagnostic confirmed filesystem
+watching and the local build cache were active. These are observations of the
+recorded runs, not fixed timing guarantees.
 
 The project uses local caches. A shared remote cache needs a backend and can be a
 separate step when team development or CI calls for it. Parallel configuration

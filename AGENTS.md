@@ -31,10 +31,10 @@ artifact. Follow [the simulator plan](docs/SIMULATORS.md); use TDD and SOLID rev
 for simulator code as well as library code. Actual load measurements must execute
 freshly, even though compilation and deterministic tests can use build caches.
 
-Research and Step 1 contract design are complete. Step 2, the test and formatting
-workflow, is next. The design baseline uses one library artifact, no initial
-runtime dependencies, one asynchronous request mechanism, and focused endpoint
-capabilities. Simulator tooling will be a separate application subproject.
+Research and Steps 1–2 are complete. Step 3, PDU headers/framing and the first
+project architecture rules, is next. The design baseline uses one library artifact,
+no initial runtime dependencies, one asynchronous request mechanism, and focused
+endpoint capabilities. Simulator tooling will be a separate application subproject.
 Do not implement later roadmap steps without a request to proceed with them.
 
 Use [the API contracts](docs/API.md), [protocol inventory](docs/PROTOCOL.md),
@@ -72,7 +72,8 @@ completed.
   older version of a class does not cover its current implementation.
 - Use architecture checks and contract tests to support review. A passing linter,
   compiler, coverage report, or architecture test alone does not establish SOLID
-  compliance. The planned automated checks are not installed yet.
+  compliance. ArchUnit core is available to Jupiter tests; project architecture
+  rules begin in Step 3 and the review-evidence validator in Step 4.
 - Keep abstractions purposeful. SOLID does not require an interface for every
   class, a subclass hierarchy for every command, or separate Gradle modules.
 
@@ -101,6 +102,10 @@ completed.
 - Favor a small, understandable API and dependencies justified by actual needs.
 - Follow the Java conventions and build workflow in
   [the development guide](docs/DEVELOPMENT.md).
+- Java formatting uses pinned Spotless and Palantir Java Format versions. Use
+  `./gradlew spotlessApply --console=plain` to apply formatting before final source
+  hashes and class review. `./gradlew check --console=plain` includes formatting
+  verification and tests; checking does not rewrite source files.
 - Keep compiler warnings enabled and fix them. Any warning suppression should be
   narrow and explain why it is necessary.
 - Preserve Gradle build and configuration caching. New task logic must declare its
@@ -122,6 +127,8 @@ completed.
   ```
 
 - Report clearly when a successful build had no tests to run.
+- Step 2 tooling and cache evidence, including the temporary Java fixture's SOLID
+  review, is recorded in [the code-check review](docs/reviews/0001-code-checks.md).
 
 ## References
 

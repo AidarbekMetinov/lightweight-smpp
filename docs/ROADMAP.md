@@ -5,10 +5,12 @@ runnable client and server simulators for functional and heavy-load testing.
 The [research report](RESEARCH.md) explains the protocol targets and architecture.
 The [simulator plan](SIMULATORS.md) defines workloads and measurement requirements.
 
-Current stage: **research and Step 1 completed; Step 2 is next**.
+Current stage: **research and Steps 1–2 completed; Step 3 is next**.
 Java 21, Gradle, JUnit, strict compiler warnings, local caching, and Git are
-configured. No Java sources, simulators, or tests exist yet. The formatter,
-architecture tests, and review-evidence validator below are planned tooling.
+configured. Java formatting is enforced and ArchUnit core is available to Jupiter.
+The repository still has no Java sources or permanent tests; Step 2 used an
+isolated tooling fixture. Project architecture rules and the review-evidence
+validator remain planned for Steps 3 and 4 respectively.
 
 Each step delivers one coherent result. Larger steps contain several small TDD
 cycles and may use several simple commits. Follow [TDD](TDD.md), review every
@@ -72,6 +74,12 @@ proposed code examples do not establish executed TDD or reviewed implementations
 Suggested commit: `Define library contracts`.
 
 ## 2. Set up the test and formatting workflow
+
+Status: **completed**. Pinned Spotless 8.10.2, Palantir Java Format 2.96.0, and
+ArchUnit core 1.4.2 work with Java 21, Gradle 9.6.0, and Jupiter 6.0.0. Formatting
+is connected to `check`. The [review record](reviews/0001-code-checks.md) contains
+negative/positive fixture checks, the temporary class's SOLID review, dependency
+verification, and observed configuration/output cache reuse.
 
 Keep JUnit Jupiter and strict compiler checks. Select a deterministic formatter
 that preserves four-space indentation and wire its verification into `check`.
