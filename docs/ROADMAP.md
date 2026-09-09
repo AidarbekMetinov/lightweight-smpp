@@ -5,14 +5,14 @@ runnable client and server simulators for functional and heavy-load testing.
 The [research report](RESEARCH.md) explains the protocol targets and architecture.
 The [simulator plan](SIMULATORS.md) defines workloads and measurement requirements.
 
-Current stage: **research and Steps 1–6 completed; Step 7 is next**.
+Current stage: **research and Steps 1–7 completed; Step 8 is next**.
 Java 21, Gradle, JUnit, strict compiler warnings, local caching, formatting, and Git
 are configured. Header values, a binary header codec, bounded framing, behavior
 tests, and meaningful architecture rules are implemented. Automatic review-evidence
 coverage and freshness checks run through the normal verification lifecycle.
 Bounded fields, ordered raw TLVs, explicit 3.4/5.0 catalogues, initial occurrence
-rules, typed interpretation, and complete bind/control codecs are implemented.
-Basic messaging codecs and endpoint behavior remain later steps.
+rules, typed interpretation, bind/control codecs, and basic message codecs are
+implemented. Session policies and live endpoint behavior remain later steps.
 
 Each step delivers one coherent result. Larger steps contain several small TDD
 cycles and may use several simple commits. Follow [TDD](TDD.md), review every
@@ -209,6 +209,13 @@ the information needed for response correlation and version decisions.
 Suggested commit: `Add session command codecs`.
 
 ## 7. Add basic message codecs
+
+Status: **completed**. [Message contracts](MESSAGES.md) cover submit, deliver and
+data requests/responses, both profiles and data directions, immutable payloads,
+all 51 message TLV structures, companion rules and explicit request-context
+validation. [The review](reviews/0006-message-codecs.md) records executed TDD,
+independent wire/table fixtures, source hashes and full per-type SOLID findings.
+Session and independent-peer evidence remain pending.
 
 Implement `submit_sm`, `deliver_sm`, `data_sm`, their responses, and the optional
 parameters needed by their declared profiles. Preserve raw payload bytes before

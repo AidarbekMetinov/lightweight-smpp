@@ -34,10 +34,10 @@ artifact. Follow [the simulator plan](docs/SIMULATORS.md); use TDD and SOLID rev
 for simulator code as well as library code. Actual load measurements must execute
 freshly, even though compilation and deterministic tests can use build caches.
 
-Research and Steps 1–6 are complete. Step 7, basic messaging codecs, is next.
-The binary foundation includes bounded fields, raw TLVs, explicit profiles,
-and complete bind/control codecs; see [field contracts](docs/FIELDS.md) and
-[command contracts](docs/COMMANDS.md).
+Research and Steps 1–7 are complete. Step 8, session state and endpoint
+permissions, is next. Bounded fields, raw TLVs, explicit profiles, bind/control
+codecs, and basic message codecs are implemented; see [field contracts](docs/FIELDS.md),
+[command contracts](docs/COMMANDS.md), and [message contracts](docs/MESSAGES.md).
 The design baseline uses one library artifact, no initial runtime dependencies,
 one asynchronous request mechanism, and focused
 endpoint capabilities. Simulator tooling will be a separate application subproject.
@@ -145,6 +145,7 @@ completed.
   Step 5 fields/profile evidence and the updated architecture review are in
   [the field review](docs/reviews/0004-fields-profiles.md). Step 6 command codec
   evidence is in [the command review](docs/reviews/0005-session-command-codecs.md).
+  Step 7 evidence is in [the message review](docs/reviews/0006-message-codecs.md).
 
 ## References
 

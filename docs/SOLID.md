@@ -139,6 +139,8 @@ alongside library/test types. Step 5 adds 23 types and updates ArchitectureTest;
 [its review](reviews/0004-fields-profiles.md) supplies current evidence for all 24
 affected identities, bringing that snapshot to 43 types. Step 6 adds complete
 [command codec reviews](reviews/0005-session-command-codecs.md), including
-registry extensions and every nested test fixture. The latest review records the
-current integrated inventory. Each later step must provide evidence for every
+registry extensions and every nested test fixture. Step 7 adds
+[message reviews](reviews/0006-message-codecs.md) for all 28 new identities,
+including the nested per-tag fixture. The latest review records the current
+integrated inventory. Each later step must provide evidence for every
 affected type; historical reports do not cover changed source.

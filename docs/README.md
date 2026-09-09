@@ -60,7 +60,7 @@ be revisited when the library's scope is settled.
 
 SMPP 5.0 is the latest public standard verified in the research. The report also
 explains the unresolved “5.1” terminology in older Oracle documentation. The shared
-header/framing, field/TLV foundations, and bind/control codecs are implemented
+header/framing, field/TLV foundations, bind/control and basic message codecs are implemented
 for both profiles; complete version support remains pending. Formatting, real
 architecture rules, and automatic review coverage/freshness checks are active;
 SOLID and TDD policies apply to every change.
@@ -80,8 +80,8 @@ The baseline uses one asynchronous request mechanism and focused capabilities,
 one library artifact without initial runtime dependencies, and a separate
 application subproject for simulator tooling. API class names remain sketches
 until implementation tests establish them. Binary framing, fields, TLVs, and profile
-foundations and bind/control codecs are implemented; endpoint APIs and simulators
-remain planned.
+foundations, bind/control codecs, and basic message codecs are implemented;
+endpoint APIs and simulators remain planned.
 
 ## Remaining design choices
 
@@ -133,7 +133,16 @@ status, sequence, raw version advertisements, and raw incoming extensions.
 See [command contracts](COMMANDS.md) and the
 [TDD/SOLID review](reviews/0005-session-command-codecs.md).
 
-Next: Step 7 implements basic messaging codecs.
+## Step 7 message codecs
+
+Submit, deliver and data messages and their responses have bounded codecs for
+both profiles, with explicit data-message direction, immutable payload bytes,
+and structural checks for all 51 message TLV tags. Original-request response
+conditions are separate from decoding. See [message contracts](MESSAGES.md) and
+the [TDD/SOLID review](reviews/0006-message-codecs.md), including the documented
+SMPP 5.0 error-body interpretation.
+
+Next: Step 8 implements session state and endpoint permissions.
 
 ## References
 

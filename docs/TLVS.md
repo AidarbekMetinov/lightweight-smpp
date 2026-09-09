@@ -1,8 +1,10 @@
 # TLV support inventory
 
-Step 1 baseline, updated after Step 6. Raw bounded TLV encoding/decoding and
-ordered immutable storage are implemented. Typed interpretation currently covers
-`0210` and `0428` in the contexts below; other typed semantics remain **planned**.
+Step 1 baseline, updated after Step 7. Raw bounded TLV encoding/decoding and
+ordered immutable storage are implemented. Bind/control interpretation covers
+`0210` and `0428`; message codecs structurally validate all 51 tags in their exact
+profile/direction tables. External network services, receipt/text interpretation
+and remaining operation contexts stay **planned**.
 Profile catalogues contain all 44 distinct 3.4 tags and 64 distinct 5.0 tags.
 `—` in the 3.4 column means a 5.0 addition. References are to the cited
 specifications, not Java implementation sections.[^1][^2]
@@ -146,6 +148,16 @@ incoming values, and bounded preservation of unexpected extensions.
 control-response congestion and document the specification interpretations.
 These codec results do not establish negotiated endpoint capabilities.
 
+[Step 7](reviews/0006-message-codecs.md) adds `MessageTlvRulesTest` with exact
+3.4/5.0 command/direction sets; `MessageTlvValueCodecTest` with independently
+specified values and invalid lengths for all 51 message tags; and
+`MessageOptionalParametersTest` with payload, SAR, UDHI, callback, network and
+number-portability companion cases. `MessageResponseRulesTest` checks conditions
+requiring the original request or known delivery outcome.
+[Message contracts](MESSAGES.md) state the version-specific value layouts, vendor
+registration scope and the explicit 5.0 failed-response body limitation. Raw
+receipt identifiers and payload bytes do not implement receipt/text parsers.
+
 ## Planned validation for every tag
 
 For each `TLV-xxxx`, create a version/command-specific fixture with independently
@@ -155,11 +167,14 @@ and the result when the tag is permitted, unexpected, or unsupported.
 
 Expand the context sources into executable per-command cases when that command
 is implemented. Require both directions where applicable, and record the test
-names in its evidence. The implemented occurrence rules cover bind/control
-responses and 5.0 broadcast requests with explicit priority; the remaining contexts
-still need executable rules.
+names in its evidence. Implemented occurrence rules cover bind/control bodies,
+submit/deliver/data messages and responses in both directions, and initial 5.0
+broadcast request requirements with explicit priority. Complete broadcast codecs
+and remaining operation contexts still need executable evidence.
 
-The following cross-field cases have their own planned scenarios:
+The following cross-field scenario groups remain the inventory checklist.
+The executed message subset is recorded above; remaining operations and services
+need their own evidence:
 
 - `TLV-PAYLOAD`: `short_message` and `message_payload` interactions; `data_sm`
   payload requirements; byte lengths rather than Java character counts.

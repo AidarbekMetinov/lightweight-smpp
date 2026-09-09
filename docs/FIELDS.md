@@ -112,17 +112,21 @@ or mutating decoding input, and return fresh bounded encoding arrays. The suppli
 domains. Extension code does not replace the enclosing raw block's bounds.
 
 Incoming processing is raw bounded decode, applicable occurrence validation, then
-supported typed interpretation. Outgoing processing builds values, validates
-command/profile occurrences and semantics, then applies bounded raw encoding.
-This keeps unknown-data preservation separate from permission and interpretation.
+supported typed interpretation. Outgoing command codecs check raw TLV byte/count
+bounds before typed interpretation can copy values, then validate applicable
+occurrences and semantics before returning an encoded command. A bounded raw
+encoding may be retained for final body assembly. This keeps unknown-data
+preservation separate from permission and interpretation.
 
 ## Evidence and remaining work
 
 The [Step 5 review](reviews/0004-fields-profiles.md) records 29 actual TDD cycles,
 additional characterization probes, all new/updated type reviews, and integrated
-verification. The implementation has no runtime dependency. Typed content for
-the other catalogue entries, remaining command contexts, callback correlations,
-and full cross-field validation remain planned in the inventories.
+verification. The implementation has no runtime dependency. Steps 6 and 7 add
+[bind/control codecs](COMMANDS.md) and [message codecs](MESSAGES.md), including
+all message-table TLV structures, callback correlations and message companion
+conditions. Remaining operation contexts and external service interpretation
+stay planned in the inventories.
 
 Wire primitives and compatibility rules follow
 [SMPP 3.4](https://smpp.org/SMPP_v3_4_Issue1_2.pdf), §§3.1, 3.3, and 5.3, and

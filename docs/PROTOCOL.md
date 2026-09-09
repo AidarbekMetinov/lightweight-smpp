@@ -1,11 +1,12 @@
 # Protocol support inventory
 
-Step 1 baseline, updated after Step 6. Bind/control codecs have
-[executed evidence](reviews/0005-session-command-codecs.md) for both profiles.
+Step 1 baseline, updated after Step 7. Bind/control codecs have
+[Step 6 evidence](reviews/0005-session-command-codecs.md), and basic message codecs
+have [Step 7 evidence](reviews/0006-message-codecs.md) for both profiles.
 The shared [framing](reviews/0002-pdu-framing.md) and
 [field/profile](reviews/0004-fields-profiles.md) evidence establishes their binary
-foundation. Messaging codecs, complete sessions, simulators, and independent-peer
-results remain **planned**. This inventory complements the specifications.
+foundation. Complete sessions, remaining operation codecs, simulators, and
+independent-peer results remain **planned**. This inventory complements the specifications.
 
 `C` means our ESME client and `S` our message-center server. `TX`, `RX`, and `TRX`
 are SMPP bind modes, independent of TCP connection direction. `B` means any bound
@@ -30,9 +31,9 @@ endpoint implementations. Separate evidence columns start at `—` (no evidence)
 | `unbind` | `00000006` / `80000006` | C or S in B | 3.4, 5.0 | 4.2 / 4.1.1.8–9 | 6, 11 | [Step 6](reviews/0005-session-command-codecs.md) | — | — |
 | `enquire_link` | `00000015` / `80000015` | C or S; see control-state note | 3.4, 5.0 | 4.11 / 4.1.2 | 6, 17 | [Step 6](reviews/0005-session-command-codecs.md) | — | — |
 | `generic_nack` | none / `80000000` | C or S as error response | 3.4, 5.0 | 4.3 / 4.1.4 | 6, 8 | [Step 6](reviews/0005-session-command-codecs.md) | — | — |
-| `submit_sm` | `00000004` / `80000004` | C in TX or TRX | 3.4, 5.0 | 4.4 / 4.2.1 | 7, 12 | — | — | — |
-| `deliver_sm` | `00000005` / `80000005` | S in RX or TRX | 3.4, 5.0 | 4.6 / 4.3.1 | 7, 12 | — | — | — |
-| `data_sm` | `00000103` / `80000103` | See version-specific note | 3.4, 5.0 | 4.7 / 4.2.2, 4.3.2 | 7, 12 | — | — | — |
+| `submit_sm` | `00000004` / `80000004` | C in TX or TRX | 3.4, 5.0 | 4.4 / 4.2.1 | 7, 12 | [Step 7](reviews/0006-message-codecs.md) | — | — |
+| `deliver_sm` | `00000005` / `80000005` | S in RX or TRX | 3.4, 5.0 | 4.6 / 4.3.1 | 7, 12 | [Step 7](reviews/0006-message-codecs.md) | — | — |
+| `data_sm` | `00000103` / `80000103` | See version-specific note | 3.4, 5.0 | 4.7 / 4.2.2, 4.3.2 | 7, 12 | [Step 7](reviews/0006-message-codecs.md) | — | — |
 | `query_sm` | `00000003` / `80000003` | C in TX or TRX | 3.4, 5.0 | 4.8 / 4.5.2 | 14 | — | — | — |
 | `cancel_sm` | `00000008` / `80000008` | C in TX or TRX | 3.4, 5.0 | 4.9 / 4.5.1 | 14 | — | — | — |
 | `replace_sm` | `00000007` / `80000007` | C in TX; TRX additionally in 5.0 | 3.4, 5.0 | 4.10 / 4.5.3 | 14 | — | — | — |
@@ -77,9 +78,10 @@ Both profiles include these field identities. A field's occurrence, length,
 meaning, and reserved values still depend on its enclosing command. The test
 identity for each field is `FIELD-<name>`; grouped aliases each need their own
 applicable cases. Raw header values/translation and generic bounded unsigned,
-ASCII C-octet, and raw-octet primitives are verified. Bind/control fields and
-status/body rules have [command evidence](COMMANDS.md); validation in other
-command bodies remains pending. See [the field contracts](FIELDS.md).
+ASCII C-octet, and raw-octet primitives are verified. Bind/control fields have
+[command evidence](COMMANDS.md); submit/deliver/data fields, time grammar, flags,
+payload alternatives and response-body rules have [message evidence](MESSAGES.md).
+Validation in remaining operation bodies stays pending. See [field contracts](FIELDS.md).
 
 | Field or related aliases | 3.4 section | 5.0 section | Planned validation focus |
 | --- | --- | --- | --- |
