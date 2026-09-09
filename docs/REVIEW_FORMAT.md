@@ -90,8 +90,8 @@ coverage. A project with no Java types cannot claim successful coverage.
 ## Build inputs and caching
 
 Gradle selects every repository `.java` file, including tooling, tests, untracked
-files, arbitrary source sets and `buildSrc`. It excludes the root `build/` output
-directory, `.git`/`.gradle` directories and Gradle's standard metadata/editor
+files, arbitrary source sets and `buildSrc`. It excludes the root `build/` and explicit `simulator/build/` output
+directories, `.git`/`.gradle` directories and Gradle's standard metadata/editor
 exclusions. A source package named `build` remains included. Reports are all
 `docs/reviews/**/*.md` files. When introducing subprojects or nonstandard generated
 output directories, explicitly configure those output roots; do not exclude all

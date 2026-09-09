@@ -70,7 +70,7 @@ tasks.register('reviewTest', Test) {
 
 def reviewSourceFiles = fileTree(projectDir) {
     include '**/*.java'
-    exclude 'build/**', '**/.git/**', '**/.gradle/**'
+    exclude 'build/**', 'simulator/build/**', '**/.git/**', '**/.gradle/**'
 }
 def reviewDocumentFiles = fileTree('docs/reviews') {
     include '**/*.md'
@@ -105,7 +105,7 @@ def reviewLauncher = javaToolchains.launcherFor(java.toolchain)
 }
 
 tasks.named('check') {
-    dependsOn 'reviewTest', 'solidReview'
+    dependsOn 'reviewTest', 'solidReview', ':simulator:check'
 }
 
 abstract class SolidReviewArguments implements CommandLineArgumentProvider {
@@ -139,7 +139,7 @@ abstract class SolidReviewArguments implements CommandLineArgumentProvider {
 
 spotless {
     java {
-        target 'src/*/java/**/*.java'
+        target 'src/*/java/**/*.java', 'simulator/src/*/java/**/*.java'
         encoding 'UTF-8'
         lineEndings = com.diffplug.spotless.LineEnding.UNIX
         palantirJavaFormat('2.96.0')
@@ -175,4 +175,8 @@ tasks.withType(Test).configureEach {
         events 'failed', 'skipped'
         exceptionFormat = 'full'
     }
+}
+
+tasks.named('build') {
+    dependsOn ':simulator:build'
 }

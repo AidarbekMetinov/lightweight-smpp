@@ -199,3 +199,18 @@ Use short, plain commit messages describing the change, for example:
 
 Keep each commit focused on a coherent change and run the relevant checks first.
 Generated builds, Gradle caches, and local IDE settings are ignored by Git.
+
+## Simulator development
+
+`./gradlew check build --console=plain` includes the separate simulator tests and
+application archives. `./gradlew :simulator:installDist --console=plain` builds
+independent launchers under `simulator/build/install/simulator/bin/`. Compiler
+warnings, Java 21, deterministic archives and root Spotless rules also cover this
+subproject. Tool dependencies and tests remain outside the library archives.
+
+Use [the simulator guide](SIMULATORS.md) for fresh executable runs and
+[workload evidence](WORKLOADS.md) for the initial measurements. Compilation,
+formatting, deterministic tests and SOLID evidence retain Gradle caching. Actual
+workload measurements run as fresh processes outside the default build tasks.
+The review inventory explicitly excludes `simulator/build/` generated output,
+while retaining legitimate Java packages named `build` elsewhere.

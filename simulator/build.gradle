@@ -1,0 +1,57 @@
+plugins {
+    id 'application'
+}
+
+group = rootProject.group
+version = rootProject.version
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.release = 21
+    options.compilerArgs.addAll(['-Xlint:all', '-Werror'])
+}
+
+java {
+    toolchain { languageVersion = JavaLanguageVersion.of(21) }
+}
+
+repositories { mavenCentral() }
+
+dependencies {
+    implementation project(':')
+    implementation 'org.hdrhistogram:HdrHistogram:2.2.2'
+    testImplementation platform('org.junit:junit-bom:6.0.0')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testImplementation 'com.tngtech.archunit:archunit:1.4.2'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+application {
+    mainClass = 'kg.aidarbek.simulator.SimulatorMain'
+    applicationDefaultJvmArgs = ['-Xms256m', '-Xmx512m']
+}
+
+tasks.withType(AbstractArchiveTask).configureEach {
+    preserveFileTimestamps = false
+    reproducibleFileOrder = true
+}
+
+tasks.withType(Jar).configureEach {
+    from(rootProject.files('LICENSE', 'NOTICE')) { into 'META-INF' }
+}
+
+distributions {
+    main {
+        contents {
+            from(rootProject.files('LICENSE', 'NOTICE'))
+        }
+    }
+}
+
+tasks.withType(Test).configureEach {
+    useJUnitPlatform()
+    testLogging {
+        events 'failed', 'skipped'
+        exceptionFormat = 'full'
+    }
+}

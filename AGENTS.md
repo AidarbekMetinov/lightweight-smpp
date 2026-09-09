@@ -34,7 +34,7 @@ artifact. Follow [the simulator plan](docs/SIMULATORS.md); use TDD and SOLID rev
 for simulator code as well as library code. Actual load measurements must execute
 freshly, even though compilation and deterministic tests can use build caches.
 
-Research and Steps 1–12 are complete. Step 13, the first simulators, is next.
+Research and Steps 1–13 are complete. Step 14, remaining common operations, is next.
 Bounded fields, raw TLVs, explicit profiles, bind/control
 and message codecs, deterministic session/version policies, and bounded request
 ownership are implemented. See [field contracts](docs/FIELDS.md), [command contracts](docs/COMMANDS.md),
@@ -44,10 +44,11 @@ adapters implement [frame transport ports](docs/TRANSPORT.md). [Client/server
 binding](docs/ENDPOINTS.md), authentication, enquiries, cancellation and bounded
 shutdown are implemented for both profiles. [Message exchange](docs/EXCHANGE.md)
 adds typed submission, delivery and data-message senders, optional asynchronous
-handlers, ordered bounded replies and handler cleanup. Simulators remain Step 13.
+handlers, ordered bounded replies and handler cleanup. The separate simulator
+application supplies client/server workloads, bounded faults and fresh reports.
 The design baseline uses one library artifact, no initial runtime dependencies,
 one asynchronous request mechanism, and focused
-endpoint capabilities. Simulator tooling will be a separate application subproject.
+endpoint capabilities. Simulator tooling is a separate application subproject.
 Do not implement later roadmap steps without a request to proceed with them.
 
 Use [the API contracts](docs/API.md), [protocol inventory](docs/PROTOCOL.md),

@@ -222,8 +222,23 @@ and handset delivery remain separate. The final formatted suite freshly executed
 559 library/architecture cases, including 138 endpoint and 12 architecture cases;
 the final build reused that matching output and restored 60 unchanged review-tool
 cases from cache. All 228 current Java identities have matching SOLID evidence.
-A separate client/server JVM smoke completed successfully. Simulators start in Step 13; common operations and encoding/
-receipt helpers remain Steps 14–15, and complete SMPP 5.0 coverage remains Step 16.
+A separate client/server JVM smoke completed successfully.
+
+## Step 13 client and server simulators
+
+The separate `simulator` application runs independent client/server workloads
+under both profiles, with finite arrival/ramp/concurrency plans, seeded receiver
+faults, HDR latency distributions, resource CSV and explicit outcome accounting.
+The 40 simulator cases cover deterministic policies and real separate JVMs;
+all 293 current type identities have matching SOLID reviews. HdrHistogram 2.2.2
+is a tool dependency; the library runtime remains dependency-free.
+
+[The guide](SIMULATORS.md) documents installation and CLI options.
+[Fresh measurements](WORKLOADS.md) include both-profile smoke, three repeated
+short runs per profile, full development baselines and short ramps. Both full
+1,000/s baselines failed strict criteria because of recorded generator skips;
+these results are not production-capacity claims. Common operations and message
+helpers remain Steps 14–15; full SMPP 5.0 coverage remains Step 16.
 
 ## References
 

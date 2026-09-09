@@ -5,7 +5,7 @@ runnable client and server simulators for functional and heavy-load testing.
 The [research report](RESEARCH.md) explains the protocol targets and architecture.
 The [simulator plan](SIMULATORS.md) defines workloads and measurement requirements.
 
-Current stage: **research and Steps 1–12 completed; Step 13 is next**.
+Current stage: **research and Steps 1–13 completed; Step 14 is next**.
 Java 21, Gradle, JUnit, strict compiler warnings, local caching, formatting, and Git
 are configured. Header values, a binary header codec, bounded framing, behavior
 tests, and meaningful architecture rules are implemented. Automatic review-evidence
@@ -16,6 +16,8 @@ implemented. Deterministic session/version policies now cover both endpoint
 roles. Bounded request tracking, TCP frame transport and real binding/control
 endpoints are implemented. Typed submission, delivery and data-message handlers,
 bounded ordered replies and handler cleanup are implemented in Step 12.
+The first independent client/server simulators, bounded schedules/faults and
+fresh workload reports are implemented in Step 13.
 
 Each step delivers one coherent result. Larger steps contain several small TDD
 cycles and may use several simple commits. Follow [TDD](TDD.md), review every
@@ -374,6 +376,11 @@ remaining 5.0 commands stay required work in Step 16.
 Suggested commit: `Add message exchange`.
 
 ## 13. Deliver the first client and server simulators
+
+Completed: [CLI and measurement contracts](SIMULATORS.md),
+[TDD/SOLID evidence](reviews/0012-simulators.md), and
+[fresh measured workload results](WORKLOADS.md). Full heavy-load qualification
+remains Step 18; the strict 1,000/s baseline target was not achieved.
 
 Add a development application subproject, depending on the public library API,
 with independently runnable client and server modes. Implement configurable

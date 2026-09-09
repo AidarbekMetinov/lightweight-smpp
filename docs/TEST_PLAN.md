@@ -149,7 +149,17 @@ fixtures; it cannot prove interoperability by itself.
 
 ## Simulator contracts
 
-| ID | Planned scenario |
+Step 13 implements LOAD-01 through LOAD-07 for the initial supported operations.
+Forty simulator cases exercise invalid preflight, controlled scheduling and fault
+clocks, disjoint accounting, bounded delayed/stalled decisions, report semantics,
+interruption/partial results and separate process scenarios. Seeded bucket tests
+verify exact decisions; real fault runs distinguish observed outcomes. Architecture
+checks reject tool ownership of a second protocol request engine. Actual fresh
+runs are recorded in [WORKLOADS.md](WORKLOADS.md), independently of cached tests.
+Broader scenarios below remain staged work; statistical fault-mix acceptance,
+churn and sustained heavy-load qualification remain Step 18.
+
+| ID | Scenario; implemented subset described above |
 | --- | --- |
 | `LOAD-01` | Reject invalid rates, counts, windows, sizes, deadlines, and incompatible role/operation combinations. |
 | `LOAD-02` | Controlled time produces the intended arrival schedule; delayed scheduling reports missed arrivals and no unbounded catch-up burst. |

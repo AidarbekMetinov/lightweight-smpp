@@ -8,7 +8,8 @@ Update them when actual workload requirements are available.
 
 Use [the simulator design](SIMULATORS.md) for measurement semantics and
 [the API contracts](API.md) for admission, timeouts, and lifecycle behavior.
-No simulator or load run exists yet.
+Step 13 supplies runnable simulators and the fresh local measurements below.
+The remaining heavy-load profiles continue in Step 18.
 
 ## Initial measurement environment
 
@@ -159,6 +160,93 @@ achieved rates, all outcome counts, timing populations, histogram settings, and
 resource observations. Threshold failure or incomplete execution gives a nonzero
 exit status. Distinguish an expected fault outcome from an unexpected failure.
 All load runs execute freshly and stay outside the default quick build checks.
+
+## Step 13 fresh local measurements
+
+Twelve run pairs executed freshly on 9 September 2026 as separate installed
+client/server JVMs on loopback. The workstation still reports Java
+21.0.12+8-1-24.04-Ubuntu, Linux 7.0.0-31-generic amd64 and 12 logical processors.
+Both JVMs used `-Xms256m -Xmx512m`, the default collector, binary DCS 4, 160-byte
+payloads, seed 1, TRX binding, window 32 and a 2-second request timeout.
+The host was also running development builds; these are diagnostic local
+measurements without CPU isolation or a production-capacity claim.
+
+- `smoke34` / `smoke50`: W-SMOKE, one connection, 10/s, 100 requests, no warmup,
+  10-second measurement and 2-second drain.
+- `base34` / `base50`: W-BASE, ten connections, 1,000/s, 30-second warmup,
+  120-second measurement, 120,000 planned requests and 30-second drain.
+- `repeat1`–`repeat3` and `repeat50-1`–`repeat50-3`: three identical short inputs
+  per profile, two connections, 100/s, 1-second warmup, 3-second measurement,
+  300 planned requests and 2-second drain. These are not shortened W-BASE claims.
+- `ramp34` / `ramp50`: ten connections, 100/500/1,000/100 per second in four
+  3-second steps, 3-second warmup, 5,100 planned requests and 3-second drain.
+  These are short initial ramps, not the larger W-RAMP profile above.
+
+Client operations were `submit`; receivers were `none`. The server retained
+service through the configured drain. Baseline/repeat/ramp senders enabled
+`--minimum-rate-ratio=0.99 --p99-ms=100` and kept `--expect-failures=false`.
+Smoke runs enabled correctness checks without performance gates. No retry,
+catch-up queue or automatic reconnect was used.
+
+The rate below counts successful completions observed during the actual measured
+phase; eventual successes also include drain. Latencies are schedule-to-terminal
+observation in milliseconds. Peak RSS is the Linux process high-water mark in
+MiB. Exit columns show client/server; 1 means failed criteria.
+
+| Run | Planned | Eventual success | Skipped | Successful/s in phase | p50 / p95 / p99 ms | Peak RSS client/server MiB | Exit client/server |
+| --- | ---: | ---: | ---: | ---: | --- | --- | --- |
+| smoke34 | 100 | 100 | 0 | 10.000 | 1.412 / 4.263 / 7.119 | 71.1 / 70.1 | 0 / 0 |
+| smoke50 | 100 | 100 | 0 | 10.000 | 1.415 / 4.183 / 6.819 | 71.5 / 70.8 | 0 / 0 |
+| base34 | 120000 | 119764 | 236 | 998.024 | 1.055 / 1.074 / 2.069 | 243.8 / 246.6 | 1 / 0 |
+| base50 | 120000 | 119955 | 45 | 999.616 | 1.054 / 1.063 / 1.071 | 236.5 / 247.8 | 1 / 0 |
+| repeat1 | 300 | 300 | 0 | 99.998 | 1.242 / 1.399 / 2.479 | 76.6 / 77.7 | 0 / 0 |
+| repeat2 | 300 | 300 | 0 | 99.998 | 1.293 / 2.469 / 2.635 | 75.5 / 77.4 | 0 / 0 |
+| repeat3 | 300 | 300 | 0 | 99.998 | 1.232 / 1.385 / 1.634 | 75.9 / 77.6 | 0 / 0 |
+| ramp34 | 5100 | 5100 | 0 | 424.998 | 1.064 / 1.229 / 1.299 | 128.8 / 124.4 | 0 / 0 |
+| repeat50-1 | 300 | 300 | 0 | 99.998 | 1.226 / 1.414 / 2.589 | 75.7 / 77.5 | 0 / 0 |
+| repeat50-2 | 300 | 300 | 0 | 99.998 | 1.230 / 1.366 / 1.507 | 75.8 / 78.3 | 0 / 0 |
+| repeat50-3 | 300 | 300 | 0 | 99.998 | 1.237 / 1.392 / 1.500 | 77.7 / 79.8 | 0 / 0 |
+| ramp50 | 5100 | 5083 | 17 | 423.581 | 1.059 / 2.071 / 5.323 | 124.8 / 123.6 | 1 / 0 |
+
+All twelve pairs reconciled planned/attempted/admitted/outcome equations and
+receiver counts against sender warmup plus measurement admission. They had zero
+local rejections, negative responses, timeouts, cancellations, local failures,
+unfinished calls, pending calls after drain or invalid received content. Both
+endpoints reported complete cleanup in every pair.
+
+**Both full W-BASE runs failed.** Measurement skips were 236 under 3.4 and 45
+under 5.0; warmup skipped another 9 and 44 respectively. The 5.0 short ramp also
+failed with 17 skips. Successful rate and p99 targets alone cannot override the
+zero-skip criterion. The generator did not establish every scheduled arrival,
+so these results cannot establish target server capacity. All admitted requests
+still reached positive responses. No criteria were relaxed or failed reports
+replaced by passing reruns.
+
+The three healthy short runs per profile all passed. Their p99 spreads were
+1.634–2.635 ms under 3.4 and 1.500–2.589 ms under 5.0; these are separate
+percentiles, not averaged values. With only 100 or 300 samples, extreme
+percentiles such as p99.9 are unsuitable for comparison. Full per-run reports
+retain maximum, counts, overflow, p99.9, API invocation latency, scheduling lag,
+mergeable buckets and separate warmup populations. No sustained resource/leak
+conclusion is made from these finite runs.
+
+Local raw artifacts are retained under `build/runs/step13-20260909/`: each named
+run has `client/report.json`, `server/report.json`, numeric resource CSVs and
+process logs. `manifest.json` preserves exact argument vectors, process statuses,
+source paths/hash method and report SHA-256 identities; it is intentionally
+outside Git's source tree. Its SHA-256 is
+`bc0bb1432cabf8f34db649d382c23a27723983c3d339e3bb837c12afc467389f`.
+
+All measured binaries identify the development source as
+`e79b9f4cb905056fe6d91ded563e2a19b48ce4d9+2d6959eb02761d23affd86c50c4537f5f5ec9cf7debec9f74cbf3c01705e9b1f`:
+the baseline Git commit plus the manifest's explicit hash of final Step 12/13
+production/build inputs. The simulator executable SHA-256 is
+`6b6f54668ee686b3f6fb9922b038cbbf64976b181752393d265c9e1c36e597f2`;
+the library is `4e1d5a0ed133be89d4087722f320659c12f7931ff86fcf1d5089f1478a7ff5aa`;
+HdrHistogram 2.2.2 is
+`22d1d4316c4ec13a68b559e98c8256d69071593731da96136640f864fa14fad8`.
+Later commits/builds have their own fingerprints; these results belong to this
+recorded snapshot. Build-cache hits did not replay any measurement process.
 
 ## Decisions still awaiting real requirements
 

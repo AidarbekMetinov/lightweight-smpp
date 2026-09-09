@@ -157,3 +157,11 @@ reviews](reviews/0010-client-server-binding.md) and refreshes
 integrated inventory contains 199 current type identities. Each later step
 must provide evidence for every affected type; historical reports do not cover
 changed source.
+
+Step 12 adds [message exchange evidence](reviews/0011-message-exchange.md),
+covering 48 changed identities and a 228-type integrated snapshot. Step 13 adds
+[65 simulator type reviews](reviews/0012-simulator-types.md), yielding a 293-type
+snapshot. The simulator architecture probe permits only public library
+capabilities and explicit observation/configuration values, and detects a
+forbidden second RequestWindow. [Its change report](reviews/0012-simulators.md)
+records behavioral evidence separately from fresh workload measurements.
