@@ -79,7 +79,12 @@ acceptance after its required storage succeeds; a simulator may accept in memory
 Acknowledging an incoming delivery means accepting that PDU, independently of
 handset delivery or a later receipt for another submitted message. Optional query,
 replacement, cancellation and multiple-destination services use their own typed
-operation keys. Broadcast services remain Step 16.
+operation keys. SMPP 5.0 `broadcast()`, `queryBroadcast()` and `cancelBroadcast()`
+use the same capability and handler contracts for ESME TX/TRX origination and
+MC receipt. [Broadcast contracts](BROADCAST.md) define exact payload/TLV rules,
+application responsibilities and source interpretations. `congestion()` returns
+an immutable optional observation from the latest valid, matched 5.0 response;
+it does not change admission or retry policy.
 
 An absent, failed, invalid or expired handler decision returns the paired
 `ESME_RSYSERR`; exhausted handler capacity returns `ESME_RTHROTTLED` when an

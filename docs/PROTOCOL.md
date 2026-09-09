@@ -1,6 +1,6 @@
 # Protocol support inventory
 
-Step 1 baseline, updated after Step 14. Bind/control codecs have
+Step 1 baseline, updated after Step 16. Bind/control codecs have
 [Step 6 evidence](reviews/0005-session-command-codecs.md), and basic message codecs
 have [Step 7 evidence](reviews/0006-message-codecs.md) for both profiles.
 The shared [framing](reviews/0002-pdu-framing.md) and
@@ -14,8 +14,10 @@ authentication, manual controls, request ownership and bounded cleanup for both
 profiles. [Step 12 exchange](EXCHANGE.md) adds submission, delivery and data
 senders/handlers, ordered reply bounds and handler cleanup. [Step 13](SIMULATORS.md)
 adds runnable simulators. [Step 14](COMMON_OPERATIONS.md) adds common-operation
-codecs/services, one-way alerts and authenticated outbind. Broadcast codecs,
-scheduled keepalives and independent-peer results remain **planned**. This inventory complements the specifications.
+codecs/services, one-way alerts and authenticated outbind. [Step 16](BROADCAST.md)
+adds all three broadcast services and completes the 5.0 field/TLV inventory,
+including matched-response congestion observation. Scheduled keepalives and
+independent-peer results remain **planned**. This inventory complements the specifications.
 
 `C` means our ESME client and `S` our message-center server. `TX`, `RX`, and `TRX`
 are SMPP bind modes, independent of TCP connection direction. `B` means any bound
@@ -53,9 +55,9 @@ evidence and do not establish that claim.
 | `replace_sm` | `00000007` / `80000007` | C in TX; TRX additionally in 5.0 | 3.4, 5.0 | 4.10 / 4.5.3 | 14 | [Step 14](reviews/0013-common-operations.md) | [Step 14](COMMON_OPERATIONS.md) | — |
 | `submit_multi` | `00000021` / `80000021` | C in TX or TRX | 3.4, 5.0 | 4.5 / 4.2.3 | 14 | [Step 14](reviews/0013-common-operations.md) | [Step 14](COMMON_OPERATIONS.md) | — |
 | `alert_notification` | `00000102` / none | S in RX or TRX | 3.4, 5.0 | 4.12 / 4.1.3 | 14 | [Step 14](reviews/0013-common-operations.md) | [Step 14](COMMON_OPERATIONS.md) | — |
-| `broadcast_sm` | `00000111` / `80000111` | C in TX or TRX | 5.0 | — / 4.4.1 | 16 | — | — | — |
-| `query_broadcast_sm` | `00000112` / `80000112` | C in TX or TRX | 5.0 | — / 4.6.1 | 16 | — | — | — |
-| `cancel_broadcast_sm` | `00000113` / `80000113` | C in TX or TRX | 5.0 | — / 4.6.2 | 16 | — | — | — |
+| `broadcast_sm` | `00000111` / `80000111` | C in TX or TRX | 5.0 | — / 4.4.1 | 16 | [Step 16](reviews/0015-smpp5.md) | [Step 16](BROADCAST.md) | — |
+| `query_broadcast_sm` | `00000112` / `80000112` | C in TX or TRX | 5.0 | — / 4.6.1 | 16 | [Step 16](reviews/0015-smpp5.md) | [Step 16](BROADCAST.md) | — |
+| `cancel_broadcast_sm` | `00000113` / `80000113` | C in TX or TRX | 5.0 | — / 4.6.2 | 16 | [Step 16](reviews/0015-smpp5.md) | [Step 16](BROADCAST.md) | — |
 
 There are 27 distinct command identifiers in the 3.4 inventory and 33 in 5.0,
 counting each request and response separately. `generic_nack` has no request
@@ -95,7 +97,7 @@ of byte parsing or networking. These cases run for both roles and both profiles:
 
 | Scope | Executed policy evidence | Live integration and remaining scope |
 | --- | --- | --- |
-| All catalogue request permissions | `SessionPermissionsTest` enumerates defined requests, modeled states and originating roles, including data/replace/enquiry version differences. | Steps 12/14 implement messages, common paired operations, alerts and outbind; broadcast remains Step 16. |
+| All catalogue request permissions | `SessionPermissionsTest` enumerates defined requests, modeled states and originating roles, including data/replace/enquiry version differences. | Steps 12/14/16 implement all declared message, common, one-way and broadcast services; live broadcast tests include every profile/role/mode and unavailable-handler outcomes. |
 | Bind RX/TX/TRX and version policy | `SessionStateMachineTest` and `VersionNegotiationTest` cover both endpoints, accepted/rejected/duplicate binds, raw advertisements and restricted field requirements. | Step 11 adds authentication, actual writes, connection/bind deadlines and cleanup for all bind modes and both profiles. |
 | Unbind and closure | `SessionStateMachineTest` covers either initiator, crossed equal sequences, draining state and repeated close. | Steps 9–11 add request settlement, bounded reply flush and socket shutdown; messaging drain and later lifecycle features remain scoped to their steps. |
 | Ordinary responses and protocol errors | `SessionResponsePermissionTest` covers paired commands/directions/sequences, explicit correlation context, negative replies and invalid-header nack sequences. | Steps 9–11 integrate generation/late-response ownership and exactly-once completion for binding/control traffic. Step 12 applies the same ownership to typed message senders and handler replies. |
@@ -118,7 +120,8 @@ applicable cases. Raw header values/translation and generic bounded unsigned,
 ASCII C-octet, and raw-octet primitives are verified. Bind/control fields have
 [command evidence](COMMANDS.md); submit/deliver/data fields, time grammar, flags,
 payload alternatives and response-body rules have [message evidence](MESSAGES.md).
-Validation in remaining operation bodies stays pending. See [field contracts](FIELDS.md).
+[Common](COMMON_OPERATIONS.md) and [broadcast](BROADCAST.md) contracts complete
+the remaining standard bodies. See [field contracts](FIELDS.md).
 
 | Field or related aliases | 3.4 section | 5.0 section | Planned validation focus |
 | --- | --- | --- | --- |

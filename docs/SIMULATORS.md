@@ -9,7 +9,8 @@ Step 13 supplies the first usable pair in the separate `simulator` application.
 Submission, delivery and bidirectional `data_sm` traffic run through the public
 endpoint API. Step 14 adds query/cancel/replace/multi traffic and finite alert/
 outbind checks. Step 15 adds explicit encoding, SAR and receipt content fixtures.
-The broader scenarios below remain the staged target for Steps 16–18; this first pair does not establish production capacity or independent-peer
+Step 16 adds 5.0 broadcast submission, query and cancellation. The broader
+scenarios below remain the staged target for Steps 17–18; this pair does not establish production capacity or independent-peer
 interoperability.
 
 [Workload criteria](WORKLOADS.md) now define the Step 1 provisional profiles,
@@ -59,7 +60,7 @@ the executable always performs a fresh run.
 | Input | Implemented meaning |
 | --- | --- |
 | `--version=3.4` or `5.0`; `--bind=tx`, `rx`, `trx` | Requested/advertised profile and bind role. Incompatible originating operations fail before endpoint allocation. |
-| `--operation=submit`, `deliver`, `data`, `query`, `cancel`, `replace`, `multi`, `none` | Client submission/management/multiple-submission, server delivery, profile-permitted data in either direction, or receive-only. Both peers register message and common paired handlers. |
+| `--operation=submit`, `deliver`, `data`, `query`, `cancel`, `replace`, `multi`, `broadcast`, `query-broadcast`, `cancel-broadcast`, `none` | Client submission/management/multiple-submission, server delivery, profile-permitted data in either direction, or receive-only. Broadcast variants require a 5.0 client in TX/TRX mode with raw content. Both peers register the applicable typed handlers. |
 | `--connections=1`; `--window=32` | Fixed bound cohort and per-session request window. A run does not replace disconnected sessions or retry requests. |
 | `--connect-interval=PT0S` | Spacing between explicit client connection attempts. Configure the same value on the server when waiting for a slowly arriving cohort. |
 | `--model=arrival`; `--rates=10,100,10` | Aggregate independent arrivals across the cohort, in equal-duration rate steps. The last step includes any duration remainder. |
@@ -104,6 +105,13 @@ Delay release is polled by the tool owner, so scheduling stalls can extend it.
 The simulator never weakens protocol validation to generate malformed wire data.
 
 ## Explicit content fixtures
+
+The [broadcast fixture](BROADCAST.md) sends one originating PDU with two named
+area descriptors and up to 65,535 raw payload bytes. Query responses supply two
+synthetic area results; no persistent CBC, geographic expansion or radio-network
+delivery is simulated. Originating PDU counts do not represent handset counts.
+The same bounded reply/fault controller handles these requests. Point-to-point
+SAR and receipt content flags do not apply to broadcast bodies.
 
 `--content=raw` remains the default binary DCS4 workload. Both peers can select
 `gsm7`, `ucs2`, `sar`, `receipt`, `receipt-flexible` or `receipt-tlv`. Select the

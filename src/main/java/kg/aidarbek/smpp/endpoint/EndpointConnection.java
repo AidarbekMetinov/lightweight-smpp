@@ -380,6 +380,12 @@ final class EndpointConnection implements FrameListener, AutoCloseable {
         transport.write(frame, WriteClass.ORDINARY, bindDeadline, new OutbindWrite());
     }
 
+    private final CongestionMonitor congestion = new CongestionMonitor();
+
+    synchronized Optional<CongestionObservation> congestion() {
+        return congestion.snapshot();
+    }
+
     UUID id() {
         return id;
     }
@@ -801,8 +807,10 @@ final class EndpointConnection implements FrameListener, AutoCloseable {
             OptionalInt advertisement =
                     response.command() instanceof BindResponse bind ? advertisement(bind) : OptionalInt.empty();
             SessionDecision decision = machine.bindResponse(PduDirection.INBOUND, header, advertisement);
-            if (decision == SessionDecision.ACCEPTED) notifyBound();
-            else {
+            if (decision == SessionDecision.ACCEPTED) {
+                congestion.accepted(response, profile(), nanoClock.getAsLong());
+                notifyBound();
+            } else {
                 closeReason = new EndpointException(
                         decision == SessionDecision.VERSION_REJECTED
                                 ? EndpointException.Reason.VERSION_REJECTED
@@ -813,9 +821,13 @@ final class EndpointConnection implements FrameListener, AutoCloseable {
                 close();
             }
         } else if (unbinding) {
+            congestion.accepted(response, profile(), nanoClock.getAsLong());
             machine.unbindResponse(PduDirection.INBOUND, header, SendRequirements.COMMON);
             if (machine.state() == SessionState.CLOSED) finishAfterReplies();
-        } else advanceShutdown();
+        } else {
+            congestion.accepted(response, profile(), nanoClock.getAsLong());
+            advanceShutdown();
+        }
     }
 
     private void discardFinishedMessageContexts() {

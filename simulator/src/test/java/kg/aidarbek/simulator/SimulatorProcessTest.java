@@ -1,6 +1,8 @@
 package kg.aidarbek.simulator;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -53,6 +55,26 @@ class SimulatorProcessTest {
                 assertTrue(result.server().contains("\"received\":10"), result.server());
             }
         }
+    }
+
+    @Test
+    void broadcastOperationsRunThroughTheStandaloneRegistry() throws Exception {
+        for (String operation : List.of("broadcast", "query-broadcast", "cancel-broadcast")) {
+            var result = pair(
+                    operation,
+                    "5.0",
+                    List.of("--bind=tx", "--payload=4096"),
+                    List.of("--operation=" + operation, "--bind=tx", "--payload=4096"));
+            assertTrue(result.client().contains("\"SUCCESS\":10"), result.client());
+            assertTrue(result.server().contains("\"received\":10"), result.server());
+        }
+        var rejected = pair(
+                "broadcast-rejected",
+                "5.0",
+                List.of("--reject=100"),
+                List.of("--operation=broadcast", "--expect-failures=true"));
+        assertTrue(rejected.client().contains("\"PEER_NEGATIVE\":10"), rejected.client());
+        assertTrue(rejected.server().contains("\"rejected\":10"), rejected.server());
     }
 
     @Test

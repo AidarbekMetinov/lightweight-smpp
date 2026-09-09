@@ -17,7 +17,9 @@ under `META-INF/`. The license text is the
 - Support both client and server endpoints, targeting SMPP 5.0 and 3.4.
 - Provide client and server simulators for functional and heavy-load testing.
 - Develop it step by step, keeping each piece small and understandable.
-- Use Cloudhopper SMPP and Cloudhopper Commons as reference projects.
+- Use Cloudhopper SMPP and Cloudhopper Commons only as external references and
+  comparison tools. Their code and dependencies do not enter this repository,
+  including its build, tests and simulators.
 - Keep project planning documents in this directory.
 - Use strong Java coding practices and caching to keep development efficient.
 - Review every created or updated Java type against all five SOLID principles.
@@ -62,8 +64,9 @@ SMPP 5.0 is the latest public standard verified in the research. The report also
 explains the unresolved “5.1” terminology in older Oracle documentation. The shared
 header/framing, field/TLV foundations, bind/control and message codecs, and
 deterministic session policies are implemented for both profiles. Binding and control
-endpoints and submission/delivery/data services now run for both profiles;
-complete version support remains pending. Formatting, real
+endpoints and submission/delivery/data services run for both profiles. Common
+operations and the declared 5.0 broadcast/TLV inventory are implemented under the
+documented policies; provider interoperability remains separate evidence. Formatting, real
 architecture rules, and automatic review coverage/freshness checks are active;
 SOLID and TDD policies apply to every change.
 
@@ -83,8 +86,8 @@ The baseline uses one asynchronous request mechanism and focused capabilities,
 one library artifact without initial runtime dependencies, and a separate
 application subproject for simulator tooling. Binding/control and basic messaging
 endpoint APIs and examples are compiled. Binary framing, fields, TLVs, profiles,
-codecs, session policies and bounded live message exchange are implemented;
-simulators remain Step 13.
+codecs, session policies, bounded live exchange and standalone simulators are
+implemented. The later sections record each completed increment.
 
 ## Remaining design choices
 
@@ -273,7 +276,21 @@ The final checks pass 634 library cases, 57 simulator cases and 60 review-tool
 cases; all 381 Java identities have current reviews. Fourteen fresh installed-tool
 content scenarios passed, including two-connection multipart multiple submission.
 
-Next is Step 16: broadcast and the remaining declared SMPP 5.0 inventory.
+## Step 16 complete declared SMPP 5.0 inventory
+
+Typed broadcast submission, query and cancellation extend the existing bounded
+request and application-handler contracts. Independent byte fixtures and live
+profile/role/mode tests cover the complete 33-command and 64-tag catalogue.
+Congestion snapshots update only from validated, matched responses and leave
+admission policy with the application. The standalone client/server simulators
+exercise all three broadcast operations with bounded payload and fault fixtures.
+
+See [broadcast contracts and source interpretations](BROADCAST.md),
+[TDD/SOLID evidence](reviews/0015-smpp5.md), and
+[simulator integration](reviews/0015-simulator-integration.md).
+The integrated checks pass 664 library cases, 61 simulator cases and 60 review-tool
+cases; all 412 current type identities have matching reviews. Seven fresh
+installed-tool pairs verified both TX/TRX broadcast services and rejection.
 TLS/lifecycle hardening, full heavy-load qualification and independent-peer
 interoperability remain Steps 17–19.
 

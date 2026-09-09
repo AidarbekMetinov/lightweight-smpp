@@ -14,6 +14,7 @@ public final class SimulatorMain {
                 System.out.println(
                         "Usage: simulator client|server --revision=<full Git SHA> [--name=value ...]\n"
                                 + "Operations: client submit/data/query/cancel/replace/multi/none; server deliver/data/none. Versions: 3.4, 5.0; bind: tx/rx/trx.\n"
+                                + "SMPP 5.0 client TX/TRX also supports broadcast/query-broadcast/cancel-broadcast with raw content.\n"
                                 + "Load: --model=arrival|concurrency --rates=10,100,10 --count=100 --duration=PT10S --warmup=PT0S --drain=PT30S\n"
                                 + "Bounds: --connections=1 --window=32 --payload=160 --timeout=PT2S --connect-interval=PT0S\n"
                                 + "Content: --content=raw|gsm7|ucs2|sar|receipt|receipt-flexible|receipt-tlv (see docs/SIMULATORS.md for size/operation rules).\n"

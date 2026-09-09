@@ -160,22 +160,7 @@ public final class ProtocolProfile {
      * @throws IllegalArgumentException for a 3.4 profile or priority outside 0..255
      */
     public TlvRules broadcastRequestTlvRules(int priorityFlag) {
-        if (version != SmppVersion.V5_0) {
-            throw new IllegalArgumentException("Broadcast requests require the SMPP 5.0 profile");
-        }
-        if (priorityFlag < 0 || priorityFlag > 0xff) {
-            throw new IllegalArgumentException("Priority flag must be an unsigned octet");
-        }
-        Set<Integer> permitted = new HashSet<>(Set.of(
-                0x0601, 0x0604, 0x0605, 0x0606, 0x130c, 0x0600, 0x0602, 0x0603, 0x060a, 0x0381, 0x0303, 0x0302, 0x0005,
-                0x0203, 0x020b, 0x1201, 0x020d, 0x0424, 0x1204, 0x0019, 0x0201, 0x1203, 0x000d, 0x020a, 0x0202,
-                0x0204));
-        Set<Integer> required = new HashSet<>(Set.of(0x0601, 0x0604, 0x0605, 0x0606));
-        if (priorityFlag == 1) {
-            permitted.remove(0x0604);
-            required.remove(0x0604);
-        }
-        return new TlvRules(permitted, required, Set.of(0x0606, 0x0381, 0x0302, 0x0303));
+        return BroadcastTlvRules.forCommand(version, 0x111, priorityFlag);
     }
 
     private static <T> Set<T> withAdditional(Set<T> common, Set<T> additions) {

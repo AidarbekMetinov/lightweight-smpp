@@ -6,8 +6,9 @@ import java.util.stream.Stream;
 
 /** Single registration boundary for implemented paired endpoint operations. */
 final class OperationCatalog {
-    private static final List<Operation<?, ?>> OPERATIONS = Stream.concat(
-                    MessageOperations.all().stream(), CommonOperations.all().stream())
+    private static final List<Operation<?, ?>> OPERATIONS = Stream.of(
+                    MessageOperations.all(), CommonOperations.all(), BroadcastOperations.all())
+            .flatMap(List::stream)
             .toList();
 
     private OperationCatalog() {}

@@ -5,6 +5,10 @@
 Build a lightweight, simple Java SMPP library in this project. Use Cloudhopper
 SMPP and Cloudhopper Commons as reference projects.
 
+Cloudhopper is only an external reference and comparison tool. Do not import its
+code or add its dependencies to this project, including tests, build source sets
+and simulators. Keep any executable comparison setup outside the repository.
+
 The project uses [Apache License 2.0](LICENSE). Preserve the project attribution
 in [NOTICE](NOTICE); the binary, source, and Javadoc JARs include both files.
 
@@ -34,7 +38,7 @@ artifact. Follow [the simulator plan](docs/SIMULATORS.md); use TDD and SOLID rev
 for simulator code as well as library code. Actual load measurements must execute
 freshly, even though compilation and deterministic tests can use build caches.
 
-Research and Steps 1–15 are complete. Step 16, the remaining SMPP 5.0 inventory, is next.
+Research and Steps 1–16 are complete. Step 17, connection lifecycle hardening, is next.
 Bounded fields, raw TLVs, explicit profiles, bind/control
 and message codecs, deterministic session/version policies, and bounded request
 ownership are implemented. See [field contracts](docs/FIELDS.md), [command contracts](docs/COMMANDS.md),
@@ -50,6 +54,10 @@ application supplies client/server workloads, bounded faults and fresh reports.
 services, one-way alerts and explicit authenticated outbind owners.
 [Message helpers](docs/MESSAGE_HELPERS.md) add explicit encoding, bounded
 segmentation/reassembly and raw-preserving receipt interpretation.
+[SMPP 5.0 broadcast](docs/BROADCAST.md) completes the declared 33-command and
+64-tag inventory, including typed broadcast services and matched-response
+congestion observation. Application storage, radio delivery and rate policy
+remain explicit collaborators; external interoperability is separate evidence.
 The design baseline uses one library artifact, no initial runtime dependencies,
 one asynchronous request mechanism, and focused
 endpoint capabilities. Simulator tooling is a separate application subproject.

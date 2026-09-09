@@ -5,7 +5,7 @@ runnable client and server simulators for functional and heavy-load testing.
 The [research report](RESEARCH.md) explains the protocol targets and architecture.
 The [simulator plan](SIMULATORS.md) defines workloads and measurement requirements.
 
-Current stage: **research and Steps 1–15 completed; Step 16 is next**.
+Current stage: **research and Steps 1–16 completed; Step 17 is next**.
 Java 21, Gradle, JUnit, strict compiler warnings, local caching, formatting, and Git
 are configured. Header values, a binary header codec, bounded framing, behavior
 tests, and meaningful architecture rules are implemented. Automatic review-evidence
@@ -453,6 +453,14 @@ available, and simulator scenarios cover payload and receipt variants.
 Suggested commit: `Add message helpers`.
 
 ## 16. Complete the declared SMPP 5.0 inventory
+
+Completed: [broadcast and inventory contracts](BROADCAST.md),
+[codec/endpoint TDD and SOLID evidence](reviews/0015-smpp5.md), and
+[standalone simulator integration](reviews/0015-simulator-integration.md).
+The complete 33-command/64-tag catalogue has applicable codec and endpoint-role
+evidence. Congestion observations require a valid matched response. Application
+storage, geographic interpretation, radio delivery and rate policy remain
+caller-owned; external peer verification remains Step 19.
 
 Implement broadcast operations and responses, required fields, new optional
 parameters, status/receipt options, and congestion information from the inventory.

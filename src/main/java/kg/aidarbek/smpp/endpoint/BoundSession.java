@@ -5,6 +5,10 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletionStage;
 import kg.aidarbek.smpp.protocol.BindMode;
+import kg.aidarbek.smpp.protocol.BroadcastSm;
+import kg.aidarbek.smpp.protocol.BroadcastSmResponse;
+import kg.aidarbek.smpp.protocol.CancelBroadcastSm;
+import kg.aidarbek.smpp.protocol.CancelBroadcastSmResponse;
 import kg.aidarbek.smpp.protocol.CancelSm;
 import kg.aidarbek.smpp.protocol.CancelSmResponse;
 import kg.aidarbek.smpp.protocol.Command;
@@ -13,6 +17,8 @@ import kg.aidarbek.smpp.protocol.DataSm;
 import kg.aidarbek.smpp.protocol.DataSmResponse;
 import kg.aidarbek.smpp.protocol.DeliverSm;
 import kg.aidarbek.smpp.protocol.DeliverSmResponse;
+import kg.aidarbek.smpp.protocol.QueryBroadcastSm;
+import kg.aidarbek.smpp.protocol.QueryBroadcastSmResponse;
 import kg.aidarbek.smpp.protocol.QuerySm;
 import kg.aidarbek.smpp.protocol.QuerySmResponse;
 import kg.aidarbek.smpp.protocol.ReplaceSm;
@@ -55,6 +61,30 @@ public final class BoundSession implements AutoCloseable {
      * @return optional typed multiple-submission sender */
     public Optional<OperationSender<SubmitMulti, SubmitMultiResponse>> multipleSubmission() {
         return sender(CommonOperations.SUBMIT_MULTI);
+    }
+
+    /** Returns broadcast submission capability for an SMPP 5.0 ESME in TX or TRX mode.
+     * @return optional typed broadcast sender; peer service availability is independent */
+    public Optional<OperationSender<BroadcastSm, BroadcastSmResponse>> broadcast() {
+        return sender(BroadcastOperations.BROADCAST_SM);
+    }
+    /** Returns broadcast query capability when currently permitted.
+     * @return optional typed query sender */
+    public Optional<OperationSender<QueryBroadcastSm, QueryBroadcastSmResponse>> queryBroadcast() {
+        return sender(BroadcastOperations.QUERY_BROADCAST_SM);
+    }
+    /** Returns broadcast cancellation capability when currently permitted.
+     * @return optional typed cancellation sender */
+    public Optional<OperationSender<CancelBroadcastSm, CancelBroadcastSmResponse>> cancelBroadcast() {
+        return sender(BroadcastOperations.CANCEL_BROADCAST_SM);
+    }
+
+    /** Returns the latest valid congestion sample from an accepted matched SMPP 5.0 response.
+     * Missing, reserved, stale and unsupported-profile parameters do not replace the snapshot.
+     * This observation does not alter admission limits, rate or retry policy.
+     * @return immutable latest sample, or empty until one is accepted */
+    public Optional<CongestionObservation> congestion() {
+        return connection.congestion();
     }
 
     private final EndpointConnection connection;
