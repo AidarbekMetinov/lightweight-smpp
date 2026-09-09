@@ -214,3 +214,17 @@ steps record their actual Java TDD and per-type SOLID evidence in the linked rev
 
 [^1]: SMPP Developers Forum. [SMPP 3.4, Issue 1.2](https://smpp.org/SMPP_v3_4_Issue1_2.pdf), §§3.2 and 5.1, 12 October 1999.
 [^2]: SMS Forum. [SMPP 5.0](https://smpp.org/SMPP_v5.pdf), §§3.2, 4.7.4–6, and 4.7.24, 19 February 2003.
+
+## Step 14 common-operation evidence
+
+Common command fixtures independently assert all ten new wire IDs under both
+profiles, malformed counted bodies, raw/unsupported TLVs and negative-body
+policies. Real endpoint tests cover capability matrices, missing/failing services,
+per-destination results, notification write/cancel/deadline ownership and bounded
+shared handler work. Outbind tests verify credentials precede follow-up bind,
+raw bytes, duplicate/rejected/cancelled attempts, admission failure and physical
+capacity retention. Both-profile simulator adapters cover positive/negative
+common replies; standalone registry cases exercise all four paired operations.
+Finite alert/outbind smoke runs verify one notification and complete cleanup.
+See [the step review](reviews/0013-common-operations.md) and
+[simulator review](reviews/0013-simulator-integration.md).

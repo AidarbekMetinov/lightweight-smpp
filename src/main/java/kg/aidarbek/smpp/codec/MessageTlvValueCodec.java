@@ -24,7 +24,7 @@ public final class MessageTlvValueCodec implements TlvValueCodec<OctetString> {
     public MessageTlvValueCodec(SmppVersion version, int tag) {
         this.version = Objects.requireNonNull(version, "version");
         this.tag = tag;
-        boolean supported = false;
+        boolean supported = tag == 0x0422;
         for (long command : new long[] {4, 5, 0x103, 0x80000004L, 0x80000005L, 0x80000103L})
             for (MessageDirection direction : MessageDirection.values())
                 supported |= MessageTlvRules.permittedTags(version, command, direction)
@@ -100,7 +100,7 @@ public final class MessageTlvValueCodec implements TlvValueCodec<OctetString> {
             case 0x0501 -> first <= 3 || (first >= 16 && first <= 19) || first >= 32;
             case 0x060b -> first >= 128;
             case 0x060d, 0x060e -> networkId(value);
-            case 0x0611, 0x1201 -> first <= 2;
+            case 0x0422, 0x0611, 0x1201 -> first <= 2;
             case 0x1204 -> validity(value);
             default -> true;
         };

@@ -237,8 +237,25 @@ is a tool dependency; the library runtime remains dependency-free.
 [Fresh measurements](WORKLOADS.md) include both-profile smoke, three repeated
 short runs per profile, full development baselines and short ramps. Both full
 1,000/s baselines failed strict criteria because of recorded generator skips;
-these results are not production-capacity claims. Common operations and message
-helpers remain Steps 14–15; full SMPP 5.0 coverage remains Step 16.
+these results are not production-capacity claims.
+
+## Step 14 common operations
+
+Typed query, cancel, replace and multiple-submission operations now share the
+bounded request/handler mechanism. Alerts expose local write completion without
+a paired response. Explicit outbind listener/connector owners authenticate both
+sides and bind on the reversed TCP connection, with finite deadlines and cleanup.
+Independent wire fixtures, endpoint permission/lifecycle tests and simulator
+scenarios cover both profiles. The codecs retain raw fields and per-destination
+outcomes; application storage and distribution-list expansion remain caller-owned.
+
+See [common-operation contracts](COMMON_OPERATIONS.md),
+[TDD/SOLID evidence](reviews/0013-common-operations.md), and
+[standalone simulator integration](reviews/0013-simulator-integration.md).
+The integrated checks pass 615 library cases, 47 simulator cases and 60 review-tool
+cases; all 357 current Java identities have matching reviews. Four fresh installed
+alert/outbind checks completed successfully. Message helpers are Step 15; broadcast
+and full SMPP 5.0 inventory completion remain Step 16.
 
 ## References
 

@@ -13,7 +13,7 @@ public final class SimulatorMain {
             if (arguments.length == 1 && arguments[0].equals("--help")) {
                 System.out.println(
                         "Usage: simulator client|server --revision=<full Git SHA> [--name=value ...]\n"
-                                + "Operations: client submit/data/none; server deliver/data/none. Versions: 3.4, 5.0; bind: tx/rx/trx.\n"
+                                + "Operations: client submit/data/query/cancel/replace/multi/none; server deliver/data/none. Versions: 3.4, 5.0; bind: tx/rx/trx.\n"
                                 + "Load: --model=arrival|concurrency --rates=10,100,10 --count=100 --duration=PT10S --warmup=PT0S --drain=PT30S\n"
                                 + "Bounds: --connections=1 --window=32 --payload=160 --timeout=PT2S --connect-interval=PT0S\n"
                                 + "Peer: --host=127.0.0.1 --port=2775 --source=1000 --destination=2000\n"

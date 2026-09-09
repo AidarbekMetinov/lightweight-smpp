@@ -1,12 +1,12 @@
 # Library contracts
 
-Step 1 design baseline, updated through Step 12. Binding, control and basic
-message exchange endpoint APIs are compiled and tested. Executed contracts are
+Step 1 design baseline, updated through Step 14. Binding, control, message
+exchange and common-operation endpoint APIs are compiled and tested. Executed contracts are
 documented in [FRAMING.md](FRAMING.md), [FIELDS.md](FIELDS.md),
 [COMMANDS.md](COMMANDS.md), [MESSAGES.md](MESSAGES.md),
 [SESSIONS.md](SESSIONS.md), [REQUESTS.md](REQUESTS.md),
 [TRANSPORT.md](TRANSPORT.md), [ENDPOINTS.md](ENDPOINTS.md) and
-[EXCHANGE.md](EXCHANGE.md). Refine future API
+[EXCHANGE.md](EXCHANGE.md) and [COMMON_OPERATIONS.md](COMMON_OPERATIONS.md). Refine future API
 names through tests while preserving the behavior or documenting an intentional change.
 
 ## Scope and decisions
@@ -14,7 +14,7 @@ names through tests while preserving the behavior or documenting an intentional 
 Provide an ESME client and a message-center server, sharing protocol values,
 codecs, and session policies. Target Java 21 and SMPP 3.4/5.0. Keep one library
 artifact initially, with no runtime dependencies until a concrete requirement
-justifies one. Simulator tooling becomes a separate application subproject.
+justifies one. Simulator tooling is a separate application subproject.
 
 Use one asynchronous request mechanism. A caller may wait on its result; a future
 blocking convenience API must delegate to the same mechanism. Expose focused
@@ -24,7 +24,8 @@ than requiring every session or handler to implement every operation.
 Connection role and SMPP role are distinct. Normal ESME binding opens TCP from
 client to server. Outbind additionally needs an ESME listener and a message-center
 connector; it sends the notification and subsequent bind on that connection.
-Keep these entry points explicit when implementing outbind in Step 14.[^1][^2]
+`OutbindListener` and `OutbindConnector` implement these explicit owners, with
+authentication before the follow-up bind and no automatic retry.[^1][^2]
 
 The [protocol inventory](PROTOCOL.md) owns wire and role rules. The
 [workload criteria](WORKLOADS.md) define benchmark inputs. Both the production
@@ -51,7 +52,8 @@ application code. The server's connection and callback bounds remain independent
 
 A `BoundSession` exposes connection/version/bind metadata, `enquireLink`, `unbind`,
 closure and termination observation, plus optional submission, delivery and
-data-message senders. Both roles bind RX, TX and TRX under 3.4 and 5.0. Each send
+data-message senders, common management/multiple-submission senders and one-way
+alerts. Normal binding supports RX, TX and TRX under 3.4 and 5.0. Each send
 rechecks current state. User callbacks and future publication
 run outside socket progress and coordinator locks.
 
@@ -76,8 +78,8 @@ An application owns storage and acceptance policy. A durable handler completes
 acceptance after its required storage succeeds; a simulator may accept in memory.
 Acknowledging an incoming delivery means accepting that PDU, independently of
 handset delivery or a later receipt for another submitted message. Optional query,
-replacement, cancellation, multiple-destination and broadcast services retain
-separate contracts as their features arrive.
+replacement, cancellation and multiple-destination services use their own typed
+operation keys. Broadcast services remain Step 16.
 
 An absent, failed, invalid or expired handler decision returns the paired
 `ESME_RSYSERR`; exhausted handler capacity returns `ESME_RTHROTTLED` when an
@@ -85,6 +87,27 @@ ordered reply can be reserved. If no reply ownership can be reserved, the
 connection closes. Invalid state/direction and unknown commands retain distinct
 error responses documented in [ENDPOINTS.md](ENDPOINTS.md). Sender capability
 presence does not promise remote application acceptance.
+
+## Common services and one-way operations
+
+`CommonOperations` supplies query, cancel, replace and multiple-submission keys.
+`BoundSession.query()`, `cancel()`, `replace()` and `multipleSubmission()` expose
+only permitted optional senders. They use the same request result/cancellation
+contract. A protocol `cancel_sm` is a separate application operation from local
+`RequestHandle.cancel()`. Missing handlers receive profile-correct negatives.
+
+`alerts()` exposes an MC RX/TRX `AlertSender`; `onAlert` registers an optional
+ESME notification handler. `NotificationSend.result()` reports local physical
+write settlement and never remote acknowledgement. It has no response-window
+entry; sequence numbers still share the connection's non-reused allocator.
+Incoming alerts share bounded physical handler capacity and invocation ordering.
+
+`OutbindListener` authenticates an MC notification before sending its configured
+ESME bind. `OutbindConnector.connectAttempt()` opens one explicit connection,
+sends one outbind and authenticates the subsequent ESME bind. Both owners retain
+physical capacity after logical cancellation and expose bounded shutdown. SMPP
+3.4 outbind uses RX; explicit 5.0 RX/TX/TRX modes follow its state table. See
+[COMMON_OPERATIONS.md](COMMON_OPERATIONS.md) for exact failure and deadline rules.
 
 ## Requests, results, and cancellation
 

@@ -5,12 +5,20 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletionStage;
 import kg.aidarbek.smpp.protocol.BindMode;
+import kg.aidarbek.smpp.protocol.CancelSm;
+import kg.aidarbek.smpp.protocol.CancelSmResponse;
 import kg.aidarbek.smpp.protocol.Command;
 import kg.aidarbek.smpp.protocol.ControlCommand;
 import kg.aidarbek.smpp.protocol.DataSm;
 import kg.aidarbek.smpp.protocol.DataSmResponse;
 import kg.aidarbek.smpp.protocol.DeliverSm;
 import kg.aidarbek.smpp.protocol.DeliverSmResponse;
+import kg.aidarbek.smpp.protocol.QuerySm;
+import kg.aidarbek.smpp.protocol.QuerySmResponse;
+import kg.aidarbek.smpp.protocol.ReplaceSm;
+import kg.aidarbek.smpp.protocol.ReplaceSmResponse;
+import kg.aidarbek.smpp.protocol.SubmitMulti;
+import kg.aidarbek.smpp.protocol.SubmitMultiResponse;
 import kg.aidarbek.smpp.protocol.SubmitSm;
 import kg.aidarbek.smpp.protocol.SubmitSmResponse;
 import kg.aidarbek.smpp.request.RequestHandle;
@@ -23,6 +31,32 @@ import kg.aidarbek.smpp.session.VersionNegotiation;
  * Each request is rechecked against the current lifecycle and uses the shared request mechanism.
  */
 public final class BoundSession implements AutoCloseable {
+    /** Returns MC alert capability when the current mode and lifecycle permit it.
+     * @return optional one-way alert sender */
+    public Optional<AlertSender> alerts() {
+        return connection.canSendAlert() ? Optional.of(new AlertSender(connection)) : Optional.empty();
+    }
+    /** Returns query capability when currently permitted.
+     * @return optional typed query sender */
+    public Optional<OperationSender<QuerySm, QuerySmResponse>> query() {
+        return sender(CommonOperations.QUERY_SM);
+    }
+    /** Returns cancellation capability when currently permitted.
+     * @return optional typed cancellation sender */
+    public Optional<OperationSender<CancelSm, CancelSmResponse>> cancel() {
+        return sender(CommonOperations.CANCEL_SM);
+    }
+    /** Returns replacement capability for the exact current profile/mode.
+     * @return optional typed replacement sender */
+    public Optional<OperationSender<ReplaceSm, ReplaceSmResponse>> replace() {
+        return sender(CommonOperations.REPLACE_SM);
+    }
+    /** Returns multiple-submission capability when currently permitted.
+     * @return optional typed multiple-submission sender */
+    public Optional<OperationSender<SubmitMulti, SubmitMultiResponse>> multipleSubmission() {
+        return sender(CommonOperations.SUBMIT_MULTI);
+    }
+
     private final EndpointConnection connection;
 
     BoundSession(EndpointConnection connection) {

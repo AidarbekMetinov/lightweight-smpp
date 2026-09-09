@@ -215,6 +215,26 @@ public final class RequestWindow implements AutoCloseable {
     private RequestFailure admissionFailure(RequestFailure.Reason reason, long requestCommandId) {
         return new RequestFailure(reason, generation, 0, requestCommandId, TransmissionCertainty.NOT_SENT, null);
     }
+
+    /**
+     * Allocates a sequence for a supported request without a response, sharing the same monotonic
+     * stream as {@link #admit(long, long, Class, long, RequestOptions)}. No pending entry, byte count,
+     * or application-result notification is reserved. The allocated sequence is never reused even
+     * if later encoding or transport admission fails; a generic_nack for it cannot match a request.
+     * The endpoint separately enforces role, drain state, invocation deadline and bounded write
+     * settlement notifications. This method neither writes nor promises peer acceptance.
+     * @param commandId outbind (0x0b) or alert_notification (0x102), defined without responses in both profiles
+     * @return fresh sequence in 1..0x7fffffff
+     * @throws IllegalArgumentException if the command is paired, unknown or outside the supported one-way set
+     * @throws RequestFailure if admission is closed or this connection has exhausted its sequence stream
+     */
+    public synchronized long allocateNotificationSequence(long commandId) {
+        if (commandId != 0x0b && commandId != 0x102)
+            throw new IllegalArgumentException("Expected a supported one-way command");
+        if (closed) throw admissionFailure(RequestFailure.Reason.CLOSED, commandId);
+        if (nextSequence > 0x7fffffffL) throw admissionFailure(RequestFailure.Reason.SEQUENCE_EXHAUSTED, commandId);
+        return nextSequence++;
+    }
     /**
      * Returns pending metadata for a local sequence. The snapshot is not proof of a later successful
      * correlation; only {@link #accept(UUID, Pdu)} consumes a matched request.

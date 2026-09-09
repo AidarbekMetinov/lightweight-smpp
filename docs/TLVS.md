@@ -1,10 +1,14 @@
 # TLV support inventory
 
-Step 1 baseline, updated after Step 8. Raw bounded TLV encoding/decoding and
+Step 1 baseline, updated after Step 14. Raw bounded TLV encoding/decoding and
 ordered immutable storage are implemented. Bind/control interpretation covers
 `0210` and `0428`; message codecs structurally validate all 51 tags in their exact
-profile/direction tables. External network services, receipt/text interpretation
-and remaining operation contexts stay **planned**.
+profile/direction tables. Step 14 adds explicit common-operation contexts through
+`CommonTlvRules` and `CommonCommandCodecs`, including availability alerts and
+profile-specific replacement/multiple-submission rules. See
+[COMMON_OPERATIONS.md](COMMON_OPERATIONS.md) for exact sets, companion checks,
+unknown-value retention and outgoing vendor opt-in. External network services,
+receipt/text interpretation and broadcast contexts remain **planned**.
 Profile catalogues contain all 44 distinct 3.4 tags and 64 distinct 5.0 tags.
 `—` in the 3.4 column means a 5.0 addition. References are to the cited
 specifications, not Java implementation sections.[^1][^2]

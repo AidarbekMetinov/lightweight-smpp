@@ -16,6 +16,7 @@ final class SimulatorRun {
         Optional<TrafficOperation> operation = config.operation().equals("none")
                 ? Optional.empty()
                 : Optional.of(MessageTraffic.find(config.operation(), config)
+                        .or(() -> CommonTraffic.find(config.operation(), config))
                         .orElseThrow(() -> new IllegalArgumentException("Unknown operation")));
         var content = new RawContent(config.payloadBytes(), config.seed());
         var environment = RunEnvironment.describe();
@@ -29,6 +30,7 @@ final class SimulatorRun {
             };
             var registrations = EndpointHandlers.builder();
             MessageTraffic.register(registrations, replies);
+            CommonTraffic.register(registrations, replies);
             var failures = new ArrayList<String>();
             boolean cleanup = false;
             TrafficRunner.Result traffic =

@@ -39,6 +39,10 @@ final class MessageExchange {
         lane = dispatcher == null ? null : dispatcher.lane();
     }
 
+    HandlerDispatcher.Lane lane() {
+        return lane;
+    }
+
     void receive(Operation<?, ?> operation, Pdu<Command> request, int requestBytes, long arrived) {
         if (pending.size() >= config.options().maximumReplies()) {
             connection.close();

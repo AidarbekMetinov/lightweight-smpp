@@ -165,3 +165,9 @@ snapshot. The simulator architecture probe permits only public library
 capabilities and explicit observation/configuration values, and detects a
 forbidden second RequestWindow. [Its change report](reviews/0012-simulators.md)
 records behavioral evidence separately from fresh workload measurements.
+
+Step 14 reviews [79 affected common-operation identities](reviews/0013-common-operations.md)
+and [seven simulator integration identities](reviews/0013-simulator-integration.md).
+Its integrated snapshot contains 357 current types. The public API dependency
+rule admits explicit profile/session policy values without permitting a second
+request engine; endpoint core still depends on transport ports.

@@ -20,12 +20,14 @@ import java.util.stream.Stream;
 import kg.aidarbek.smpp.codec.CommandDispatchException;
 import kg.aidarbek.smpp.profile.MessageDirection;
 import kg.aidarbek.smpp.profile.ProtocolProfile;
+import kg.aidarbek.smpp.protocol.AlertNotification;
 import kg.aidarbek.smpp.protocol.BindMode;
 import kg.aidarbek.smpp.protocol.BindRequest;
 import kg.aidarbek.smpp.protocol.BindResponse;
 import kg.aidarbek.smpp.protocol.Command;
 import kg.aidarbek.smpp.protocol.ControlCommand;
 import kg.aidarbek.smpp.protocol.OptionalParameters;
+import kg.aidarbek.smpp.protocol.Outbind;
 import kg.aidarbek.smpp.protocol.Pdu;
 import kg.aidarbek.smpp.protocol.PduHeader;
 import kg.aidarbek.smpp.protocol.Tlv;
@@ -48,18 +50,59 @@ import kg.aidarbek.smpp.spi.FrameListener;
 import kg.aidarbek.smpp.spi.FrameTransport;
 import kg.aidarbek.smpp.spi.TransportFailure;
 import kg.aidarbek.smpp.spi.WriteClass;
+import kg.aidarbek.smpp.spi.WriteHandle;
 import kg.aidarbek.smpp.spi.WriteObserver;
 
 /** Serializes one connection's protocol lifecycle over the frame transport port. */
 final class EndpointConnection implements FrameListener, AutoCloseable {
+    synchronized boolean canSendAlert() {
+        return !closed
+                && !draining
+                && machine.requestPermission(PduDirection.OUTBOUND, 0x102, SendRequirements.COMMON)
+                        == SessionDecision.ACCEPTED;
+    }
+
+    NotificationSend sendAlert(
+            AlertNotification command, RequestOptions requestedOptions, SendRequirements requirements) {
+        long started = nanoClock.getAsLong();
+        synchronized (this) {
+            Objects.requireNonNull(command, "command");
+            Objects.requireNonNull(requirements, "requirements");
+            if (!canSendAlert()) throw new IllegalStateException("Alert is unavailable in the current lifecycle");
+            SendRequirements actual = new SendRequirements(
+                    requirements.minimumVersion(),
+                    requirements.usesOptionalParameters()
+                            || !command.optionalParameters().entries().isEmpty());
+            if (machine.requestPermission(PduDirection.OUTBOUND, command.commandId(), actual)
+                    != SessionDecision.ACCEPTED)
+                throw new IllegalArgumentException("Alert fields exceed negotiated capabilities");
+            byte[] frame = pdus.encode(new Pdu<>(0, 1, command), profile());
+            long deadline = started
+                    + (requestedOptions == null ? options.requestTimeout() : requestedOptions.timeout()).toNanos();
+            return notifications.send(command, frame, deadline);
+        }
+    }
+
+    long notificationSequence(long commandId) {
+        return window.allocateNotificationSequence(commandId);
+    }
+
+    byte[] encodeNotification(Command command, long sequence) {
+        return pdus.encode(new Pdu<>(0, sequence, command), profile());
+    }
+
+    WriteHandle writeNotification(byte[] frame, long deadline, WriteObserver observer) {
+        return transport.write(frame, WriteClass.ORDINARY, deadline, observer);
+    }
+
     private static final Set<Long> IMPLEMENTED = Stream.concat(
-                    Set.of(1L, 2L, 9L, 6L, 0x15L).stream(),
+                    Set.of(1L, 2L, 9L, 6L, 0x15L, 0x0bL, 0x102L).stream(),
                     OperationCatalog.all().stream().map(Operation::commandId))
             .collect(Collectors.toUnmodifiableSet());
     private final UUID id = UUID.randomUUID();
     private final FrameTransport transport;
     private final SocketAddress peer;
-    private final ServerConfig server;
+    private final MessageCenterBinding server;
     private final ClientConfig client;
     private final EndpointOptions options;
     private final LongSupplier nanoClock;
@@ -70,6 +113,7 @@ final class EndpointConnection implements FrameListener, AutoCloseable {
     private final EndpointPdus pdus;
     private final RequestWindow window;
     private final MessageExchange messages;
+    private final NotificationExchange notifications;
     private final Map<Long, Pdu<? extends Command>> messageRequests = new HashMap<>();
     private final BoundSession facade = new BoundSession(this);
     private final BoundedNotifications.Reservation boundNotification;
@@ -89,6 +133,8 @@ final class EndpointConnection implements FrameListener, AutoCloseable {
     private RuntimeException closeReason;
     private final long connectDeadline;
     private long bindDeadline;
+    private OutbindFlow outbindFlow;
+    private boolean boundResultExpected;
     private boolean draining;
     private long drainDeadline;
 
@@ -96,7 +142,7 @@ final class EndpointConnection implements FrameListener, AutoCloseable {
             FrameTransport transport,
             SocketAddress peer,
             ClientConfig client,
-            ServerConfig server,
+            MessageCenterBinding server,
             EndpointOptions options,
             BoundedNotifications notifications,
             AuthenticationDispatcher authentication,
@@ -108,6 +154,7 @@ final class EndpointConnection implements FrameListener, AutoCloseable {
         this.transport = Objects.requireNonNull(transport, "transport");
         this.peer = Objects.requireNonNull(peer, "peer");
         this.client = client;
+        boundResultExpected = client != null;
         this.server = server;
         this.options = Objects.requireNonNull(options, "options");
         this.nanoClock = nanoClock;
@@ -124,6 +171,8 @@ final class EndpointConnection implements FrameListener, AutoCloseable {
         window =
                 new RequestWindow(id, options.requestWindow(), options.maximumPendingBytes(), notifications, nanoClock);
         messages = new MessageExchange(this, facade, exchange, handlers, nanoClock);
+        this.notifications =
+                new NotificationExchange(this, facade, exchange, handlers, messages.lane(), notifications, nanoClock);
         boundNotification = notifications.tryReserve().orElseThrow(() -> failure(EndpointException.Reason.CAPACITY));
         terminationNotification = notifications.tryReserve().orElseGet(() -> {
             boundNotification.release();
@@ -150,7 +199,7 @@ final class EndpointConnection implements FrameListener, AutoCloseable {
                 transport,
                 peer,
                 null,
-                server,
+                MessageCenterBinding.from(server),
                 options,
                 notifications,
                 authentication,
@@ -238,7 +287,7 @@ final class EndpointConnection implements FrameListener, AutoCloseable {
                 transport,
                 peer,
                 null,
-                server,
+                MessageCenterBinding.from(server),
                 options,
                 notifications,
                 authentication,
@@ -247,6 +296,88 @@ final class EndpointConnection implements FrameListener, AutoCloseable {
                 System::nanoTime,
                 handlers,
                 exchange);
+    }
+
+    static EndpointConnection outbindListener(
+            FrameTransport transport,
+            ClientConfig config,
+            EndpointOptions options,
+            BoundedNotifications notifications,
+            HandlerDispatcher handlers,
+            ExchangeConfig exchange,
+            OutbindAuthenticator authenticator,
+            Consumer<BoundSession> boundListener) {
+        EndpointConnection connection = new EndpointConnection(
+                transport,
+                config.remoteAddress(),
+                config,
+                null,
+                options,
+                notifications,
+                null,
+                null,
+                boundListener,
+                System::nanoTime,
+                handlers,
+                exchange);
+        connection.outbindFlow = new OutbindFlow(connection, null, authenticator, handlers, connection.messages.lane());
+        return connection;
+    }
+
+    static EndpointConnection outbindConnector(
+            FrameTransport transport,
+            SocketAddress peer,
+            OutbindConnectorConfig config,
+            EndpointOptions options,
+            BoundedNotifications notifications,
+            AuthenticationDispatcher authentication,
+            BindAuthenticator authenticator,
+            HandlerDispatcher handlers,
+            ExchangeConfig exchange,
+            Outbind notification) {
+        EndpointConnection connection = new EndpointConnection(
+                transport,
+                peer,
+                null,
+                MessageCenterBinding.from(config),
+                options,
+                notifications,
+                authentication,
+                authenticator,
+                ignored -> {},
+                System::nanoTime,
+                handlers,
+                exchange);
+        connection.boundResultExpected = true;
+        connection.outbindFlow = new OutbindFlow(connection, notification, null, handlers, connection.messages.lane());
+        return connection;
+    }
+
+    synchronized boolean bindTimeRemaining() {
+        return !closed && nanoClock.getAsLong() - bindDeadline < 0;
+    }
+
+    synchronized void outbindAuthenticated(boolean accepted, Throwable failure) {
+        if (closed) return;
+        if (!accepted || failure != null || !bindTimeRemaining()) {
+            fail(failure(EndpointException.Reason.BIND_REJECTED));
+            return;
+        }
+        try {
+            beginClientBind();
+        } catch (RuntimeException admissionFailure) {
+            fail(admissionFailure);
+        }
+    }
+
+    void sendOutbind(Outbind command) {
+        long sequence = notificationSequence(command.commandId());
+        byte[] frame = encodeNotification(command, sequence);
+        if (machine.request(PduDirection.OUTBOUND, EndpointPdus.header(frame), SendRequirements.COMMON)
+                != SessionDecision.ACCEPTED)
+            throw new IllegalStateException("Outbind is unavailable in the current lifecycle");
+        outbindFlow.sequence = sequence;
+        transport.write(frame, WriteClass.ORDINARY, bindDeadline, new OutbindWrite());
     }
 
     UUID id() {
@@ -362,7 +493,7 @@ final class EndpointConnection implements FrameListener, AutoCloseable {
     }
 
     synchronized boolean cancelBind() {
-        if (client == null || closed || notified) return false;
+        if (!boundResultExpected || closed || notified) return false;
         boolean won = binding == null || binding.cancel();
         closeReason = binding == null
                 ? failure(EndpointException.Reason.CANCELLED)
@@ -391,7 +522,12 @@ final class EndpointConnection implements FrameListener, AutoCloseable {
     }
 
     private void advanceShutdown() {
-        if (!draining || closed || !boundState() || window.pendingCount() != 0 || messages.pendingCount() != 0) return;
+        if (!draining
+                || closed
+                || !boundState()
+                || window.pendingCount() != 0
+                || messages.pendingCount() != 0
+                || notifications.pendingCount() != 0) return;
         long started = nanoClock.getAsLong();
         long remaining = drainDeadline - started;
         if (remaining <= 0) {
@@ -422,6 +558,7 @@ final class EndpointConnection implements FrameListener, AutoCloseable {
         window.expire();
         discardFinishedMessageContexts();
         messages.expire(now);
+        notifications.expire(now);
         for (RequestHandle<?> handle : new RequestHandle<?>[] {binding, unbind}) {
             if (handle != null
                     && handle.isDone()
@@ -448,10 +585,11 @@ final class EndpointConnection implements FrameListener, AutoCloseable {
         if (closed) return;
         try {
             machine.connected();
-            if (client != null) {
+            if (client != null || outbindFlow != null) {
                 long started = nanoClock.getAsLong();
                 bindDeadline = started + EndpointOptions.durationNanos(options.bindTimeout());
-                beginClientBind();
+                if (outbindFlow == null) beginClientBind();
+                else outbindFlow.connected();
             }
         } catch (RuntimeException failure) {
             fail(failure);
@@ -460,8 +598,10 @@ final class EndpointConnection implements FrameListener, AutoCloseable {
 
     /** Starts the ESME bind using the already selected total bind deadline. */
     synchronized void beginClientBind() {
-        if (closed || client == null || machine.state() != SessionState.OPEN || binding != null)
-            throw new IllegalStateException("Connection is not ready for an ESME bind");
+        if (closed
+                || client == null
+                || (machine.state() != SessionState.OPEN && machine.state() != SessionState.OUTBOUND)
+                || binding != null) throw new IllegalStateException("Connection is not ready for an ESME bind");
         long started = nanoClock.getAsLong();
         long remaining = bindDeadline - started;
         if (remaining <= 0) {
@@ -518,6 +658,13 @@ final class EndpointConnection implements FrameListener, AutoCloseable {
         if ((incoming.command().commandId() & 0x8000_0000L) != 0) {
             response(incoming);
         } else if (incoming.command() instanceof BindRequest bind) {
+            if (outbindFlow != null
+                    && (!outbindFlow.outgoing()
+                            || !outbindFlow.sending
+                            || (bind.interfaceVersion() == 0x34 && bind.mode() != BindMode.RECEIVER))) {
+                reject(raw, 4, true);
+                return;
+            }
             if (machine.bindRequest(
                             PduDirection.INBOUND, bind.mode(), bind.interfaceVersion(), incoming.sequenceNumber())
                     != SessionDecision.ACCEPTED) {
@@ -562,6 +709,15 @@ final class EndpointConnection implements FrameListener, AutoCloseable {
             if (decision == SessionDecision.ACCEPTED) {
                 writeReply(pdus.encode(response, profile()), machine.state() == SessionState.CLOSED, () -> {});
             }
+        } else if (incoming.command() instanceof Outbind notification) {
+            if (outbindFlow == null
+                    || machine.request(PduDirection.INBOUND, raw, SendRequirements.COMMON) != SessionDecision.ACCEPTED
+                    || !outbindFlow.receive(notification)) protocolFailure();
+        } else if (incoming.command() instanceof AlertNotification alert) {
+            if (!draining
+                    && machine.request(PduDirection.INBOUND, raw, SendRequirements.COMMON) == SessionDecision.ACCEPTED)
+                notifications.receive(new Pdu<>(incoming.commandStatus(), incoming.sequenceNumber(), alert), arrived);
+            else protocolFailure();
         } else {
             boolean permitted = SessionPermissions.permitsRequest(
                     profile(),
@@ -602,7 +758,14 @@ final class EndpointConnection implements FrameListener, AutoCloseable {
         window.expire();
         discardFinishedMessageContexts();
         Optional<RequestHandle<?>> pending = window.pending(response.sequenceNumber());
-        if (pending.isEmpty()) return;
+        if (pending.isEmpty()) {
+            if (outbindFlow != null
+                    && !notified
+                    && outbindFlow.outgoing()
+                    && response.sequenceNumber() == outbindFlow.sequence
+                    && response.command().commandId() == 0x80000000L) protocolFailure();
+            return;
+        }
         RequestHandle<?> handle = pending.orElseThrow();
         if (handle.transmission() == TransmissionCertainty.NOT_SENT) return;
         PduHeader header = EndpointPdus.header(response);
@@ -698,6 +861,8 @@ final class EndpointConnection implements FrameListener, AutoCloseable {
             close();
             return;
         }
+        if (status != 0 && boundResultExpected)
+            closeReason = new EndpointException(EndpointException.Reason.BIND_REJECTED, id, status, -1);
         writeReply(pdus.encode(response, profile()), status != 0, this::notifyBound);
     }
 
@@ -707,8 +872,8 @@ final class EndpointConnection implements FrameListener, AutoCloseable {
             notified = true;
         }
         boundNotification.dispatch(() -> {
-            if (client != null) bound.complete(facade);
-            else boundListener.accept(facade);
+            if (boundResultExpected) bound.complete(facade);
+            boundListener.accept(facade);
         });
     }
 
@@ -810,12 +975,14 @@ final class EndpointConnection implements FrameListener, AutoCloseable {
             closed = true;
             machine.close();
             messages.close();
+            notifications.close();
             window.disconnect(closeReason);
             messageRequests.clear();
             if (authenticationTicket != null) authenticationTicket.cancel();
+            if (outbindFlow != null) outbindFlow.close();
             if (!notified) {
                 notified = true;
-                if (client == null) boundNotification.release();
+                if (!boundResultExpected) boundNotification.release();
                 else {
                     RuntimeException failure =
                             closeReason == null ? failure(EndpointException.Reason.CLOSED) : closeReason;
@@ -824,6 +991,26 @@ final class EndpointConnection implements FrameListener, AutoCloseable {
             }
         }
         transport.close();
+    }
+
+    /** Writes the single MC outbind without creating a response window entry or application callback. */
+    private final class OutbindWrite implements WriteObserver {
+        @Override
+        public boolean beforeWrite() {
+            synchronized (EndpointConnection.this) {
+                if (!bindTimeRemaining()) return false;
+                outbindFlow.sending = true;
+                return true;
+            }
+        }
+
+        @Override
+        public void written() {}
+
+        @Override
+        public void failed(TransportFailure failure) {
+            fail(failure);
+        }
     }
 
     /** Bridges only internal reply completion; application work goes through bounded notifications. */

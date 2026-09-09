@@ -5,7 +5,7 @@ runnable client and server simulators for functional and heavy-load testing.
 The [research report](RESEARCH.md) explains the protocol targets and architecture.
 The [simulator plan](SIMULATORS.md) defines workloads and measurement requirements.
 
-Current stage: **research and Steps 1–13 completed; Step 14 is next**.
+Current stage: **research and Steps 1–14 completed; Step 15 is next**.
 Java 21, Gradle, JUnit, strict compiler warnings, local caching, formatting, and Git
 are configured. Header values, a binary header codec, bounded framing, behavior
 tests, and meaningful architecture rules are implemented. Automatic review-evidence
@@ -403,6 +403,12 @@ Run short ramps now; expand scenarios alongside Steps 14–17.
 Suggested commit: `Add SMPP simulators`.
 
 ## 14. Add remaining common operations
+
+Completed: [wire and endpoint contracts](COMMON_OPERATIONS.md),
+[per-type and behavioral evidence](reviews/0013-common-operations.md), and
+[simulator integration evidence](reviews/0013-simulator-integration.md).
+One-way sends retain local write ownership without response entries; explicit
+outbind owners authenticate the reversed TCP workflow without retries.
 
 Implement `query_sm`, `cancel_sm`, `replace_sm`, `submit_multi`, `outbind`, and
 `alert_notification` with typed application hooks and appropriate behavior when

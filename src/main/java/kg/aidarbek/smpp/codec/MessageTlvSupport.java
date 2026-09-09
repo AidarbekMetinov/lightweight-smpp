@@ -92,8 +92,7 @@ final class MessageTlvSupport {
         }
     }
 
-    private static void companions(
-            OptionalParameters raw, OptionalParameters supported, boolean outgoing, int esmClass) {
+    static void companions(OptionalParameters raw, OptionalParameters supported, boolean outgoing, int esmClass) {
         boolean reference = count(supported, 0x020c) > 0,
                 total = count(supported, 0x020e) > 0,
                 sequence = count(supported, 0x020f) > 0;

@@ -6,6 +6,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.atomic.AtomicBoolean;
+import kg.aidarbek.smpp.protocol.AlertNotification;
 import kg.aidarbek.smpp.protocol.Command;
 import kg.aidarbek.smpp.protocol.Pdu;
 
@@ -14,8 +15,11 @@ import kg.aidarbek.smpp.protocol.Pdu;
  */
 public final class EndpointHandlers {
     private final Map<Operation<?, ?>, Registration<?, ?>> registrations;
+    private final NotificationHandler<AlertNotification> alert;
 
-    private EndpointHandlers(Map<Operation<?, ?>, Registration<?, ?>> registrations) {
+    private EndpointHandlers(
+            Map<Operation<?, ?>, Registration<?, ?>> registrations, NotificationHandler<AlertNotification> alert) {
+        this.alert = alert;
         this.registrations = Map.copyOf(registrations);
     }
     /** Starts a local registration builder.
@@ -29,11 +33,26 @@ public final class EndpointHandlers {
         return builder().build();
     }
 
+    Optional<NotificationHandler<AlertNotification>> alert() {
+        return Optional.ofNullable(alert);
+    }
+
     Optional<Registration<?, ?>> find(Operation<?, ?> operation) {
         return Optional.ofNullable(registrations.get(operation));
     }
     /** Collects distinct typed registrations; each build owns an immutable snapshot. Builders are not thread-safe. */
     public static final class Builder {
+        /** Registers the optional typed one-way alert hook.
+         * @param handler local application completion, without a response PDU
+         * @return this builder */
+        public Builder onAlert(NotificationHandler<AlertNotification> handler) {
+            Objects.requireNonNull(handler, "handler");
+            if (alert != null) throw new IllegalArgumentException("Duplicate alert handler");
+            alert = handler;
+            return this;
+        }
+
+        private NotificationHandler<AlertNotification> alert;
         private final Map<Operation<?, ?>, Registration<?, ?>> registrations = new LinkedHashMap<>();
 
         private Builder() {}
@@ -57,7 +76,7 @@ public final class EndpointHandlers {
         /** Copies the currently registered handlers.
          * @return immutable registry independent of subsequent builder changes */
         public EndpointHandlers build() {
-            return new EndpointHandlers(registrations);
+            return new EndpointHandlers(registrations, alert);
         }
     }
     /** Keeps type-safe invocation inside the registration that established the request/response relation. */

@@ -7,8 +7,9 @@ both endpoints under functional, stress, and sustained-load scenarios. Support
 SMPP 3.4 and 5.0 according to the library's implemented feature inventory.
 Step 13 supplies the first usable pair in the separate `simulator` application.
 Submission, delivery and bidirectional `data_sm` traffic run through the public
-endpoint API. The broader scenarios below remain the staged target for Steps
-14–18; this first pair does not establish production capacity or independent-peer
+endpoint API. Step 14 adds query/cancel/replace/multi traffic and finite alert/
+outbind checks. The broader scenarios below remain the staged target for Steps
+15–18; this first pair does not establish production capacity or independent-peer
 interoperability.
 
 [Workload criteria](WORKLOADS.md) now define the Step 1 provisional profiles,
@@ -58,7 +59,7 @@ the executable always performs a fresh run.
 | Input | Implemented meaning |
 | --- | --- |
 | `--version=3.4` or `5.0`; `--bind=tx`, `rx`, `trx` | Requested/advertised profile and bind role. Incompatible originating operations fail before endpoint allocation. |
-| `--operation=submit`, `deliver`, `data`, `none` | Client submission, server delivery, profile-permitted data in either direction, or receive-only operation. Both peers always register the three message handlers. |
+| `--operation=submit`, `deliver`, `data`, `query`, `cancel`, `replace`, `multi`, `none` | Client submission/management/multiple-submission, server delivery, profile-permitted data in either direction, or receive-only. Both peers register message and common paired handlers. |
 | `--connections=1`; `--window=32` | Fixed bound cohort and per-session request window. A run does not replace disconnected sessions or retry requests. |
 | `--connect-interval=PT0S` | Spacing between explicit client connection attempts. Configure the same value on the server when waiting for a slowly arriving cohort. |
 | `--model=arrival`; `--rates=10,100,10` | Aggregate independent arrivals across the cohort, in equal-duration rate steps. The last step includes any duration remainder. |
@@ -101,6 +102,21 @@ sample. A stalled decision withholds application completion until tool cleanup;
 the library's handler deadline still applies and can generate a negative reply.
 Delay release is polled by the tool owner, so scheduling stalls can extend it.
 The simulator never weakens protocol validation to generate malformed wire data.
+
+## Common-operation runs
+
+Query, cancel and multi require an ESME TX/TRX connection. Replace requires TX
+under 3.4 and TX/TRX under 5.0; configure `--bind=tx` on both peers for a common
+profile example. `--operation=replace --version=3.4 --payload=255` is rejected
+before reports or networking. Raw replacement assumes an existing binary DCS4
+message because the command has no encoding field. Query/cancel use synthetic
+IDs without message content; multi contains one SME and one distribution list.
+The receiver reports deterministic decisions rather than real stored messages.
+
+[Common-operation documentation](COMMON_OPERATIONS.md) includes separate finite
+`CommonOperationSmoke alert|outbind 3.4|5.0` commands for one-way operations.
+Their local-write, notification and authentication observations are not fabricated
+paired responses or throughput measurements.
 
 ## Current reports and limitations
 

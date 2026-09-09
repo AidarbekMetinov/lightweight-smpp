@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import kg.aidarbek.smpp.codec.CommandCodec;
+import kg.aidarbek.smpp.codec.CommonCommandCodecs;
 import kg.aidarbek.smpp.codec.ControlCommandCodecs;
 import kg.aidarbek.smpp.codec.PduCodec;
 import kg.aidarbek.smpp.codec.PduHeaderCodec;
@@ -40,6 +41,9 @@ final class EndpointPdus {
     private static PduCodec codec(MessageDirection direction, PduLimits limits) {
         List<CommandCodec<?>> codecs = new ArrayList<>(ControlCommandCodecs.all());
         OperationCatalog.all().forEach(operation -> codecs.addAll(operation.codecs(direction)));
+        CommonCommandCodecs.all().stream()
+                .filter(codec -> codec.commandId() == 0x0b || codec.commandId() == 0x102)
+                .forEach(codecs::add);
         return new PduCodec(codecs, limits);
     }
 

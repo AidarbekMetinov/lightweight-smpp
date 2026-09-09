@@ -34,7 +34,7 @@ artifact. Follow [the simulator plan](docs/SIMULATORS.md); use TDD and SOLID rev
 for simulator code as well as library code. Actual load measurements must execute
 freshly, even though compilation and deterministic tests can use build caches.
 
-Research and Steps 1–13 are complete. Step 14, remaining common operations, is next.
+Research and Steps 1–14 are complete. Step 15, message helpers, is next.
 Bounded fields, raw TLVs, explicit profiles, bind/control
 and message codecs, deterministic session/version policies, and bounded request
 ownership are implemented. See [field contracts](docs/FIELDS.md), [command contracts](docs/COMMANDS.md),
@@ -46,6 +46,8 @@ shutdown are implemented for both profiles. [Message exchange](docs/EXCHANGE.md)
 adds typed submission, delivery and data-message senders, optional asynchronous
 handlers, ordered bounded replies and handler cleanup. The separate simulator
 application supplies client/server workloads, bounded faults and fresh reports.
+[Common operations](docs/COMMON_OPERATIONS.md) add typed query/cancel/replace/multi
+services, one-way alerts and explicit authenticated outbind owners.
 The design baseline uses one library artifact, no initial runtime dependencies,
 one asynchronous request mechanism, and focused
 endpoint capabilities. Simulator tooling is a separate application subproject.

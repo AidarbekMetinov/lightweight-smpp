@@ -41,6 +41,21 @@ class SimulatorProcessTest {
     }
 
     @Test
+    void commonOperationsRunThroughTheStandaloneRegistryUnderBothProfiles() throws Exception {
+        for (String version : List.of("3.4", "5.0")) {
+            for (String operation : List.of("query", "cancel", "replace", "multi")) {
+                var result = pair(
+                        operation + "-" + version,
+                        version,
+                        List.of("--bind=tx"),
+                        List.of("--operation=" + operation, "--bind=tx"));
+                assertTrue(result.client().contains("\"SUCCESS\":10"), result.client());
+                assertTrue(result.server().contains("\"received\":10"), result.server());
+            }
+        }
+    }
+
+    @Test
     void configurationErrorsExitBeforeCreatingReportFiles() throws Exception {
         for (String invalid : List.of("--unknown=1", "--operation=deliver", "--window=0", "--model=unbounded")) {
             Path report = directory.resolve("invalid-" + Math.abs(invalid.hashCode()));
@@ -129,12 +144,22 @@ class SimulatorProcessTest {
     }
 
     private Pair pair(String name, List<String> serverOptions, List<String> clientOptions) throws Exception {
+        return pair(name, "5.0", serverOptions, clientOptions);
+    }
+
+    private Pair pair(String name, String version, List<String> serverOptions, List<String> clientOptions)
+            throws Exception {
         Path serverReport = directory.resolve(name + "-server");
         Path clientReport = directory.resolve(name + "-client");
         Path serverLog = directory.resolve(name + "-server.log");
         Path clientLog = directory.resolve(name + "-client.log");
         var serverArgs = new ArrayList<>(List.of(
-                "server", "--port=0", "--version=5.0", "--duration=PT1S", "--drain=PT1S", "--report=" + serverReport));
+                "server",
+                "--port=0",
+                "--version=" + version,
+                "--duration=PT1S",
+                "--drain=PT1S",
+                "--report=" + serverReport));
         serverArgs.addAll(serverOptions);
         var server = start(serverLog, serverArgs.toArray(String[]::new));
         Process client = null;
@@ -155,7 +180,7 @@ class SimulatorProcessTest {
             var clientArgs = new ArrayList<>(List.of(
                     "client",
                     "--port=" + port,
-                    "--version=5.0",
+                    "--version=" + version,
                     "--duration=PT1S",
                     "--drain=PT1S",
                     "--report=" + clientReport));

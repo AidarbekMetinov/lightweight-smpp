@@ -27,6 +27,11 @@ class SimulatorArchitectureTest {
                             return type.getModifiers().contains(JavaModifier.PUBLIC);
                         return Set.of(
                                         "kg.aidarbek.smpp.profile.SmppVersion",
+                                        "kg.aidarbek.smpp.profile.ProtocolProfile",
+                                        "kg.aidarbek.smpp.session.VersionNegotiation",
+                                        "kg.aidarbek.smpp.session.SessionPermissions",
+                                        "kg.aidarbek.smpp.session.SessionState",
+                                        "kg.aidarbek.smpp.session.EndpointRole",
                                         "kg.aidarbek.smpp.codec.PduLimits",
                                         "kg.aidarbek.smpp.request.RequestHandle",
                                         "kg.aidarbek.smpp.request.RequestOptions",
