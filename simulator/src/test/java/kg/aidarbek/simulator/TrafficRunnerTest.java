@@ -11,6 +11,109 @@ import org.junit.jupiter.api.Test;
 
 class TrafficRunnerTest {
     @Test
+    void lifecycleActionsBracketMeasurementAfterWarmupDrainAndBeforeFinalDrain() {
+        var clock = new AtomicLong();
+        var calls = new AtomicInteger();
+        var released = new java.util.concurrent.atomic.AtomicBoolean();
+        var actions = new java.util.ArrayList<String>();
+        var pending = new PendingCall() {
+            @Override
+            public Optional<Completion> poll() {
+                return released.get()
+                        ? Optional.of(new Completion(CohortMetrics.Outcome.SUCCESS, 0))
+                        : Optional.empty();
+            }
+
+            @Override
+            public boolean mayHaveBeenSent() {
+                return true;
+            }
+
+            @Override
+            public void cancel() {}
+        };
+        var plan = new LoadPlan(
+                LoadPlan.Model.ARRIVAL_RATE,
+                List.of(10),
+                1,
+                Duration.ofMillis(100),
+                Duration.ofMillis(100),
+                Duration.ofMillis(5),
+                Duration.ofSeconds(1));
+        var result = new TrafficRunner(
+                        plan,
+                        1,
+                        index -> calls.incrementAndGet() == 1 ? new FakeCall(true) : pending,
+                        clock::get,
+                        clock::addAndGet,
+                        () -> {},
+                        () -> {
+                            assertEquals(1, calls.get());
+                            assertEquals(100_000_000, clock.get());
+                            actions.add("before");
+                        },
+                        () -> {
+                            assertEquals(200_000_000, clock.get());
+                            actions.add("after");
+                            released.set(true);
+                        })
+                .run();
+        assertEquals(List.of("before", "after"), actions);
+        assertEquals(1, result.measurement().outcomes().get(CohortMetrics.Outcome.SUCCESS));
+        assertEquals(0, result.measurement().successesDuringMeasurement());
+        assertEquals(0, result.drainNanos());
+    }
+
+    @Test
+    void burstReportsSkippedAndLateOutcomesInTheirOriginalScheduledStep() {
+        var clock = new AtomicLong();
+        var plan = new LoadPlan(
+                LoadPlan.Model.ARRIVAL_RATE,
+                List.of(2, 10, 2),
+                100,
+                Duration.ZERO,
+                Duration.ofSeconds(5),
+                Duration.ofSeconds(1),
+                Duration.ofSeconds(1),
+                List.of(Duration.ofSeconds(2), Duration.ofSeconds(1), Duration.ofSeconds(2)));
+        var result = new TrafficRunner(
+                        plan,
+                        1,
+                        index -> {
+                            if (index == 0) clock.addAndGet(2_500_000_000L);
+                            return new FakeCall(true);
+                        },
+                        clock::get,
+                        clock::addAndGet,
+                        () -> {})
+                .run();
+        assertEquals(3, result.intervals().size());
+        assertEquals(
+                List.of(4L, 10L, 4L),
+                result.intervals().stream()
+                        .map(value -> value.metrics().planned())
+                        .toList());
+        assertEquals(
+                List.of(3L, 5L, 0L),
+                result.intervals().stream()
+                        .map(value -> value.metrics().skipped())
+                        .toList());
+        assertEquals(
+                List.of(1L, 5L, 4L),
+                result.intervals().stream()
+                        .map(value -> value.metrics().admitted())
+                        .toList());
+        assertEquals(
+                2_500_000_000L,
+                result.intervals().getFirst().metrics().scheduledLatency().maximumNanos());
+        assertEquals(0, result.intervals().getFirst().metrics().successesDuringMeasurement());
+        assertEquals(1, result.intervals().getFirst().metrics().outcomes().get(CohortMetrics.Outcome.SUCCESS));
+        assertEquals(8, result.measurement().skipped());
+        assertEquals(10, result.measurement().admitted());
+        assertTrue(result.intervals().stream().allMatch(value -> value.metrics().balanced()));
+    }
+
+    @Test
     void warmupThatCannotDrainKeepsItsCohortAndMarksMeasurementUnstarted() {
         var clock = new AtomicLong();
         var plan = new LoadPlan(

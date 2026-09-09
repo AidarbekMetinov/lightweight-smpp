@@ -35,6 +35,11 @@ final class RunReport {
         inputs.put("destination", config.destination());
         inputs.put("model", config.load().model());
         inputs.put("rates", config.load().rates());
+        inputs.put(
+                "rateHoldNanos",
+                config.load().holds().stream().map(java.time.Duration::toNanos).toList());
+        inputs.put("loadSettings", config.settings().report());
+        inputs.put("lifecycle", config.lifecycle().nonSecretReport());
         inputs.put("count", config.load().count());
         inputs.put("warmupNanos", config.load().warmup().toNanos());
         inputs.put("measurementNanos", config.load().duration().toNanos());
@@ -58,7 +63,7 @@ final class RunReport {
                         "identity",
                         "per-connection incoming sequence with configured seed; identical sequences select identical decisions"));
         var report = new LinkedHashMap<String, Object>();
-        report.put("schema", 1);
+        report.put("schema", 2);
         report.put("runId", config.runId());
         report.put("suppliedSourceRevision", config.revision());
         report.put("startedAt", started.toString());
@@ -66,8 +71,44 @@ final class RunReport {
         report.put("configuration", inputs);
         report.put("environment", environment);
         report.put("traffic", traffic);
+        report.put("performance", performance(config, traffic));
         report.put("receiver", received);
+        report.put(
+                "receiverDecisionSemantics",
+                "accepted/rejected/delayed/stalled count disjoint selected application decisions; deferred admissions/rejections/releases/cancellations reconcile separately; releasing a handler result does not observe a response write");
+        var wireCounts = new LinkedHashMap<String, Object>();
+        for (String name : List.of(
+                "bindRequestWrites",
+                "bindResponseWrites",
+                "enquireLinkWrites",
+                "unbindWrites",
+                "applicationResponseWrites",
+                "transportQueuedFrames",
+                "transportQueuedBytes",
+                "radioRecipients")) wireCounts.put(name, null);
+        wireCounts.put(
+                "reason",
+                "Public endpoint/request APIs do not expose these physical wire or downstream observations; invocation and bound-generation counts are not substitutes");
+        report.put("unavailableObservations", wireCounts);
+        report.put(
+                "originatingPopulation",
+                config.operation().equals("broadcast")
+                        ? "one originating broadcast PDU with two fixture area descriptors; radio broadcasts, recipients and deliveries unknown"
+                        : "originating application request PDUs; response/control traffic and downstream recipient delivery excluded");
         report.put("resources", resources);
+        report.put(
+                "histogramSettings",
+                Map.of(
+                        "unit",
+                        "microseconds",
+                        "significantDigits",
+                        3,
+                        "maximumTrackableMicros",
+                        3_600_000_000L,
+                        "roundedUp",
+                        true,
+                        "population",
+                        "admitted terminal outcomes except unfinished; scheduled cohort with separate warmup"));
         report.put(
                 "latencySemantics",
                 Map.of(
@@ -118,5 +159,34 @@ final class RunReport {
         report.put("failures", List.copyOf(failures));
         report.put("passed", failures.isEmpty());
         return report;
+    }
+
+    private static Map<String, Object> performance(SimulatorConfig config, TrafficRunner.Result traffic) {
+        var values = new LinkedHashMap<String, Object>();
+        var measured = traffic.measurement();
+        double elapsed = traffic.measurementNanos() / 1_000_000_000.0;
+        boolean arrival = !config.operation().equals("none") && config.load().model() == LoadPlan.Model.ARRIVAL_RATE;
+        values.put(
+                "offeredRequestsPerSecond",
+                arrival ? measured.planned() / (config.load().duration().toNanos() / 1_000_000_000.0) : null);
+        values.put("attemptedRequestsPerSecond", elapsed == 0 ? 0.0 : measured.attempted() / elapsed);
+        values.put("admittedRequestsPerSecond", elapsed == 0 ? 0.0 : measured.admitted() / elapsed);
+        values.put(
+                "successfulCompletionsPerSecond", elapsed == 0 ? 0.0 : measured.successesDuringMeasurement() / elapsed);
+        values.put(
+                "terminalCompletionsPerSecond", elapsed == 0 ? 0.0 : measured.completionsDuringMeasurement() / elapsed);
+        values.put(
+                "offeredLoadEstablished",
+                arrival
+                        && traffic.measurementStarted()
+                        && traffic.measurementNanos()
+                                >= config.load().duration().toNanos()
+                        && measured.skipped() == 0
+                        && measured.attempted() == measured.planned());
+        values.put("generatorSkippedArrivals", measured.skipped());
+        values.put(
+                "intervalSemantics",
+                "step metrics follow original scheduled identities; in-interval completions precede that step's end, eventual outcomes include later steps and drain");
+        return values;
     }
 }

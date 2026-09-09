@@ -3,9 +3,25 @@ package kg.aidarbek.simulator;
 import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.Test;
 
 class DecisionQueueTest {
+    @Test
+    void releasesPhysicallyRetainedStallsWhenTheirRequestOwnerCancels() {
+        var cancelled = new AtomicBoolean();
+        try (var queue = new DecisionQueue(1)) {
+            var reply = queue.defer("withheld", 100, true, cancelled::get);
+            queue.advance(101);
+            assertFalse(reply.isDone());
+            cancelled.set(true);
+            queue.advance(102);
+            assertTrue(reply.isCancelled());
+            assertEquals(0, queue.pending());
+            assertDoesNotThrow(() -> queue.defer("next", 103, false));
+        }
+    }
+
     @Test
     void keepsDelayedAndStalledDecisionsInsideOneBoundUntilResolvedOrClosed() {
         var queue = new DecisionQueue(2);
@@ -24,6 +40,7 @@ class DecisionQueueTest {
             assertTrue(stalled.isCancelled());
             assertEquals(0, queue.pending());
             assertThrows(RejectedExecutionException.class, () -> queue.defer("closed", 111, false));
+            assertEquals(new DecisionQueue.Snapshot(2, 1, 1, 2, 0, 2), queue.snapshot());
         } finally {
             queue.close();
         }

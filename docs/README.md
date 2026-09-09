@@ -311,8 +311,24 @@ See [lifecycle APIs and ownership](LIFECYCLE.md),
 [TDD/SOLID evidence](reviews/0016-connection-lifecycle.md),
 [transport/coordinator architecture](reviews/0016-lifecycle-architecture.md), and
 [simulator TLS boundary](reviews/0016-simulator-architecture.md).
-Complete heavy-load scenarios and release/interoperability evidence remain
-Steps 18–19.
+Heavy-load tooling and release/interoperability evidence follow in Steps 18–19.
+
+## Step 18 load scenarios
+
+Both simulator roles now support complete arrival and fixed-concurrency profiles,
+ramps, bursts, bounded churn, slow consumers, selected fault mixes, TLS and explicit
+reconnect. Independent resource sampling records baseline, peak and final
+observations; strict criteria reconcile requests, retained ownership and recovery.
+The campaign helper launches fresh processes and merges compatible histogram
+counts across repeats. A separate standard-library raw peer supplies wire faults.
+The finite receipt scenario correlates actual returned IDs, including early,
+missing, duplicate and mismatched receipts.
+
+See [load commands](LOAD_TESTING.md), [fault commands](FAULT_PEER.md),
+[receipt commands](RECEIPT_SCENARIO.md), and [measurement evidence](MEASUREMENTS.md).
+The integrated simulator suite passed 130 cases with no failures or skips.
+Full release campaigns found a library carrier-starvation defect; Step 19 must
+fix it and repeat the affected measurements before release preparation completes.
 
 ## References
 

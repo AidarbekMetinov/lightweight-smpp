@@ -9,6 +9,32 @@ import org.junit.jupiter.api.Test;
 
 class ArrivalScheduleTest {
     @Test
+    void unequalHoldsKeepBurstAndRecoveryTimesIndependentOfPriorCompletions() {
+        var plan = new LoadPlan(
+                LoadPlan.Model.ARRIVAL_RATE,
+                List.of(2, 10, 2),
+                100,
+                Duration.ZERO,
+                Duration.ofSeconds(5),
+                Duration.ofSeconds(1),
+                Duration.ofSeconds(1),
+                List.of(Duration.ofSeconds(2), Duration.ofSeconds(1), Duration.ofSeconds(2)));
+        var schedule = new ArrivalSchedule(plan, -20);
+        assertEquals(18, schedule.plannedCount());
+        assertEquals(new ArrivalSchedule.Arrival(0, -20, 0), schedule.poll(-20).orElseThrow());
+        assertEquals(
+                new ArrivalSchedule.Arrival(3, 1_499_999_980L, 2),
+                schedule.poll(1_499_999_980L).orElseThrow());
+        assertEquals(
+                new ArrivalSchedule.Arrival(4, 1_999_999_980L, 0),
+                schedule.poll(1_999_999_980L).orElseThrow());
+        assertEquals(
+                new ArrivalSchedule.Arrival(14, 2_999_999_980L, 9),
+                schedule.poll(2_999_999_980L).orElseThrow());
+        assertEquals(3, schedule.finish());
+    }
+
+    @Test
     void skipsMissedArrivalsWithoutCatchupAndAccountsForTheEnd() {
         long start = -500_000_000L;
         ArrivalSchedule schedule = new ArrivalSchedule(List.of(10), Duration.ofSeconds(1), 100, start);

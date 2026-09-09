@@ -278,8 +278,10 @@ frame size, handler work, reply buffering, and optional receipt/reassembly state
 The implemented default maximum accepted PDU is 1 MiB, configurable above the header
 minimum; this is an allocation guard, not a change to protocol field limits.
 
-Current endpoint APIs expose session metadata and bounded termination snapshots.
-Additional metrics and observer contracts remain planned. Diagnostics include
+Current endpoint APIs expose session metadata, request/reply ownership samples,
+winning close reasons, congestion observations and bounded termination snapshots.
+Physical transport queue and wire-write counters are not public observations.
+Diagnostics include
 operation, sequence, session, state and status where available.
 Credentials and message bodies stay out of ordinary logs, exceptions, and generated
 `toString()` output. Metrics must not require per-message retention.
@@ -288,9 +290,9 @@ Credentials and message bodies stay out of ordinary logs, exceptions, and genera
 
 ```mermaid
 flowchart TD
-    Sim[Simulator application: planned] --> Api[Endpoint composition]
+    Sim[Separate simulator application] --> Api[Endpoint composition]
     Api --> Core[Connection coordinator]
-    Api --> Transport[TCP adapter]
+    Api --> Transport[TCP and TLS adapter]
     Core --> Policies[Pure session policies]
     Core --> Requests[Request tracking]
     Core --> Ports[Frame transport ports]

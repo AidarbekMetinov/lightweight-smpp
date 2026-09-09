@@ -11,9 +11,13 @@ endpoint API. Step 14 adds query/cancel/replace/multi traffic and finite alert/
 outbind checks. Step 15 adds explicit encoding, SAR and receipt content fixtures.
 Step 16 adds 5.0 broadcast submission, query and cancellation. Step 17 supplies
 the tested [lifecycle configuration adapter](LIFECYCLE.md) for TLS, keepalives
-and explicit reconnect. Its workload CLI composition and the broader scenarios
-below are Step 18; this pair does not establish production capacity or independent-peer
-interoperability.
+and explicit reconnect. Step 18 composes those options into the workload CLI
+and adds [full load profiles and reporting](LOAD_TESTING.md), bounded churn,
+slow consumers, resource/ownership criteria, an [independent raw fault peer](FAULT_PEER.md)
+and a finite [submission/receipt round trip](RECEIPT_SCENARIO.md).
+[Fresh measurements](MEASUREMENTS.md) distinguish functional success, missed
+arrivals and the liveness defect discovered during release verification.
+Production capacity and independent-peer interoperability need separate evidence.
 
 [Workload criteria](WORKLOADS.md) now define the Step 1 provisional profiles,
 measurement environment, and acceptance/accounting rules. Production workload
@@ -22,12 +26,20 @@ simulators exercise, and [the test plan](TEST_PLAN.md) identifies their first
 deterministic verification scenarios.
 
 The [Step 13 review](reviews/0012-simulators.md) records actual tests and selected
-fresh measurements. Extend scenarios as library features arrive, and complete
-heavy-load measurement in Step 18.
+fresh measurements. The [Step 18 review](reviews/0017-load-scenarios.md) records
+the completed scenario/tooling TDD and current type reviews; full release
+measurements execute separately from ordinary build checks.
 Both tools follow the same [TDD](TDD.md) and per-type [SOLID review](SOLID.md)
 requirements as the library.
 
 ## Run the tools
+
+[LOAD_TESTING.md](LOAD_TESTING.md) documents exact presets, arrival/concurrency
+semantics, per-step recovery, resource criteria, TLS options and repeat
+aggregation. [FAULT_PEER.md](FAULT_PEER.md) documents bounded raw-wire fault
+commands that use no third-party SMPP implementation.
+[RECEIPT_SCENARIO.md](RECEIPT_SCENARIO.md) documents the separate bounded fixture
+that correlates one synthetic receipt with each successful submission.
 
 Build the launchers once, then run each mode in its own terminal:
 
@@ -63,7 +75,7 @@ the executable always performs a fresh run.
 | --- | --- |
 | `--version=3.4` or `5.0`; `--bind=tx`, `rx`, `trx` | Requested/advertised profile and bind role. Incompatible originating operations fail before endpoint allocation. |
 | `--operation=submit`, `deliver`, `data`, `query`, `cancel`, `replace`, `multi`, `broadcast`, `query-broadcast`, `cancel-broadcast`, `none` | Client submission/management/multiple-submission, server delivery, profile-permitted data in either direction, or receive-only. Broadcast variants require a 5.0 client in TX/TRX mode with raw content. Both peers register the applicable typed handlers. |
-| `--connections=1`; `--window=32` | Fixed bound cohort and per-session request window. A run does not replace disconnected sessions or retry requests. |
+| `--connections=1`; `--window=32` | Fixed slot cohort and per-session request window. Explicit churn/reconnect options can replace sessions; requests are never replayed. |
 | `--connect-interval=PT0S` | Spacing between explicit client connection attempts. Configure the same value on the server when waiting for a slowly arriving cohort. |
 | `--model=arrival`; `--rates=10,100,10` | Aggregate independent arrivals across the cohort, in equal-duration rate steps. The last step includes any duration remainder. |
 | `--model=concurrency` | Refill only the finite originating window. Omit `--rates`; no independent offered rate is claimed. |
@@ -101,8 +113,8 @@ arrival and records the skipped ones, without a catch-up burst or backlog.
 Fault selection hashes the configured seed with the incoming per-connection
 sequence number. The same sequence on different connections selects the same
 decision. Percentages describe hash buckets, not an exact percentage of a small
-sample. A stalled decision withholds application completion until tool cleanup;
-the library's handler deadline still applies and can generate a negative reply.
+sample. A stalled decision withholds application completion until cancellation
+or tool cleanup; the library's handler deadline still applies and can generate a negative reply.
 Delay release is polled by the tool owner, so scheduling stalls can extend it.
 The simulator never weakens protocol validation to generate malformed wire data.
 
@@ -142,7 +154,9 @@ or endpoints are created. Defaults are not silently truncated: for example,
 access remains available through the public library APIs. SAR repetitions reuse
 one fixed fixture reference and retained duplicate history; they are not distinct
 logical message counts. A partial received fixture makes the run fail at cleanup.
-Automatic submission-to-receipt correlation remains later tooling work.
+The separate [receipt scenario](RECEIPT_SCENARIO.md) correlates synthetic receipts
+with the opaque IDs actually returned by successful submissions. Its finite
+functional run is distinct from these standalone receipt-content workloads.
 
 ## Common-operation runs
 
@@ -233,7 +247,7 @@ Required configuration includes peer/listen address, protocol version, bind mode
 connection count and ramp, request-window size, payload size and encoding mix,
 operation mix, rate or concurrency model, message count/duration, warmup, drain
 deadline, request timeouts, deterministic seed, fault policy, and report path.
-The transport now supports [explicit TLS](LIFECYCLE.md); Step 18 composes its
+The transport supports [explicit TLS](LIFECYCLE.md); the workload CLI composes its
 tested configuration adapter into the workload CLI. Keep secrets out of reports.
 
 Document whether rates and limits apply globally or per connection. Give generated

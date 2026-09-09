@@ -29,12 +29,21 @@ record SimulatorConfig(
         String destination,
         boolean expectFailures,
         double minimumRateRatio,
-        long maximumP99Millis) {
+        long maximumP99Millis,
+        LoadSettings settings,
+        LifecycleSettings lifecycle) {
     public SimulatorConfig {
         Objects.requireNonNull(mode, "mode");
         Objects.requireNonNull(version, "version");
         Objects.requireNonNull(bindMode, "bindMode");
         Objects.requireNonNull(load, "load");
+        Objects.requireNonNull(settings, "settings");
+        Objects.requireNonNull(lifecycle, "lifecycle");
+        if (lifecycle.reconnectPolicy().isPresent() && (mode == Mode.SERVER || settings.churnRate() != 0))
+            throw new IllegalArgumentException(
+                    "Reconnect belongs to the TCP client and cannot be combined with deliberate churn");
+        if (mode == Mode.SERVER && settings.churnRate() != 0)
+            throw new IllegalArgumentException("Only the TCP client owns deliberate connection replacement");
         Objects.requireNonNull(faults, "faults");
         Objects.requireNonNull(report, "report");
         if (host == null
@@ -77,6 +86,8 @@ record SimulatorConfig(
                 || maximumP99Millis < 0
                 || maximumP99Millis > 3_600_000)
             throw new IllegalArgumentException("Invalid throughput or latency criterion");
+        if (minimumRateRatio > 0 && load.model() != LoadPlan.Model.ARRIVAL_RATE)
+            throw new IllegalArgumentException("Minimum rate ratio requires an independent offered arrival rate");
     }
 
     public enum Mode {

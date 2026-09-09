@@ -15,29 +15,37 @@ final class ArrivalSchedule {
     private final long total;
     private long cursor;
 
-    public ArrivalSchedule(List<Integer> rates, Duration duration, long limit, long started) {
-        LoadPlan checked = new LoadPlan(
-                LoadPlan.Model.ARRIVAL_RATE,
-                rates,
-                limit,
-                Duration.ZERO,
-                duration,
-                Duration.ofSeconds(1),
-                Duration.ofSeconds(1));
-        this.rates = checked.rates().stream().mapToInt(Integer::intValue).toArray();
-        this.duration = duration.toNanos();
+    ArrivalSchedule(LoadPlan plan, long started) {
+        if (plan.model() != LoadPlan.Model.ARRIVAL_RATE)
+            throw new IllegalArgumentException("An arrival plan is required");
+        this.rates = plan.rates().stream().mapToInt(Integer::intValue).toArray();
+        this.duration = plan.duration().toNanos();
         this.started = started;
         starts = new long[this.rates.length];
         counts = new long[this.rates.length];
-        long length = this.duration / this.rates.length;
         long planned = 0;
+        long offset = 0;
         for (int step = 0; step < this.rates.length; step++) {
-            starts[step] = step * length;
-            long stepLength = step == this.rates.length - 1 ? this.duration - starts[step] : length;
-            counts[step] = Math.min(limit - planned, ceilingRateProduct(stepLength, this.rates[step]));
+            starts[step] = offset;
+            long stepLength = plan.holds().get(step).toNanos();
+            counts[step] = Math.min(plan.count() - planned, ceilingRateProduct(stepLength, this.rates[step]));
             planned += counts[step];
+            offset += stepLength;
         }
         total = planned;
+    }
+
+    public ArrivalSchedule(List<Integer> rates, Duration duration, long limit, long started) {
+        this(
+                new LoadPlan(
+                        LoadPlan.Model.ARRIVAL_RATE,
+                        rates,
+                        limit,
+                        Duration.ZERO,
+                        duration,
+                        Duration.ofSeconds(1),
+                        Duration.ofSeconds(1)),
+                started);
     }
 
     public Optional<Arrival> poll(long now) {
@@ -64,6 +72,23 @@ final class ArrivalSchedule {
 
     public long plannedCount() {
         return total;
+    }
+
+    long plannedCount(int step) {
+        return counts[step];
+    }
+
+    long endNanos(int step) {
+        return started + (step + 1 < starts.length ? starts[step + 1] : duration);
+    }
+
+    int stepOf(long index) {
+        if (index < 0 || index >= total) throw new IllegalArgumentException("Arrival identity is outside the schedule");
+        for (int step = 0; step < counts.length; step++) {
+            if (index < counts[step]) return step;
+            index -= counts[step];
+        }
+        throw new IllegalStateException("Schedule count mismatch");
     }
 
     public long nextNanos() {

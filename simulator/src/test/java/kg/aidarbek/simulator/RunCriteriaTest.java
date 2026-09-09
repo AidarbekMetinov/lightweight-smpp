@@ -40,10 +40,36 @@ class RunCriteriaTest {
         metrics.terminal(CohortMetrics.Outcome.SUCCESS, 0, true, 90_000_000, 0, 1_100_000_000, false);
         var run = new TrafficRunner.Result(
                 new CohortMetrics(0).snapshot(), metrics.snapshot(), 0, 1_000_000_000, 100_000_000);
-        assertFalse(RunCriteria.evaluate(config("--minimum-rate-ratio=0.99"), run, true, 0, 0)
+        assertFalse(RunCriteria.evaluate(config("--duration=PT1S", "--minimum-rate-ratio=0.99"), run, true, 0, 0)
                 .passed());
         assertFalse(RunCriteria.evaluate(config("--p99-ms=20"), run, true, 0, 0).passed());
         assertTrue(RunCriteria.evaluate(config(), run, true, 0, 0).passed());
+    }
+
+    @Test
+    void successfulRateUsesObservedPhaseTimeAndDoesNotAcceptPartialOrEmptyMeasurement() {
+        var config = config("--duration=PT1S", "--rates=2", "--count=2", "--minimum-rate-ratio=0.99");
+        var metrics = new CohortMetrics(2);
+        for (int index = 0; index < 2; index++) {
+            metrics.attempt(0);
+            metrics.admitted();
+            metrics.terminal(CohortMetrics.Outcome.SUCCESS, 0, true, 0, 0, 10_000, true);
+        }
+        for (long elapsed : new long[] {1_020_000_000L, 500_000_000L, 0}) {
+            var run = new TrafficRunner.Result(new CohortMetrics(0).snapshot(), metrics.snapshot(), 0, elapsed, 0);
+            assertTrue(
+                    RunCriteria.evaluate(config, run, true, 0, 0)
+                            .failures()
+                            .contains("successful-rate-below-threshold"),
+                    "Observed duration " + elapsed);
+        }
+        var timely =
+                new TrafficRunner.Result(new CohortMetrics(0).snapshot(), metrics.snapshot(), 0, 1_000_000_000L, 0);
+        assertTrue(RunCriteria.evaluate(config, timely, true, 0, 0).passed());
+        var empty = new TrafficRunner.Result(
+                new CohortMetrics(0).snapshot(), new CohortMetrics(0).snapshot(), 0, 1_000_000_000L, 0);
+        assertTrue(
+                RunCriteria.evaluate(config, empty, true, 0, 0).failures().contains("successful-rate-below-threshold"));
     }
 
     @Test

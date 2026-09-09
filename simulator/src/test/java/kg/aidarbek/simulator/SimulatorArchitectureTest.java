@@ -1,7 +1,7 @@
 package kg.aidarbek.simulator;
 
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 import com.tngtech.archunit.base.DescribedPredicate;
 import com.tngtech.archunit.core.domain.JavaClass;
@@ -11,6 +11,7 @@ import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.lang.ArchRule;
 import java.util.Set;
 import kg.aidarbek.smpp.request.RequestWindow;
+import kg.aidarbek.smpp.transport.TcpTransport;
 import org.junit.jupiter.api.Test;
 
 class SimulatorArchitectureTest {
@@ -64,5 +65,16 @@ class SimulatorArchitectureTest {
 
     static final class ForbiddenRequestEngine {
         RequestWindow window;
+    }
+
+    @Test
+    void lifecycleSettingsDoNotPermitTheSimulatorToOwnTransportWorkers() {
+        var result = boundary().evaluate(new ClassFileImporter().importClasses(ForbiddenTransportOwner.class));
+        assertTrue(result.hasViolation());
+        assertTrue(result.getFailureReport().toString().contains("TcpTransport"));
+    }
+
+    static final class ForbiddenTransportOwner {
+        TcpTransport transport;
     }
 }

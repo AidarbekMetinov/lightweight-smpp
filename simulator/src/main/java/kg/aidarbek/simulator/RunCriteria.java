@@ -33,9 +33,15 @@ final class RunCriteria {
         if (incompleteAssemblies != 0) failures.add("incomplete-assemblies");
         var measured = result.measurement();
         if (config.minimumRateRatio() > 0
-                && measured.planned() > 0
-                && (double) measured.successesDuringMeasurement() / measured.planned() < config.minimumRateRatio())
-            failures.add("successful-rate-below-threshold");
+                && !config.operation().equals("none")
+                && (!result.measurementStarted()
+                        || measured.planned() == 0
+                        || result.measurementNanos() < config.load().duration().toNanos()
+                        || (double) measured.successesDuringMeasurement()
+                                        / measured.planned()
+                                        * config.load().duration().toNanos()
+                                        / result.measurementNanos()
+                                < config.minimumRateRatio())) failures.add("successful-rate-below-threshold");
         if (config.maximumP99Millis() > 0
                 && (measured.scheduledLatency().overflow() != 0
                         || measured.scheduledLatency().p99Micros() > config.maximumP99Millis() * 1000))

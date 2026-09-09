@@ -5,7 +5,7 @@ runnable client and server simulators for functional and heavy-load testing.
 The [research report](RESEARCH.md) explains the protocol targets and architecture.
 The [simulator plan](SIMULATORS.md) defines workloads and measurement requirements.
 
-Current stage: **research and Steps 1–17 completed; Step 18 is next**.
+Current stage: **research and Steps 1–18 completed; Step 19 verification is in progress**.
 Java 21, Gradle, JUnit, strict compiler warnings, local caching, formatting, and Git
 are configured. Header values, a binary header codec, bounded framing, behavior
 tests, and meaningful architecture rules are implemented. Automatic review-evidence
@@ -510,6 +510,17 @@ Suggested commit: `Harden connection lifecycle`.
 
 ## 18. Complete heavy-load scenarios and reporting
 
+Status: **implemented and verified**. [Load tooling](LOAD_TESTING.md) supports
+full arrival/concurrency profiles, recovery cohorts, finite churn, resource and
+ownership samples, strict criteria and repeat aggregation. The [raw peer](FAULT_PEER.md)
+injects bounded wire faults independently of library codecs; the [receipt fixture](RECEIPT_SCENARIO.md)
+correlates early receipts and returned submission IDs. Evidence is recorded in
+the [scenario review](reviews/0017-load-scenarios.md), [raw-peer review](reviews/0017-fault-peer.md),
+[receipt review](reviews/0017-receipt-scenario.md), [sampling regression](reviews/0018-sampling-progress.md)
+and [connection-slot regression](reviews/0018-concurrency-selection.md).
+The [measurement record](MEASUREMENTS.md) retains failed targets and the first
+candidate's liveness defect; its library fix and new full runs belong to Step 19.
+
 Complete both simulators' arrival-rate and fixed-concurrency modes, ramps,
 bursts, soak runs, connection churn, slow consumers, and fault mixes. Follow
 [the simulator design](SIMULATORS.md) for bounded generation and latency accounting.
@@ -532,6 +543,11 @@ Step 1 workload. Heavy-load tasks always execute; past results are not cache hit
 Suggested commit: `Add load test scenarios`.
 
 ## 19. Verify interoperability and prepare a release
+
+Status: **in progress**. External comparisons remain outside the repository.
+Release verification must include the load-discovered liveness regression and
+fresh execution against the corrected candidate, with full-duration soak
+evidence and honest reporting of missed provisional targets.
 
 Test our client against an independent server and our server against an independent
 client. Pin peer versions and configuration. Cloudhopper can cover its actual

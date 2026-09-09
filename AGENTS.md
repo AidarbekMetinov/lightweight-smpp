@@ -38,7 +38,10 @@ artifact. Follow [the simulator plan](docs/SIMULATORS.md); use TDD and SOLID rev
 for simulator code as well as library code. Actual load measurements must execute
 freshly, even though compilation and deterministic tests can use build caches.
 
-Research and Steps 1–17 are complete. Step 18, heavy-load scenarios and reporting, is next.
+Research and Steps 1–18 are complete. Step 19, interoperability and release
+verification, is in progress. The first sustained candidate exposed Java 21
+carrier starvation; its regression, fix and fresh measurements are required
+before Step 19 is complete. Preserve failed measurements and their provenance.
 Bounded fields, raw TLVs, explicit profiles, bind/control
 and message codecs, deterministic session/version policies, and bounded request
 ownership are implemented. See [field contracts](docs/FIELDS.md), [command contracts](docs/COMMANDS.md),
@@ -62,6 +65,9 @@ remain explicit collaborators; external interoperability is separate evidence.
 bounded explicit reconnect without message replay, and sampled request/reply
 ownership. TLS stays in transport; the connection coordinator continues to use
 frame ports. Callback and provider retention remain explicit at shutdown bounds.
+[Load scenarios](docs/LOAD_TESTING.md), [raw fault injection](docs/FAULT_PEER.md)
+and [synthetic receipt correlation](docs/RECEIPT_SCENARIO.md) are implemented.
+See [fresh measurements and limitations](docs/MEASUREMENTS.md).
 The design baseline uses one library artifact, no initial runtime dependencies,
 one asynchronous request mechanism, and focused
 endpoint capabilities. Simulator tooling is a separate application subproject.

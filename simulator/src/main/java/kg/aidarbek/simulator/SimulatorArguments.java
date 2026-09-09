@@ -45,7 +45,20 @@ final class SimulatorArguments {
             "destination",
             "expect-failures",
             "minimum-rate-ratio",
-            "p99-ms");
+            "p99-ms",
+            "holds",
+            "scenario",
+            "spin",
+            "churn-rate",
+            "churn-count",
+            "consumer-delay",
+            "sample",
+            "verify-fault-mix",
+            "fault-tolerance",
+            "max-rss-mib",
+            "max-heap-mib",
+            "max-fd-growth",
+            "max-thread-growth");
 
     private SimulatorArguments() {}
 
@@ -64,7 +77,8 @@ final class SimulatorArguments {
             if (!argument.startsWith("--") || separator < 3 || separator == argument.length() - 1)
                 throw new IllegalArgumentException("Use --option=value arguments");
             String key = argument.substring(2, separator);
-            if (!OPTIONS.contains(key)) throw new IllegalArgumentException("Unknown simulator option: " + key);
+            if (!OPTIONS.contains(key) && !LifecycleSettings.optionNames().contains(key))
+                throw new IllegalArgumentException("Unknown simulator option: " + key);
             if (values.putIfAbsent(key, argument.substring(separator + 1)) != null)
                 throw new IllegalArgumentException("Duplicate simulator option: " + key);
         }
@@ -88,7 +102,12 @@ final class SimulatorArguments {
                 duration(values, "warmup", "PT0S"),
                 duration(values, "duration", "PT10S"),
                 duration(values, "drain", "PT30S"),
-                duration(values, "timeout", "PT2S"));
+                duration(values, "timeout", "PT2S"),
+                values.containsKey("holds")
+                        ? Arrays.stream(values.get("holds").split(",", -1))
+                                .map(Duration::parse)
+                                .toList()
+                        : List.of());
         FaultPolicy faults = new FaultPolicy(
                 seed,
                 integer(values, "reject", 0),
@@ -128,7 +147,22 @@ final class SimulatorArguments {
                 values.getOrDefault("destination", "2000"),
                 bool(values.getOrDefault("expect-failures", "false")),
                 Double.parseDouble(values.getOrDefault("minimum-rate-ratio", "0")),
-                Long.parseLong(values.getOrDefault("p99-ms", "0")));
+                Long.parseLong(values.getOrDefault("p99-ms", "0")),
+                new LoadSettings(
+                        values.getOrDefault("scenario", "custom"),
+                        duration(values, "spin", "PT0.0001S"),
+                        integer(values, "churn-rate", 0),
+                        Long.parseLong(values.getOrDefault(
+                                "churn-count", integer(values, "churn-rate", 0) == 0 ? "0" : "1000000")),
+                        duration(values, "consumer-delay", "PT0S"),
+                        duration(values, "sample", "PT1S"),
+                        bool(values.getOrDefault("verify-fault-mix", "false")),
+                        Double.parseDouble(values.getOrDefault("fault-tolerance", "0.05")),
+                        (long) integer(values, "max-rss-mib", 0) * 1_048_576,
+                        (long) integer(values, "max-heap-mib", 0) * 1_048_576,
+                        Long.parseLong(values.getOrDefault("max-fd-growth", "-1")),
+                        Long.parseLong(values.getOrDefault("max-thread-growth", "-1"))),
+                LifecycleSettings.parse(values));
     }
 
     private static int integer(Map<String, String> values, String name, int fallback) {
