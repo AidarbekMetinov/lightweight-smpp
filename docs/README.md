@@ -153,12 +153,27 @@ architecture checks enforce the implemented package boundaries. See
 [session contracts](SESSIONS.md), the [TDD/SOLID review](reviews/0007-session-state.md),
 and [architecture evidence](reviews/0007-session-architecture.md).
 
-The integrated build passes 341 library/architecture cases, plus 60 unchanged
-review-tool cases reused from cache. Current SOLID evidence covers all 113 Java
+The Step 8 integrated build passed 341 library/architecture cases, plus 60 unchanged
+review-tool cases reused from cache. Its SOLID evidence covered all 113 Java
 type identities. Runtime dependencies remain empty; build/configuration caching
 and licensed binary/source/Javadoc archives are verified.
 
-Next: Step 9 adds request correlation, deadlines, and bounded admission.
+## Step 9 request tracking
+
+Bounded request windows now own connection generations, monotonic non-reused
+sequences, correlation, cancellation and deadlines. Exactly one terminal outcome
+wins, with explicit transmission certainty and bounded asynchronous notification.
+See [request contracts](REQUESTS.md), [TDD/SOLID evidence](reviews/0008-request-tracking.md),
+and [architecture evidence](reviews/0008-request-architecture.md).
+
+The integrated build passes 383 library/architecture cases, including 41 request
+cases and eight architecture cases, plus 60 review-tool cases. Root integration
+restored the matching library tests from cache and reused the tooling results;
+the request review records their fresh development runs. Current SOLID evidence
+covers all 129 Java type identities. Runtime dependencies remain empty, and all
+three archives preserve the Apache license and project notice.
+
+Next: Step 10 adds the first bounded TCP transport.
 
 ## References
 

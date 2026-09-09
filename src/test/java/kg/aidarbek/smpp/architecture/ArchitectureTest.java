@@ -14,6 +14,7 @@ import kg.aidarbek.smpp.codec.PduHeaderCodec;
 import kg.aidarbek.smpp.profile.ProtocolProfile;
 import kg.aidarbek.smpp.profile.SmppVersion;
 import kg.aidarbek.smpp.protocol.PduHeader;
+import kg.aidarbek.smpp.request.RequestOptions;
 import kg.aidarbek.smpp.session.SessionState;
 import org.junit.jupiter.api.Test;
 
@@ -22,6 +23,7 @@ final class ArchitectureTest {
     private static final String CODEC = "kg.aidarbek.smpp.codec..";
     private static final String PROFILE = "kg.aidarbek.smpp.profile..";
     private static final String SESSION = "kg.aidarbek.smpp.session..";
+    private static final String REQUEST = "kg.aidarbek.smpp.request..";
     private static final JavaClasses LIBRARY = new ClassFileImporter()
             .withImportOption(ImportOption.Predefined.DO_NOT_INCLUDE_TESTS)
             .importPackages("kg.aidarbek.smpp");
@@ -34,6 +36,7 @@ final class ArchitectureTest {
         assertTrue(LIBRARY.contain(ProtocolProfile.class));
         assertTrue(LIBRARY.contain(SmppVersion.class));
         assertTrue(LIBRARY.contain(SessionState.class));
+        assertTrue(LIBRARY.contain(RequestOptions.class));
         assertFalse(LIBRARY.contain(ArchitectureTest.class));
     }
 
@@ -99,6 +102,17 @@ final class ArchitectureTest {
                 .dependOnClassesThat()
                 .resideInAnyPackage(
                         "java.net..", "javax.net..", "java.nio.channels..", "java.nio.file..", "java.util.concurrent..")
+                .check(LIBRARY);
+    }
+
+    @Test
+    void requestsDependOnlyOnRequestsProtocolAndJdkConcurrency() {
+        classes()
+                .that()
+                .resideInAPackage(REQUEST)
+                .should()
+                .onlyDependOnClassesThat()
+                .resideInAnyPackage(REQUEST, PROTOCOL, "java.lang..", "java.math..", "java.time..", "java.util..")
                 .check(LIBRARY);
     }
 

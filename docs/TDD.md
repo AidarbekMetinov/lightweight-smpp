@@ -93,9 +93,10 @@ For a focused cycle, once the test class exists:
 ```
 
 Use `./gradlew check --console=plain` before completing a class-changing step.
-Record the actual scope of that command: only configured checks can run. In the
-current empty project, formatting is configured; architecture rules and
-review-coverage checks are still planned. ArchUnit core is available to Jupiter.
+Record the actual scope of that command: only configured checks can run. The
+current build runs behavior and ArchUnit architecture tests, deterministic
+formatting verification, review-tool tests, and SOLID evidence coverage/freshness
+checks. These checks support the manual per-type review; they do not replace it.
 
 Retain normal Gradle caching. Source and test changes should invalidate relevant
 task results. When fresh execution is specifically needed to establish evidence,

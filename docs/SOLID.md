@@ -6,7 +6,7 @@ logic, including records, enums, interfaces, and nested or local types. Review
 all five principles even when a particular obligation is not applicable.
 
 This policy is active now. ArchUnit rules run through Jupiter against actual
-protocol, codec, profile, and session types. `solidReview` checks current type identities
+protocol, codec, profile, session, and request types. `solidReview` checks current type identities
 and source hashes against recorded evidence; `check` runs both layers.
 The [research report](RESEARCH.md) explains the supporting design literature and
 the distinction between structural checks and behavioral review.

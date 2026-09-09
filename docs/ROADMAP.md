@@ -263,6 +263,13 @@ Suggested commit: `Add session state rules`.
 
 ## 9. Add requests, deadlines, and bounded admission
 
+Status: **completed**. [Request contracts](REQUESTS.md) define bounded admission,
+connection-generation and sequence ownership, monotonic deadlines, cancellation,
+transmission certainty, and notification capacity. [The request review](reviews/0008-request-tracking.md)
+records real TDD and per-type SOLID evidence; [the architecture review](reviews/0008-request-architecture.md)
+records forbidden codec/socket dependency probes. Network writes and endpoint
+composition remain separate steps.
+
 Implement a bounded pending-request window, sequence correlation, and exactly
 one terminal completion. Define admission, write, and response deadlines and
 distinguish a request never sent from an ambiguous outcome after sending.

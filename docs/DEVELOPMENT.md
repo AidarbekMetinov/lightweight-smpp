@@ -102,7 +102,9 @@ See [Spotless](https://github.com/diffplug/spotless/tree/main/plugin-gradle) and
 Steps 3 and 5 supply permanent header, framing, field, TLV, and profile tests,
 with architecture checks against real protocol/codec/profile types. Step 8 adds
 session policy checks and [architecture evidence](reviews/0007-session-architecture.md)
-covering all four production package boundaries.
+covering those four production package boundaries. Step 9 adds independent
+[request tracking](REQUESTS.md) and its [architecture rule](reviews/0008-request-architecture.md),
+with controlled clocks and explicit concurrency coordination.
 [Field contracts](FIELDS.md) explain the completed binary foundation. Step 6
 adds [bind/control codec contracts](COMMANDS.md), independent wire fixtures, and
 shared extension/ownership/boundary tests. Step 7 adds [message contracts](MESSAGES.md),

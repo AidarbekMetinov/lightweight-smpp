@@ -1,6 +1,6 @@
 # First behavior scenarios and verification evidence
 
-Step 1 test-design baseline, updated after Step 8. Header/framing scenarios
+Step 1 test-design baseline, updated after Step 9. Header/framing scenarios
 `FRAME-01` through `FRAME-08` now have executed evidence in
 [the framing review](reviews/0002-pdu-framing.md). Generic field/TLV primitives,
 initial typed interpretation, and profile occurrence scenarios have
@@ -8,8 +8,10 @@ initial typed interpretation, and profile occurrence scenarios have
 have [Step 6 evidence](reviews/0005-session-command-codecs.md). Basic message wire,
 field, TLV and original-request conditions have
 [Step 7 evidence](reviews/0006-message-codecs.md). Pure session, version and
-permission scenarios have [Step 8 evidence](reviews/0007-session-state.md). Live
-endpoint API, full session and simulator scenarios remain **planned**. Write only the next scenario needed by
+permission scenarios have [Step 8 evidence](reviews/0007-session-state.md). Request
+window, completion, cancellation, controlled deadline and bounded notification
+contracts have [Step 9 evidence](reviews/0008-request-tracking.md). Live endpoint
+API, full session and simulator scenarios remain **planned**. Write only the next scenario needed by
 the active roadmap step, observe its relevant failure, implement the smallest
 passing behavior, then refactor and review every affected type. Follow
 [TDD.md](TDD.md) and [SOLID.md](SOLID.md).
@@ -69,14 +71,23 @@ include both roles/profiles, all bind modes, duplicate/failed binds, unbinding,
 error responses and idempotent close. They use no sleeps or sockets.
 `SessionPermissionsTest`, `VersionNegotiationTest`, `SessionStateMachineTest`
 and `SessionResponsePermissionTest` supply the evidence. The complete endpoint
-scenarios below still require their later correlation, transport and handler layers.
+scenarios below still require their later transport and handler layers.
+
+Step 9 executes the request portions of `API-04` through `API-06` and
+`SESSION-02` through `SESSION-05`: `RequestWindowTest` checks admission, exact
+correlation, non-reused sequences and every terminal outcome;
+`RequestConcurrencyTest` checks coordinated races, protected future observation
+and bounded notifications shared between windows. `RequestValuesTest` verifies
+structured failures and preserved generic-nack data. Local write failures and
+controlled deadlines are tested independently of the future socket adapter.
+See [request contracts](REQUESTS.md) for the executed boundary and ownership.
 
 | ID | Planned scenario |
 | --- | --- |
 | `API-01` | Connect succeeds only after a positive bind; rejected/expired binds close the socket and fail readiness. |
 | `API-02` | Version policy follows the decision table; missing advertisement never silently enables TLV-dependent operations. |
 | `API-03` | Capability views match profile and role; a send after unbind/close is rejected locally. |
-| `API-04` | Negative peer status remains a typed response; timeout/transport/cancellation failures preserve transmission certainty. |
+| `API-04` | Negative operation status remains a typed PDU; correlated generic nack is a distinct known peer exception. Local timeout/transport/cancellation failures preserve transmission certainty. |
 | `API-05` | Mutating supplied arrays or result-future copies cannot change internal protocol state. |
 | `API-06` | Caller interruption and explicit handle cancellation have their distinct documented effects. |
 | `API-07` | Owned resources close once; supplied executors remain usable; an application task exceeding shutdown bounds is reported. |
@@ -85,7 +96,7 @@ scenarios below still require their later correlation, transport and handler lay
 | `SESSION-02` | Full windows/byte bounds fail admission; control responses retain capacity. |
 | `SESSION-03` | Requests complete once under response/timeout/cancellation/disconnect races. |
 | `SESSION-04` | Identical peer/local sequence values coexist; wrong, duplicate, and late responses cannot match another request. |
-| `SESSION-05` | Default sequence exhaustion closes/replaces the session without reusing a potentially stale identity. |
+| `SESSION-05` | Sequence exhaustion rejects admission without wrapping; further requests require a new connection generation. Replacement never implies automatic replay. |
 | `SESSION-06` | Slow/failed handlers stay bounded; normal replies obey the chosen ordering and control traffic progresses. |
 | `SESSION-07` | Submission acceptance, delivery acknowledgement, and receipt state remain separate results. |
 | `SESSION-08` | Reconnect cancels on shutdown and does not replay messages with ambiguous outcomes. |
@@ -120,8 +131,9 @@ architecture rules against actual production types:
 allowed dependency directions, no package cycles, and transport-independent core
 contracts. Isolated forbidden dependencies and a package cycle were detected; the final
 rules select real, nonempty production packages. Step 8 extends them to session
-policies, with seven current cases and
-[actual session-to-codec/executor violation probes](reviews/0007-session-architecture.md).
+policies with [actual session-to-codec/executor violation probes](reviews/0007-session-architecture.md).
+Step 9 adds the request boundary, bringing the suite to eight cases, with
+[actual request-to-codec/socket violations](reviews/0008-request-architecture.md).
 
 Step 4 provides `reviewTest` and `solidReview`, with executed failing/passing
 cases for missing or stale evidence, new nested/local/anonymous types, malformed

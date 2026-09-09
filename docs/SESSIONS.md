@@ -137,8 +137,8 @@ After body validation and external correlation, a concrete message response
 can use `MessageResponseRules`. A matching `generic_nack` follows session response
 authorization without that concrete message-body validator. Invalid offending
 headers reach `protocolErrorPermission` as raw `PduHeader` values, because a
-normal `Pdu` deliberately rejects their invalid envelope fields. The future
-request owner must still prove generation, outstanding status and terminal
+normal `Pdu` deliberately rejects their invalid envelope fields. The
+[request owner](REQUESTS.md) proves generation, outstanding status and terminal
 uniqueness; these composition rules create no general pending state.
 
 ## Exact operation permissions and honest capabilities
@@ -184,8 +184,10 @@ terminal state. `responsePermission` verifies opposite direction, exact sequence
 and expected response command, including a nonzero-status `generic_nack`. It
 does not consume the context or protect it from reuse. An absent context denotes
 an unsolicited, duplicate or late response and yields UNEXPECTED_RESPONSE. The
-Step 9 request owner will supply and retire that context. This boundary avoids
-claiming a general pending-request implementation in Step 8.
+[Step 9 request window](REQUESTS.md) supplies the outstanding request identity and
+retires it at its terminal transition. The endpoint coordinator constructs the
+policy context only after matching that identity. The state machine itself stays
+independent of request storage and clocks.
 
 A caller that has established a protocol error uses `protocolErrorPermission`.
 It permits a negative paired response to a known offending request, or a
@@ -224,5 +226,5 @@ shutdown policies applied to the request/response exchange.
 The [session review](reviews/0007-session-state.md) records TDD, source hashes and
 all five SOLID principles for every new type. The separately owned
 [architecture review](reviews/0007-session-architecture.md) records actual
-dependency violation probes. Networking, general pending outcomes and deadlines
-remain later roadmap steps.
+dependency violation probes. [Step 9 request tracking](REQUESTS.md) adds general
+pending outcomes and deadlines separately; networking remains a later roadmap step.

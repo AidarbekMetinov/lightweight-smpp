@@ -212,6 +212,17 @@ Tests should enforce the exact allowed edges and reject cycles. Package rules
 must distinguish `session.spi` from session internals; treating all packages with
 the same prefix as one undifferentiated layer would obscure that boundary.
 
+### Implementation mapping through Step 9
+
+The package table above records the original research proposal. Implementation
+has separated its broad session responsibility: `session` now contains pure
+state, permission and version decisions; `request` contains bounded correlation,
+deadlines and terminal notification. The future connection coordinator will
+compose these with codecs and frame transport ports. It must not move parsing or
+socket ownership back into the pure state machine. The current
+[API dependency diagram](API.md) and [architecture tests](TEST_PLAN.md) describe
+this refined boundary. Remaining package names are established in their own steps.
+
 ### Candidate responsibilities
 
 Class names below are sketches. They should be kept, combined, or renamed based

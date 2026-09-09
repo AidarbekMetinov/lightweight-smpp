@@ -1,12 +1,13 @@
 # Protocol support inventory
 
-Step 1 baseline, updated after Step 8. Bind/control codecs have
+Step 1 baseline, updated after Step 9. Bind/control codecs have
 [Step 6 evidence](reviews/0005-session-command-codecs.md), and basic message codecs
 have [Step 7 evidence](reviews/0006-message-codecs.md) for both profiles.
 The shared [framing](reviews/0002-pdu-framing.md) and
 [field/profile](reviews/0004-fields-profiles.md) evidence establishes their binary
 foundation. [Step 8](reviews/0007-session-state.md) adds deterministic state and
-permission evidence described separately below. Complete endpoint sessions,
+permission evidence described separately below. [Step 9](reviews/0008-request-tracking.md)
+adds general correlation, deadlines and bounded terminal notification. Complete endpoint sessions,
 remaining operation codecs, simulators, and independent-peer results remain
 **planned**. This inventory complements the specifications.
 
@@ -86,7 +87,7 @@ of byte parsing or networking. These cases run for both roles and both profiles:
 | All catalogue request permissions | `SessionPermissionsTest` enumerates defined requests, modeled states and originating roles, including data/replace/enquiry version differences. | Remaining operation codecs and real sender/handler capabilities. |
 | Bind RX/TX/TRX and version policy | `SessionStateMachineTest` and `VersionNegotiationTest` cover both endpoints, accepted/rejected/duplicate binds, raw advertisements and restricted field requirements. | Authentication, actual writes, connection deadlines and cleanup. |
 | Unbind and closure | `SessionStateMachineTest` covers either initiator, crossed equal sequences, draining state and repeated close. | General pending-window settlement, bounded flush and socket shutdown. |
-| Ordinary responses and protocol errors | `SessionResponsePermissionTest` covers paired commands/directions/sequences, explicit correlation context, negative replies and invalid-header nack sequences. | Generation/late-response ownership and exactly-once terminal completion in Step 9. |
+| Ordinary responses and protocol errors | `SessionResponsePermissionTest` covers paired commands/directions/sequences, explicit correlation context, negative replies and invalid-header nack sequences. | Step 9 verifies generation/late-response ownership and exactly-once completion independently; connecting these to live endpoint policy remains pending. |
 
 Implementation declarations are explicit inputs. A permitted catalogue operation
 does not imply a local codec or service exists. [Session contracts](SESSIONS.md)

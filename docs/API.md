@@ -1,11 +1,11 @@
 # Library contracts
 
-Step 1 design baseline, updated through Step 8. The endpoint usage examples below
+Step 1 design baseline, updated through Step 9. The endpoint usage examples below
 remain design sketches. Implemented low-level APIs and executed contracts are
 documented in [FRAMING.md](FRAMING.md), [FIELDS.md](FIELDS.md),
-[COMMANDS.md](COMMANDS.md), [MESSAGES.md](MESSAGES.md), and
-[SESSIONS.md](SESSIONS.md). Refine endpoint names through tests while preserving
-the behavior or documenting an intentional change.
+[COMMANDS.md](COMMANDS.md), [MESSAGES.md](MESSAGES.md),
+[SESSIONS.md](SESSIONS.md), and [REQUESTS.md](REQUESTS.md). Refine endpoint names
+through tests while preserving the behavior or documenting an intentional change.
 
 ## Scope and decisions
 
@@ -121,13 +121,13 @@ exact status per operation from the inventory before implementing that handler.
 
 | Contract | Decision |
 | --- | --- |
-| Request identity | The session assigns sequence numbers; applications provide message data, not manually reused sequence keys. |
+| Request identity | The connection-owned request window assigns sequence numbers; applications provide message data, not manually reused sequence keys. |
 | Correlation | Match session generation, local request sequence, and expected response command. Incoming peer requests use a separate namespace. |
 | Terminal outcome | Exactly one of peer response, local failure, cancellation, or deadline expiry wins. Late responses cannot complete a newer request. |
-| Peer rejection | Return the typed response with its numeric status and any permitted body/TLVs. Preserve unknown status values. |
+| Peer rejection | Return the typed operation response with its numeric status and permitted body/TLVs, preserving unknown statuses. A correlated `generic_nack` uses the distinct `PeerNackException` because it has no operation-specific response body. It is a known peer outcome. |
 | Local failure | Complete exceptionally with structured reason, operation, session identity, and transmission certainty. |
 | Cancellation | `RequestHandle.cancel()` competes for the terminal outcome; it never sends `cancel_sm` or withdraws an already transmitted message. |
-| Result observation | `result()` exposes `CompletionStage<R>` without allowing callers to complete the library's internal result. Use the handle to cancel. |
+| Result observation | `RequestHandle<R>.result()` exposes `CompletionStage<Pdu<R>>` without allowing callers to complete the library's internal result. Use the handle to cancel; terminal-state observation does not wait for application notification. |
 | Blocking wait | Waiting or interrupting a caller's `get()` does not automatically cancel its protocol request. |
 | Retries | No automatic message replay. Reconnect creates a new session and does not inherit outstanding request identifiers. |
 
@@ -137,11 +137,11 @@ A positive or negative peer response is a known protocol outcome; handset delive
 and later receipt state remain separate. Do not describe timeout or cancellation
 as guaranteed message rejection.
 
-Allocate sequence numbers monotonically within the permitted range. Do not reuse
-an active number. For the default policy, start a new session before exhausting
-the range; a wrapping policy would additionally need protection against stale
-responses and explicit tests. Verify same-valued sequence numbers can coexist in
-opposite directions.[^1][^2]
+Step 9 allocates sequence numbers monotonically from 1 through `0x7fffffff`
+within a unique connection generation. It never wraps or reuses a number, even
+after completion. Exhaustion rejects admission; establish a new connection
+instead of resetting the existing window. Verify same-valued sequence numbers
+can coexist in opposite directions.[^1][^2]
 
 Default admission is fail-fast when the outbound request window or byte bound is
 full. A waiting-admission option, if added, must have its own bounded queue and
@@ -242,24 +242,31 @@ Credentials and message bodies stay out of ordinary logs, exceptions, and genera
 
 ```mermaid
 flowchart TD
-    Sim[Simulator application] --> Api[Client and server APIs]
-    Api --> Core[Session policies]
-    Api --> Transport[TCP and TLS adapters]
-    Core --> Ports[Session-owned ports]
+    Sim[Simulator application: planned] --> Api[Endpoint composition: planned]
+    Api --> Core[Connection coordinator: planned]
+    Api --> Transport[TCP adapter: planned]
+    Core --> Policies[Pure session policies]
+    Core --> Requests[Request tracking]
+    Core --> Ports[Frame transport ports: planned]
     Transport --> Ports
-    Core --> Codec[Framing and body codecs]
-    Codec --> Values[Protocol values]
-    Core --> Values
-    Ports --> Values
-    Api --> Handlers[Application handler contracts]
-    Core --> Handlers
+    Transport --> Codec[Framing and body codecs]
+    Core --> Codec
+    Policies --> Profiles[Version profiles]
+    Codec --> Profiles
+    Profiles --> Values[Protocol values]
+    Policies --> Values
+    Requests --> Values
+    Codec --> Values
+    Core --> Handlers[Application handler contracts: planned]
     Handlers --> Values
-    Helpers[Message helpers] --> Values
 ```
 
-Composition constructs concrete adapters. Session policies depend on the ports
-they consume. Application implementations of handler contracts are outside the
-library. Dependencies never point back from the library to simulator tooling.
+Composition constructs concrete adapters. The connection coordinator consumes
+frame transport ports and combines the independent codec, session-policy and
+request owners. Pure session policies decide permissions without codecs, clocks,
+request maps or sockets. Request tracking owns correlation and deadlines without
+session rules or byte parsing. Application implementations of handler contracts
+remain outside the library. Dependencies never point back to simulator tooling.
 
 | Responsibility | SOLID design obligation |
 | --- | --- |
@@ -271,9 +278,10 @@ library. Dependencies never point back from the library to simulator tooling.
 | Endpoint composition | Construct variable infrastructure at the boundary; keep session policies independent of concrete adapters. |
 | Simulators | Separate schedules, response policies, counters, and report output; consume the public API. |
 
-This is a design review of proposed responsibilities. It is not a SOLID verdict
-on nonexistent classes. When code arrives, review every affected type under
-[the SOLID policy](SOLID.md) and record real [TDD evidence](TDD.md).
+The diagram distinguishes implemented foundations from planned composition and
+adapters. It does not establish SOLID compliance for the future types. When code
+arrives, review every affected type under [the SOLID policy](SOLID.md) and record
+real [TDD evidence](TDD.md).
 
 The first scenarios and acceptance evidence are in [the test plan](TEST_PLAN.md).
 Transport selection remains an experiment for Step 10; external performance
