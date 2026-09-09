@@ -149,7 +149,8 @@ control-response congestion and document the specification interpretations.
 These codec results do not establish negotiated endpoint capabilities. Step 8
 adds [pure negotiation and outgoing requirement tests](reviews/0007-session-state.md),
 including missing/unknown advertisements and raw incoming extensions that cannot
-enable outgoing TLVs. Live endpoint composition remains pending.
+enable outgoing TLVs. [Step 11 endpoint composition](ENDPOINTS.md) now supports binding/control traffic;
+message services and the remaining operation handlers are still planned.
 
 [Step 7](reviews/0006-message-codecs.md) adds `MessageTlvRulesTest` with exact
 3.4/5.0 command/direction sets; `MessageTlvValueCodecTest` with independently

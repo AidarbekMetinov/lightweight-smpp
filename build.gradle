@@ -20,6 +20,14 @@ repositories {
 }
 
 sourceSets {
+    examples {
+        compileClasspath += sourceSets.main.output
+        runtimeClasspath += sourceSets.main.output
+    }
+    test {
+        compileClasspath += sourceSets.examples.output
+        runtimeClasspath += sourceSets.examples.output
+    }
     review
     reviewTest {
         compileClasspath += sourceSets.review.output
@@ -35,6 +43,22 @@ dependencies {
     reviewTestImplementation platform('org.junit:junit-bom:6.0.0')
     reviewTestImplementation 'org.junit.jupiter:junit-jupiter'
     reviewTestRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.register('runExampleClient', JavaExec) {
+    group = 'application'
+    description = 'Runs the loopback bind/enquiry/unbind client example.'
+    javaLauncher = javaToolchains.launcherFor(java.toolchain)
+    classpath = sourceSets.examples.runtimeClasspath
+    mainClass = 'kg.aidarbek.examples.ExampleClient'
+}
+
+tasks.register('runExampleServer', JavaExec) {
+    group = 'application'
+    description = 'Runs the finite loopback server with demo-only credentials.'
+    javaLauncher = javaToolchains.launcherFor(java.toolchain)
+    classpath = sourceSets.examples.runtimeClasspath
+    mainClass = 'kg.aidarbek.examples.ExampleServer'
 }
 
 tasks.register('reviewTest', Test) {

@@ -1,6 +1,6 @@
 # First behavior scenarios and verification evidence
 
-Step 1 test-design baseline, updated after Step 10. Header/framing scenarios
+Step 1 test-design baseline, updated after Step 11. Header/framing scenarios
 `FRAME-01` through `FRAME-08` now have executed evidence in
 [the framing review](reviews/0002-pdu-framing.md). Generic field/TLV primitives,
 initial typed interpretation, and profile occurrence scenarios have
@@ -11,8 +11,10 @@ field, TLV and original-request conditions have
 permission scenarios have [Step 8 evidence](reviews/0007-session-state.md). Request
 window, completion, cancellation, controlled deadline and bounded notification
 contracts have [Step 9 evidence](reviews/0008-request-tracking.md). Frame-port,
-real socket and listener contracts have [Step 10 evidence](reviews/0009-tcp-transport.md). Live endpoint
-API, full session and simulator scenarios remain **planned**. Write only the next scenario needed by
+real socket and listener contracts have [Step 10 evidence](reviews/0009-tcp-transport.md).
+Binding/control endpoints, authentication, explicit connection cancellation and
+bounded shutdown have [Step 11 evidence](reviews/0010-client-server-binding.md).
+Message application services, remaining operations and simulators stay **planned**. Write only the next scenario needed by
 the active roadmap step, observe its relevant failure, implement the smallest
 passing behavior, then refactor and review every affected type. Follow
 [TDD.md](TDD.md) and [SOLID.md](SOLID.md).
@@ -71,8 +73,8 @@ transitions and opposite-direction response matching. Its 158 session cases
 include both roles/profiles, all bind modes, duplicate/failed binds, unbinding,
 error responses and idempotent close. They use no sleeps or sockets.
 `SessionPermissionsTest`, `VersionNegotiationTest`, `SessionStateMachineTest`
-and `SessionResponsePermissionTest` supply the evidence. The complete endpoint
-scenarios below still require their later transport and handler layers.
+and `SessionResponsePermissionTest` supply the evidence. Steps 9–11 compose the
+binding/control subset with transport; message-handler scenarios remain later work.
 
 Step 9 executes the request portions of `API-04` through `API-06` and
 `SESSION-02` through `SESSION-05`: `RequestWindowTest` checks admission, exact
@@ -80,10 +82,21 @@ correlation, non-reused sequences and every terminal outcome;
 `RequestConcurrencyTest` checks coordinated races, protected future observation
 and bounded notifications shared between windows. `RequestValuesTest` verifies
 structured failures and preserved generic-nack data. Local write failures and
-controlled deadlines are tested independently of the future socket adapter.
+controlled deadlines are tested independently of the socket adapter.
 See [request contracts](REQUESTS.md) for the executed boundary and ownership.
 
-| ID | Planned scenario |
+Step 11 executes readiness/version cases (`API-01`/`API-02`), the implemented
+control capability and result contracts, explicit attempt cancellation, bounded
+resource ownership and diagnostic redaction. `SmppEndpointsTest` covers the real
+pair; `EndpointAdversarialTest` supplies raw peer version/failure/capacity cases;
+`EndpointConnectionTest` coordinates write/deadline/correlation races over the
+shared frame contract. `AuthenticationDispatcherTest` and `EndpointResourcesTest`
+cover application execution and honest cleanup observations. The full class and
+case inventory is in the [endpoint review](reviews/0010-client-server-binding.md).
+`SESSION-06` currently covers bind authentication only; message handler ordering,
+acceptance, receipts and automatic reconnect remain their planned steps.
+
+| ID | Contract scenario; executed subset described above |
 | --- | --- |
 | `API-01` | Connect succeeds only after a positive bind; rejected/expired binds close the socket and fail readiness. |
 | `API-02` | Version policy follows the decision table; missing advertisement never silently enables TLV-dependent operations. |
@@ -137,6 +150,9 @@ Step 9 adds the request boundary, bringing the suite to eight cases, with
 [actual request-to-codec/socket violations](reviews/0008-request-architecture.md).
 Step 10 adds port and adapter boundaries, bringing the suite to ten cases, with
 [actual port-to-codec and transport-to-session violations](reviews/0009-transport-architecture.md).
+Step 11 adds endpoint dependencies and the coordinator-to-port rule, bringing the
+suite to twelve cases. Its [architecture review](reviews/0010-endpoint-architecture.md)
+records actual forbidden dependency probes against final endpoint types.
 
 Step 4 provides `reviewTest` and `solidReview`, with executed failing/passing
 cases for missing or stale evidence, new nested/local/anonymous types, malformed
@@ -151,9 +167,9 @@ source identity, and per-type SOLID findings under `docs/reviews/`. Update inven
 evidence only after the claimed checks actually run or valid matching results are
 reused with that fact stated.
 
-Step 1 changes documents only. Its verification is source/content review, command
-and TLV inventory reconciliation, Markdown links, and formatting checks. There is
-no executed Java TDD cycle or class-level SOLID verdict to report at this stage.
+The original Step 1 changed documents only and used source/content review, command
+and TLV inventory reconciliation, Markdown links and formatting checks. Later
+steps record their actual Java TDD and per-type SOLID evidence in the linked reviews.
 
 ## Sources
 

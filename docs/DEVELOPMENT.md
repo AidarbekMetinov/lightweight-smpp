@@ -107,6 +107,11 @@ covering those four production package boundaries. Step 9 adds independent
 with controlled clocks and explicit concurrency coordination. Step 10 adds
 [frame transport contracts](TRANSPORT.md), real local peers, shared adapter
 contracts and [two additional boundary rules](reviews/0009-transport-architecture.md).
+Step 11 adds [real endpoint binding](ENDPOINTS.md), raw-peer failures, explicit
+connect cancellation and bounded shutdown tests. The [endpoint architecture rules](reviews/0010-endpoint-architecture.md)
+keep concrete transport construction in composition. Client/server examples use
+a separate `examples` source set, are compiled for tests, and are excluded from
+all production archives. See the endpoint guide for runnable example commands.
 [Field contracts](FIELDS.md) explain the completed binary foundation. Step 6
 adds [bind/control codec contracts](COMMANDS.md), independent wire fixtures, and
 shared extension/ownership/boundary tests. Step 7 adds [message contracts](MESSAGES.md),

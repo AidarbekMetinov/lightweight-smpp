@@ -212,20 +212,24 @@ Tests should enforce the exact allowed edges and reject cycles. Package rules
 must distinguish `session.spi` from session internals; treating all packages with
 the same prefix as one undifferentiated layer would obscure that boundary.
 
-### Implementation mapping through Step 10
+### Implementation mapping through Step 11
 
 The package table above records the original research proposal. Implementation
 has separated its broad session responsibility: `session` now contains pure
 state, permission and version decisions; `request` contains bounded correlation,
-deadlines and terminal notification. The future connection coordinator will
-compose these with codecs and frame transport ports. It must not move parsing or
+deadlines and terminal notification. The connection coordinator
+composes these with codecs and frame transport ports. It must not move parsing or
 socket ownership back into the pure state machine. The current
 [API dependency diagram](API.md) and [architecture tests](TEST_PLAN.md) describe
 this refined boundary. Step 10 places frame ports in the independent `spi`
 package and their JDK adapters in `transport`, replacing the earlier proposed
 `session.spi` nesting. Ports have no socket or codec dependency; concrete
 adapters cannot depend on request tracking, state policies or endpoint code.
-Remaining package names are established in their own steps.
+Step 11 places shared composition and focused public entry points in `endpoint`,
+with `SmppClient`, `SmppServer` and the internal `EndpointConnection`. The coordinator
+consumes frame ports; the entry points construct concrete TCP adapters. This
+replaces the proposed separate client/server packages while retaining separate
+role APIs and common policy owners. Message helpers and simulators remain planned.
 
 ### Candidate responsibilities
 

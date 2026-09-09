@@ -228,5 +228,6 @@ all five SOLID principles for every new type. The separately owned
 [architecture review](reviews/0007-session-architecture.md) records actual
 dependency violation probes. [Step 9 request tracking](REQUESTS.md) adds general
 pending outcomes and deadlines separately. [Step 10 transport](TRANSPORT.md)
-implements framed TCP I/O; the endpoint coordinator that composes these owners
-remains a later roadmap step.
+implements framed TCP I/O. [Step 11 endpoints](ENDPOINTS.md) compose those owners
+for real binding and connection control, with authentication and bounded cleanup.
+The state package still owns no socket, executor, codec or request window.

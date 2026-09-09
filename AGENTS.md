@@ -34,14 +34,16 @@ artifact. Follow [the simulator plan](docs/SIMULATORS.md); use TDD and SOLID rev
 for simulator code as well as library code. Actual load measurements must execute
 freshly, even though compilation and deterministic tests can use build caches.
 
-Research and Steps 1–10 are complete. Step 11, real client and server binding,
-is next. Bounded fields, raw TLVs, explicit profiles, bind/control
+Research and Steps 1–11 are complete. Step 12, message exchange, is next.
+Bounded fields, raw TLVs, explicit profiles, bind/control
 and message codecs, deterministic session/version policies, and bounded request
 ownership are implemented. See [field contracts](docs/FIELDS.md), [command contracts](docs/COMMANDS.md),
 [message contracts](docs/MESSAGES.md), [session contracts](docs/SESSIONS.md),
 and [request contracts](docs/REQUESTS.md). Bounded TCP transport and listener
-adapters implement [frame transport ports](docs/TRANSPORT.md). Live endpoint
-composition, application handlers, and simulators remain planned.
+adapters implement [frame transport ports](docs/TRANSPORT.md). [Client/server
+binding](docs/ENDPOINTS.md), authentication, enquiries, cancellation and bounded
+shutdown are implemented for both profiles. Message application handlers and
+simulators remain planned.
 The design baseline uses one library artifact, no initial runtime dependencies,
 one asynchronous request mechanism, and focused
 endpoint capabilities. Simulator tooling will be a separate application subproject.
@@ -51,8 +53,9 @@ Use [the API contracts](docs/API.md), [protocol inventory](docs/PROTOCOL.md),
 [TLV inventory](docs/TLVS.md), and [first test scenarios](docs/TEST_PLAN.md) as the
 implementation baseline. [Workload profiles](docs/WORKLOADS.md) contain provisional
 development targets; production capacity and latency requirements remain open.
-API examples are design sketches, not compiled code. Refine names through TDD
-and document changes to the agreed behavior.
+Binding examples are compiled from the separate examples source set; planned
+messaging capabilities remain design contracts. Refine names through TDD and
+document changes to the agreed behavior.
 
 The user wants strong Java coding practices and development caching. The build
 now uses a Java 21 toolchain as the development baseline, matching the installed
@@ -84,7 +87,7 @@ completed.
   compiler, coverage report, or architecture test alone does not establish SOLID
   compliance. ArchUnit core is available to Jupiter tests; project architecture
   rules cover production protocol, codec, profile, session, request, frame-port
-  and transport packages. `solidReview`
+  and transport packages, plus endpoint composition and its coordinator-to-port boundary. `solidReview`
   checks review coverage and freshness, including the tool's own Java sources and
   tests.
 - Keep abstractions purposeful. SOLID does not require an interface for every
@@ -156,7 +159,9 @@ completed.
   evidence is in [the request review](docs/reviews/0008-request-tracking.md) and
   [the architecture review](docs/reviews/0008-request-architecture.md). Step 10
   evidence is in [the transport review](docs/reviews/0009-tcp-transport.md) and
-  [the architecture review](docs/reviews/0009-transport-architecture.md).
+  [the architecture review](docs/reviews/0009-transport-architecture.md). Step 11
+  evidence is in [the endpoint review](docs/reviews/0010-client-server-binding.md)
+  and [the architecture review](docs/reviews/0010-endpoint-architecture.md).
 
 ## References
 

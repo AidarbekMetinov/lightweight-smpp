@@ -1,12 +1,12 @@
 # Library contracts
 
-Step 1 design baseline, updated through Step 10. The endpoint usage examples below
-remain design sketches. Implemented low-level APIs and executed contracts are
+Step 1 design baseline, updated through Step 11. Binding and control endpoint
+APIs are compiled; application messaging remains planned. Executed contracts are
 documented in [FRAMING.md](FRAMING.md), [FIELDS.md](FIELDS.md),
 [COMMANDS.md](COMMANDS.md), [MESSAGES.md](MESSAGES.md),
-[SESSIONS.md](SESSIONS.md), [REQUESTS.md](REQUESTS.md), and
-[TRANSPORT.md](TRANSPORT.md). Refine endpoint names
-through tests while preserving the behavior or documenting an intentional change.
+[SESSIONS.md](SESSIONS.md), [REQUESTS.md](REQUESTS.md),
+[TRANSPORT.md](TRANSPORT.md), and [ENDPOINTS.md](ENDPOINTS.md). Refine future API
+names through tests while preserving the behavior or documenting an intentional change.
 
 ## Scope and decisions
 
@@ -29,94 +29,49 @@ The [protocol inventory](PROTOCOL.md) owns wire and role rules. The
 [workload criteria](WORKLOADS.md) define benchmark inputs. Both the production
 endpoints and simulators must use these contracts.
 
-## Client usage sketch
+## Client and server binding
 
-The application-owned `deliveryInbox` accepts an incoming delivery asynchronously.
-Acknowledging it means the application accepted that PDU, not that a handset
-received a different submitted message. Imports and application setup are omitted.
+[Endpoint contracts](ENDPOINTS.md) contain the implemented API and runnable client
+and server examples. The examples compile separately from the production library
+and remain outside its binary, source and Javadoc archives.
 
-```java
-try (SmppClient client = SmppClient.builder()
-        .deliveryHandler((session, delivery) -> deliveryInbox.accept(delivery)
-                .thenApply(ignored -> DeliverSmResult.acknowledged()))
-        .build()) {
-    ClientConfig config = ClientConfig.builder()
-            .remoteAddress("127.0.0.1", 2775)
-            .credentials("demo", "demo")
-            .version(SmppVersion.V5_0)
-            .bindMode(BindMode.TRANSCEIVER)
-            .requestWindow(32)
-            .build();
+`SmppClient.connect(config)` completes after a positive bind satisfying the
+configured version policy. `connectAttempt(config)` exposes cancellation of that
+same connection/bind workflow before a `BoundSession` exists. Its result uses the
+same protected readiness stage; cancelling a derived future only changes that
+observation. A failed or expired bind closes its connection, and reconnect never
+replays outstanding requests.
 
-    try (ClientSession session = client.connect(config).toCompletableFuture().get()) {
-        SubmissionSender submissions = session.submissions().orElseThrow();
-        SubmitSm message = SubmitSm.builder()
-                .source(Address.alphanumeric("Example"))
-                .destination(Address.international("12025550101"))
-                .payload(Payload.octets(0x04, new byte[] {1, 2, 3}))
-                .build();
+`SmppServer` receives listener/version configuration, endpoint resource limits,
+a focused `BindAuthenticator` and a bound-session notification callback. Supplied
+executors are used only for authentication invocation and remain caller-owned.
+Authentication timeout cannot release capacity still occupied by blocked
+application code. The server's connection and callback bounds remain independent.
 
-        RequestHandle<SubmitSmResponse> request = submissions.submit(
-                message, RequestOptions.timeout(Duration.ofSeconds(5)));
-        SubmitSmResponse response = request.result().toCompletableFuture().get();
-        if (response.status().isSuccess()) {
-            String messageId = response.messageId().orElseThrow();
-            // Retain the peer's identifier for later delivery-receipt correlation.
-        } else {
-            // Handle the peer's status; a negative response is a protocol result.
-        }
+A `BoundSession` exposes connection/version/bind metadata, `enquireLink`, `unbind`,
+closure and termination observation. Both roles bind RX, TX and TRX under 3.4 and
+5.0. Each control send rechecks current state. User callbacks and future publication
+run outside socket progress and coordinator locks.
 
-        session.unbind().result().toCompletableFuture().get();
-    }
-}
-```
+## Planned messaging application contracts
 
-`connect` completes only after successful binding. A failed or expired bind closes
-its connection. In the sketch, blocking `get()` is on application code; neither
-network progress nor handler dispatch may depend on that thread.
+Step 12 connects submission, delivery and data-message handlers. Focused sender
+capabilities will reflect the negotiated profile, bind role, local implementation
+and current state. A catalogue permission or existing codec alone does not expose
+a usable message service.
 
-`submissions()` is absent when the profile or bind role does not permit submission.
-Other capability views follow the same rule. Capabilities describe protocol
-permission and local implementation, not a promise that a peer will accept a
-particular message. Each send rechecks current session state.
+An application owns storage and acceptance policy. A durable handler completes
+acceptance after its required storage succeeds; a simulator may accept in memory.
+Acknowledging an incoming delivery means accepting that PDU, independently of
+handset delivery or a later receipt for another submitted message. Optional query,
+replacement, cancellation, multiple-destination and broadcast services retain
+separate contracts as their features arrive.
 
-## Server usage sketch
-
-`authenticationService` and `messageStore` are supplied by the application. They
-are not library components. A durable application completes acceptance only after
-its required storage operation succeeds; a simulator may deliberately accept in
-memory. Keeping that decision in the handler avoids building an SMSC database
-into the protocol library.
-
-```java
-try (SmppServer server = SmppServer.builder()
-        .listenAddress("127.0.0.1", 2775)
-        .acceptedVersions(SmppVersion.V3_4, SmppVersion.V5_0)
-        .connectionLimit(100)
-        .requestWindow(32)
-        .authenticator(authenticationService::authenticate)
-        .submissionHandler((session, submission) -> messageStore.accept(submission)
-                .thenApply(SubmitSmResult::accepted))
-        .build()) {
-    server.start().toCompletableFuture().get();
-    // The application runs until its own stop signal.
-    stopSignal.toCompletableFuture().get();
-    server.shutdown(Duration.ofSeconds(10)).toCompletableFuture().get();
-}
-```
-
-An application receives bound-session lifecycle notifications and can retain a
-session while it is active. It uses `session.deliveries()` to send `deliver_sm`
-when allowed and handles the returned `RequestHandle<DeliverSmResponse>`. Incoming
-`data_sm` has its own focused handler and direction-aware permissions. Optional
-query, replacement, cancellation, multiple-destination, and broadcast services
-have separate application contracts as their features arrive.
-
-An absent handler does not imply successful acceptance. Fail server startup if
-a configured advertised service lacks its required handler. A valid request for
-an unavailable application service receives the operation-appropriate documented
-negative result; an unknown command is a different protocol case. Select the
-exact status per operation from the inventory before implementing that handler.
+An absent handler never implies successful acceptance. The current binding-only
+endpoints validate available message formats and reply negatively when a service
+is unavailable; invalid state/direction and unknown commands have distinct error
+responses documented in [ENDPOINTS.md](ENDPOINTS.md). They expose no successful
+submission or delivery capability until those application services are implemented.
 
 ## Requests, results, and cancellation
 
@@ -152,21 +107,23 @@ consume the same overall deadline. No public method hides an unbounded queue.
 
 The request timeout starts at API invocation and includes validation/admission,
 writing, and waiting for a response. The terminal transition uses monotonic time.
-Separate configuration controls connecting, TLS, binding/authentication, inbound
-handler completion, keepalive response, and graceful shutdown deadlines.
+Endpoint configuration controls TCP connection, binding/authentication, manual
+control requests and shutdown deadlines. TLS, message-handler completion and
+scheduled keepalive deadlines will be added with those features.
 
-As an initial implementation baseline, use 5 seconds for TCP connection, 10 seconds
-for binding and ordinary requests, and 10 seconds for inbound handler completion.
-All values are configurable, validated, and documented as library policy, not
-protocol-mandated timings. Workload profiles override them explicitly.
+The implemented defaults are 5 seconds for TCP connection and 10 seconds for
+binding, manual requests and abort cleanup. These configurable values are library
+policy, not protocol-mandated timings. Ten seconds remains the proposed initial
+message-handler deadline for Step 12; workload profiles may override it.
 
-Handlers return asynchronous typed decisions. Dispatch application handlers and
-future notifications outside transport read/write progress. The internal terminal
+Bind authentication returns asynchronous typed decisions. Message handlers will
+use the same execution boundary: application work and future notifications run
+outside transport read/write progress. The internal terminal
 state must settle even when application notification is delayed. Bound dispatch
 queues and concurrency; define overload results before accepting callback work.
 Reserve capacity for control responses and shutdown.
 
-For a given session, begin ordinary message callbacks in receive order while
+The planned message-service contract begins ordinary callbacks in receive order while
 allowing asynchronous processing to overlap. The initial response scheduler
 preserves peer-request order for these callbacks, with bounded pending replies
 and handler deadlines. Control replies use separate capacity so one slow message
@@ -231,11 +188,12 @@ The implementation must document when these asynchronous notifications can finis
 
 Set explicit bounds for accepted and connecting sockets, requests, queued bytes,
 frame size, handler work, reply buffering, and optional receipt/reassembly state.
-The proposed initial maximum accepted PDU is 1 MiB, configurable above the header
+The implemented default maximum accepted PDU is 1 MiB, configurable above the header
 minimum; this is an allocation guard, not a change to protocol field limits.
 
-Expose read-only counters and lifecycle events through small observer contracts.
-Diagnostics include operation, sequence, session, state, and status where available.
+Current endpoint APIs expose session metadata and bounded termination snapshots.
+Additional metrics and observer contracts remain planned. Diagnostics include
+operation, sequence, session, state and status where available.
 Credentials and message bodies stay out of ordinary logs, exceptions, and generated
 `toString()` output. Metrics must not require per-message retention.
 
@@ -243,8 +201,8 @@ Credentials and message bodies stay out of ordinary logs, exceptions, and genera
 
 ```mermaid
 flowchart TD
-    Sim[Simulator application: planned] --> Api[Endpoint composition: planned]
-    Api --> Core[Connection coordinator: planned]
+    Sim[Simulator application: planned] --> Api[Endpoint composition]
+    Api --> Core[Connection coordinator]
     Api --> Transport[TCP adapter]
     Core --> Policies[Pure session policies]
     Core --> Requests[Request tracking]
@@ -258,7 +216,9 @@ flowchart TD
     Policies --> Values
     Requests --> Values
     Codec --> Values
-    Core --> Handlers[Application handler contracts: planned]
+    Core --> Auth[Bind authentication contract]
+    Auth --> Values
+    Core --> Handlers[Message handler contracts: planned]
     Handlers --> Values
 ```
 
@@ -279,8 +239,8 @@ remain outside the library. Dependencies never point back to simulator tooling.
 | Endpoint composition | Construct variable infrastructure at the boundary; keep session policies independent of concrete adapters. |
 | Simulators | Separate schedules, response policies, counters, and report output; consume the public API. |
 
-The diagram distinguishes implemented foundations and TCP adapters from planned
-endpoint composition. It does not establish SOLID compliance for the future types. When code
+The diagram distinguishes implemented binding/control layers from planned
+message services and simulator tooling. It does not establish SOLID compliance for the future types. When code
 arrives, review every affected type under [the SOLID policy](SOLID.md) and record
 real [TDD evidence](TDD.md).
 

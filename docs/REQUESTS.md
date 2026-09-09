@@ -6,7 +6,8 @@ and byte capacity, sequence allocation and terminal outcomes. It does not own a
 socket, encode PDUs, enforce session permissions, schedule timers or replay work.
 The [API contracts](API.md) remain the endpoint design baseline; this guide gives
 the compiled request API. [The review](reviews/0008-request-tracking.md) records
-TDD and complete per-type SOLID evidence.
+TDD and complete per-type SOLID evidence. [Step 11 endpoints](ENDPOINTS.md) now
+compose this owner with the pure policies and frame transport.
 
 ## Admission and identity
 
@@ -108,6 +109,13 @@ Out-of-order responses are accepted. Wrong commands, wrong generations, unknown
 keys, duplicates and late responses return false and cannot complete another
 request. A due deadline can also make acceptance return false while settling
 the handle as expired.
+
+The Step 11 coordinator additionally ignores peer responses while the matching
+handle is still `NOT_SENT`, before passing correlation context to session policy
+or calling `accept`. An admitted request is not proof that its write guard has
+run; a guessed early response cannot settle a queued bind or control request and
+thereby suppress its actual output. This physical-write precondition belongs to
+endpoint composition; the generic window remains the single terminal owner.
 
 Normal operation responses, including nonzero and unknown numeric status values,
 complete `CompletionStage<Pdu<R>>` normally. `generic_nack` has a distinct wire

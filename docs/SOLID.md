@@ -6,7 +6,8 @@ logic, including records, enums, interfaces, and nested or local types. Review
 all five principles even when a particular obligation is not applicable.
 
 This policy is active now. ArchUnit rules run through Jupiter against actual
-protocol, codec, profile, session, request, frame-port and transport types. `solidReview` checks current type identities
+protocol, codec, profile, session, request, frame-port, transport and endpoint
+types, including the coordinator's dependency on ports rather than concrete adapters. `solidReview` checks current type identities
 and source hashes against recorded evidence; `check` runs both layers.
 The [research report](RESEARCH.md) explains the supporting design literature and
 the distinction between structural checks and behavioral review.
@@ -149,6 +150,10 @@ integrated inventory contained 113 type identities. Step 9 adds
 [architecture evidence](reviews/0008-request-architecture.md), bringing that
 snapshot to 129 identities. Step 10 adds [35 port, transport and experiment
 type reviews](reviews/0009-tcp-transport.md) and refreshes
-[architecture evidence](reviews/0009-transport-architecture.md). The current
-integrated inventory contains 164 type identities. Each later step must provide
-evidence for every affected type; historical reports do not cover changed source.
+[architecture evidence](reviews/0009-transport-architecture.md). That integrated
+snapshot contains 164 type identities. Step 11 adds [endpoint and example
+reviews](reviews/0010-client-server-binding.md) and refreshes
+[architecture evidence](reviews/0010-endpoint-architecture.md). The Step 11
+integrated inventory contains 199 current type identities. Each later step
+must provide evidence for every affected type; historical reports do not cover
+changed source.

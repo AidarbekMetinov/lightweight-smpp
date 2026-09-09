@@ -61,14 +61,16 @@ be revisited when the library's scope is settled.
 SMPP 5.0 is the latest public standard verified in the research. The report also
 explains the unresolved “5.1” terminology in older Oracle documentation. The shared
 header/framing, field/TLV foundations, bind/control and message codecs, and
-deterministic session policies are implemented for both profiles. Complete
-version support and live endpoints remain pending. Formatting, real
+deterministic session policies are implemented for both profiles. Binding and control
+endpoints now run for both profiles; complete version support and message services
+remain pending. Formatting, real
 architecture rules, and automatic review coverage/freshness checks are active;
 SOLID and TDD policies apply to every change.
 
 ## Step 1 design baseline
 
-- [API contracts](API.md): client/server usage sketches, outcomes, cancellation,
+- [API contracts](API.md): implemented binding/control and planned messaging
+  contracts, outcomes, cancellation,
   callbacks, capability/version rules, resource ownership, and dependency diagram.
 - [Protocol inventory](PROTOCOL.md) and [TLV inventory](TLVS.md): commands, fields,
   tags, source references, version/role permissions, and pending evidence.
@@ -79,10 +81,11 @@ SOLID and TDD policies apply to every change.
 
 The baseline uses one asynchronous request mechanism and focused capabilities,
 one library artifact without initial runtime dependencies, and a separate
-application subproject for simulator tooling. API class names remain sketches
-until implementation tests establish them. Binary framing, fields, TLVs, and profile
+application subproject for simulator tooling. Binding/control endpoint APIs and
+examples are now compiled; future messaging capabilities remain design contracts. Binary framing, fields, TLVs, and profile
 foundations, bind/control and message codecs, and session policies are implemented;
-live endpoint APIs and simulators remain planned.
+live binding/control endpoints are implemented, while message services and
+simulators remain planned.
 
 ## Remaining design choices
 
@@ -184,11 +187,28 @@ and [architecture evidence](reviews/0009-transport-architecture.md).
 The Step 10 integrated build passed 419 library/architecture cases and 60
 review-tool cases. Integration restored matching library results from cache and
 reused tooling results; the transport review records a fresh 419-case run.
-Current SOLID evidence covers all 164 Java type identities. Three fresh, separate
+That SOLID snapshot covers all 164 Java type identities. Three fresh, separate
 client/server JVM experiments each reconciled 1,600 echoes with complete cleanup;
 the transport guide records their environment and measurement limits.
 
-Next: Step 11 binds real client and server endpoints.
+## Step 11 client and server binding
+
+Real client and server endpoints bind RX/TX/TRX under SMPP 3.4 and 5.0, with
+focused authentication, explicit connection-attempt cancellation, two-way
+enquiries and unbind. Connection, request and callback bounds apply across
+failures and shutdown. See [endpoint contracts and examples](ENDPOINTS.md),
+[TDD/SOLID evidence](reviews/0010-client-server-binding.md), and
+[architecture evidence](reviews/0010-endpoint-architecture.md).
+
+The combined Step 11 build freshly executed all 498 library/architecture cases;
+60 unchanged review-tool cases remained up to date. All 199 Java type identities
+have current SOLID evidence. Runtime dependencies remain empty, and examples
+stay outside all three Apache-licensed production archives. The command-line
+client/server exchange and both Gradle example helpers ran successfully; repeated
+client execution reused configuration while running the exchange freshly.
+
+Next: Step 12 connects application submission and delivery handlers. Simulators
+start in Step 13; complete SMPP 5.0 coverage remains Step 16.
 
 ## References
 

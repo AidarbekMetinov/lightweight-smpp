@@ -5,7 +5,7 @@ runnable client and server simulators for functional and heavy-load testing.
 The [research report](RESEARCH.md) explains the protocol targets and architecture.
 The [simulator plan](SIMULATORS.md) defines workloads and measurement requirements.
 
-Current stage: **research and Steps 1–10 completed; Step 11 is next**.
+Current stage: **research and Steps 1–11 completed; Step 12 is next**.
 Java 21, Gradle, JUnit, strict compiler warnings, local caching, formatting, and Git
 are configured. Header values, a binary header codec, bounded framing, behavior
 tests, and meaningful architecture rules are implemented. Automatic review-evidence
@@ -13,8 +13,8 @@ coverage and freshness checks run through the normal verification lifecycle.
 Bounded fields, ordered raw TLVs, explicit 3.4/5.0 catalogues, initial occurrence
 rules, typed interpretation, bind/control codecs, and basic message codecs are
 implemented. Deterministic session/version policies now cover both endpoint
-roles. Bounded request tracking and TCP frame transport are implemented; live
-endpoint composition is next.
+roles. Bounded request tracking, TCP frame transport and real binding/control
+endpoints are implemented. Message handlers are next.
 
 Each step delivers one coherent result. Larger steps contain several small TDD
 cycles and may use several simple commits. Follow [TDD](TDD.md), review every
@@ -296,8 +296,8 @@ define owned frames, ordinary/control bounds, ordered writing, cancellation,
 deadlines, listener handoff and cleanup. [The transport review](reviews/0009-tcp-transport.md)
 records real local-peer and shared-port contract tests, the fresh small measurement,
 and per-type SOLID evidence. [The architecture review](reviews/0009-transport-architecture.md)
-records actual forbidden dependencies in ports and adapters. Live endpoint
-composition remains Step 11.
+records actual forbidden dependencies in ports and adapters. Step 11 adds live
+endpoint composition on top of this adapter.
 
 Choose the transport against the workload and ownership contracts. JDK sockets
 with Java 21 virtual threads are the first experiment recommended by the research.
@@ -319,6 +319,15 @@ a heavy-load capacity claim.
 Suggested commit: `Add TCP transport`.
 
 ## 11. Bind real client and server endpoints
+
+Status: **completed**. [Endpoint contracts](ENDPOINTS.md) cover both profiles and
+all bind modes, focused authentication, protected readiness, explicit attempt
+cancellation, connection/notification limits and bounded graceful/abort cleanup.
+[The endpoint review](reviews/0010-client-server-binding.md) records local client/server
+and raw-peer tests, real TDD and per-type SOLID evidence. [The architecture review](reviews/0010-endpoint-architecture.md)
+checks endpoint dependencies and the connection coordinator's use of frame ports.
+Client and server examples compile in a separate source set. Message services
+and simulators remain the following steps.
 
 Assemble both endpoints with server authentication callbacks, accepted-version
 policies, connection limits, bind deadlines, and explicit executor ownership.
