@@ -5,7 +5,7 @@ runnable client and server simulators for functional and heavy-load testing.
 The [research report](RESEARCH.md) explains the protocol targets and architecture.
 The [simulator plan](SIMULATORS.md) defines workloads and measurement requirements.
 
-Current stage: **research and Steps 1–8 completed; Step 9 is next**.
+Current stage: **research and Steps 1–10 completed; Step 11 is next**.
 Java 21, Gradle, JUnit, strict compiler warnings, local caching, formatting, and Git
 are configured. Header values, a binary header codec, bounded framing, behavior
 tests, and meaningful architecture rules are implemented. Automatic review-evidence
@@ -13,7 +13,8 @@ coverage and freshness checks run through the normal verification lifecycle.
 Bounded fields, ordered raw TLVs, explicit 3.4/5.0 catalogues, initial occurrence
 rules, typed interpretation, bind/control codecs, and basic message codecs are
 implemented. Deterministic session/version policies now cover both endpoint
-roles; request tracking and live endpoint behavior remain later steps.
+roles. Bounded request tracking and TCP frame transport are implemented; live
+endpoint composition is next.
 
 Each step delivers one coherent result. Larger steps contain several small TDD
 cycles and may use several simple commits. Follow [TDD](TDD.md), review every
@@ -290,6 +291,14 @@ Suggested commit: `Add request tracking`.
 
 ## 10. Implement the first TCP transport
 
+Status: **completed as the first adapter experiment**. [Transport contracts](TRANSPORT.md)
+define owned frames, ordinary/control bounds, ordered writing, cancellation,
+deadlines, listener handoff and cleanup. [The transport review](reviews/0009-tcp-transport.md)
+records real local-peer and shared-port contract tests, the fresh small measurement,
+and per-type SOLID evidence. [The architecture review](reviews/0009-transport-architecture.md)
+records actual forbidden dependencies in ports and adapters. Live endpoint
+composition remains Step 11.
+
 Choose the transport against the workload and ownership contracts. JDK sockets
 with Java 21 virtual threads are the first experiment recommended by the research.
 Define ordering, buffer ownership, write acceptance, failure, and close behavior.
@@ -299,7 +308,8 @@ connection/write, bounded outbound work, simultaneous close, and cleanup. Exerci
 partial writes if the selected transport exposes them. Use controlled local peers
 and bounded coordination instead of timing assumptions.
 
-**SOLID review:** adapters implement session-owned ports. Run applicable contracts
+**SOLID review:** adapters implement frame transport ports consumed by connection
+coordinators. Run applicable contracts
 against real and fake transports. Keep transport types out of public PDU APIs.
 
 **Completion:** resources and queues stay bounded, shutdown is verified, and a

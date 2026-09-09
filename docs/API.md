@@ -1,10 +1,11 @@
 # Library contracts
 
-Step 1 design baseline, updated through Step 9. The endpoint usage examples below
+Step 1 design baseline, updated through Step 10. The endpoint usage examples below
 remain design sketches. Implemented low-level APIs and executed contracts are
 documented in [FRAMING.md](FRAMING.md), [FIELDS.md](FIELDS.md),
 [COMMANDS.md](COMMANDS.md), [MESSAGES.md](MESSAGES.md),
-[SESSIONS.md](SESSIONS.md), and [REQUESTS.md](REQUESTS.md). Refine endpoint names
+[SESSIONS.md](SESSIONS.md), [REQUESTS.md](REQUESTS.md), and
+[TRANSPORT.md](TRANSPORT.md). Refine endpoint names
 through tests while preserving the behavior or documenting an intentional change.
 
 ## Scope and decisions
@@ -244,10 +245,10 @@ Credentials and message bodies stay out of ordinary logs, exceptions, and genera
 flowchart TD
     Sim[Simulator application: planned] --> Api[Endpoint composition: planned]
     Api --> Core[Connection coordinator: planned]
-    Api --> Transport[TCP adapter: planned]
+    Api --> Transport[TCP adapter]
     Core --> Policies[Pure session policies]
     Core --> Requests[Request tracking]
-    Core --> Ports[Frame transport ports: planned]
+    Core --> Ports[Frame transport ports]
     Transport --> Ports
     Transport --> Codec[Framing and body codecs]
     Core --> Codec
@@ -278,14 +279,15 @@ remain outside the library. Dependencies never point back to simulator tooling.
 | Endpoint composition | Construct variable infrastructure at the boundary; keep session policies independent of concrete adapters. |
 | Simulators | Separate schedules, response policies, counters, and report output; consume the public API. |
 
-The diagram distinguishes implemented foundations from planned composition and
-adapters. It does not establish SOLID compliance for the future types. When code
+The diagram distinguishes implemented foundations and TCP adapters from planned
+endpoint composition. It does not establish SOLID compliance for the future types. When code
 arrives, review every affected type under [the SOLID policy](SOLID.md) and record
 real [TDD evidence](TDD.md).
 
 The first scenarios and acceptance evidence are in [the test plan](TEST_PLAN.md).
-Transport selection remains an experiment for Step 10; external performance
-targets and any provider-specific exceptions remain open until supplied or measured.
+The first [TCP experiment](TRANSPORT.md) uses JDK sockets and Java 21 virtual
+threads. TLS and broader lifecycle hardening remain Step 17. External performance
+targets and provider-specific exceptions remain open until supplied or measured.
 
 ## Sources
 

@@ -1,13 +1,15 @@
 # Protocol support inventory
 
-Step 1 baseline, updated after Step 9. Bind/control codecs have
+Step 1 baseline, updated after Step 10. Bind/control codecs have
 [Step 6 evidence](reviews/0005-session-command-codecs.md), and basic message codecs
 have [Step 7 evidence](reviews/0006-message-codecs.md) for both profiles.
 The shared [framing](reviews/0002-pdu-framing.md) and
 [field/profile](reviews/0004-fields-profiles.md) evidence establishes their binary
 foundation. [Step 8](reviews/0007-session-state.md) adds deterministic state and
 permission evidence described separately below. [Step 9](reviews/0008-request-tracking.md)
-adds general correlation, deadlines and bounded terminal notification. Complete endpoint sessions,
+adds general correlation, deadlines and bounded terminal notification.
+[Step 10 transport](TRANSPORT.md) adds framed TCP I/O and bounded write/close
+contracts with local peers; it does not select SMPP roles or profiles. Complete endpoint sessions,
 remaining operation codecs, simulators, and independent-peer results remain
 **planned**. This inventory complements the specifications.
 

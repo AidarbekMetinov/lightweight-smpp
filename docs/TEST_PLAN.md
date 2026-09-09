@@ -1,6 +1,6 @@
 # First behavior scenarios and verification evidence
 
-Step 1 test-design baseline, updated after Step 9. Header/framing scenarios
+Step 1 test-design baseline, updated after Step 10. Header/framing scenarios
 `FRAME-01` through `FRAME-08` now have executed evidence in
 [the framing review](reviews/0002-pdu-framing.md). Generic field/TLV primitives,
 initial typed interpretation, and profile occurrence scenarios have
@@ -10,7 +10,8 @@ field, TLV and original-request conditions have
 [Step 7 evidence](reviews/0006-message-codecs.md). Pure session, version and
 permission scenarios have [Step 8 evidence](reviews/0007-session-state.md). Request
 window, completion, cancellation, controlled deadline and bounded notification
-contracts have [Step 9 evidence](reviews/0008-request-tracking.md). Live endpoint
+contracts have [Step 9 evidence](reviews/0008-request-tracking.md). Frame-port,
+real socket and listener contracts have [Step 10 evidence](reviews/0009-tcp-transport.md). Live endpoint
 API, full session and simulator scenarios remain **planned**. Write only the next scenario needed by
 the active roadmap step, observe its relevant failure, implement the smallest
 passing behavior, then refactor and review every affected type. Follow
@@ -134,6 +135,8 @@ rules select real, nonempty production packages. Step 8 extends them to session
 policies with [actual session-to-codec/executor violation probes](reviews/0007-session-architecture.md).
 Step 9 adds the request boundary, bringing the suite to eight cases, with
 [actual request-to-codec/socket violations](reviews/0008-request-architecture.md).
+Step 10 adds port and adapter boundaries, bringing the suite to ten cases, with
+[actual port-to-codec and transport-to-session violations](reviews/0009-transport-architecture.md).
 
 Step 4 provides `reviewTest` and `solidReview`, with executed failing/passing
 cases for missing or stale evidence, new nested/local/anonymous types, malformed

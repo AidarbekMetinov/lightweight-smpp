@@ -1,5 +1,7 @@
 package kg.aidarbek.smpp.architecture;
 
+import static com.tngtech.archunit.core.domain.JavaClass.Predicates.equivalentTo;
+import static com.tngtech.archunit.core.domain.JavaClass.Predicates.resideInAnyPackage;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import static com.tngtech.archunit.library.dependencies.SlicesRuleDefinition.slices;
@@ -16,6 +18,8 @@ import kg.aidarbek.smpp.profile.SmppVersion;
 import kg.aidarbek.smpp.protocol.PduHeader;
 import kg.aidarbek.smpp.request.RequestOptions;
 import kg.aidarbek.smpp.session.SessionState;
+import kg.aidarbek.smpp.spi.WriteClass;
+import kg.aidarbek.smpp.transport.TcpTransportConfig;
 import org.junit.jupiter.api.Test;
 
 final class ArchitectureTest {
@@ -24,6 +28,8 @@ final class ArchitectureTest {
     private static final String PROFILE = "kg.aidarbek.smpp.profile..";
     private static final String SESSION = "kg.aidarbek.smpp.session..";
     private static final String REQUEST = "kg.aidarbek.smpp.request..";
+    private static final String SPI = "kg.aidarbek.smpp.spi..";
+    private static final String TRANSPORT = "kg.aidarbek.smpp.transport..";
     private static final JavaClasses LIBRARY = new ClassFileImporter()
             .withImportOption(ImportOption.Predefined.DO_NOT_INCLUDE_TESTS)
             .importPackages("kg.aidarbek.smpp");
@@ -37,6 +43,8 @@ final class ArchitectureTest {
         assertTrue(LIBRARY.contain(SmppVersion.class));
         assertTrue(LIBRARY.contain(SessionState.class));
         assertTrue(LIBRARY.contain(RequestOptions.class));
+        assertTrue(LIBRARY.contain(WriteClass.class));
+        assertTrue(LIBRARY.contain(TcpTransportConfig.class));
         assertFalse(LIBRARY.contain(ArchitectureTest.class));
     }
 
@@ -113,6 +121,39 @@ final class ArchitectureTest {
                 .should()
                 .onlyDependOnClassesThat()
                 .resideInAnyPackage(REQUEST, PROTOCOL, "java.lang..", "java.math..", "java.time..", "java.util..")
+                .check(LIBRARY);
+    }
+
+    @Test
+    void transportPortsDependOnlyOnPortsAndJdkContracts() {
+        classes()
+                .that()
+                .resideInAPackage(SPI)
+                .should()
+                .onlyDependOnClassesThat(resideInAnyPackage(SPI, "java.lang..", "java.time..", "java.util..")
+                        .or(equivalentTo(java.io.Serial.class)))
+                .check(LIBRARY);
+    }
+
+    @Test
+    void transportsDependOnlyOnPortsCodecsProtocolAndJdkInfrastructure() {
+        classes()
+                .that()
+                .resideInAPackage(TRANSPORT)
+                .should()
+                .onlyDependOnClassesThat()
+                .resideInAnyPackage(
+                        TRANSPORT,
+                        SPI,
+                        CODEC,
+                        PROTOCOL,
+                        "java.lang..",
+                        "java.math..",
+                        "java.io..",
+                        "java.net..",
+                        "java.nio..",
+                        "java.time..",
+                        "java.util..")
                 .check(LIBRARY);
     }
 

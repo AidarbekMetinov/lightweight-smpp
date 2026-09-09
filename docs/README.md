@@ -88,7 +88,7 @@ live endpoint APIs and simulators remain planned.
 
 These choices remain open:
 
-- Final transport selection after the JDK sockets/virtual-thread experiment.
+- Transport changes justified by workload measurements beyond the initial JDK experiment.
 - Production workload, latency, and deployment requirements; local profiles are provisional.
 - Provider-specific exceptions backed by interoperability evidence.
 - Exact API names and additional dependencies justified by implementation needs.
@@ -166,14 +166,29 @@ wins, with explicit transmission certainty and bounded asynchronous notification
 See [request contracts](REQUESTS.md), [TDD/SOLID evidence](reviews/0008-request-tracking.md),
 and [architecture evidence](reviews/0008-request-architecture.md).
 
-The integrated build passes 383 library/architecture cases, including 41 request
+The Step 9 integrated build passed 383 library/architecture cases, including 41 request
 cases and eight architecture cases, plus 60 review-tool cases. Root integration
 restored the matching library tests from cache and reused the tooling results;
-the request review records their fresh development runs. Current SOLID evidence
-covers all 129 Java type identities. Runtime dependencies remain empty, and all
+the request review records their fresh development runs. That SOLID snapshot
+covered all 129 Java type identities. Runtime dependencies remain empty, and all
 three archives preserve the Apache license and project notice.
 
-Next: Step 10 adds the first bounded TCP transport.
+## Step 10 TCP transport
+
+The first TCP adapter uses JDK sockets and Java 21 virtual threads. Frame ownership,
+ordinary/control write bounds, cancellation, deadlines, listener handoff and
+cleanup have local-peer and shared-port tests. See [transport contracts and the
+small measurement](TRANSPORT.md), [TDD/SOLID evidence](reviews/0009-tcp-transport.md),
+and [architecture evidence](reviews/0009-transport-architecture.md).
+
+The Step 10 integrated build passed 419 library/architecture cases and 60
+review-tool cases. Integration restored matching library results from cache and
+reused tooling results; the transport review records a fresh 419-case run.
+Current SOLID evidence covers all 164 Java type identities. Three fresh, separate
+client/server JVM experiments each reconciled 1,600 echoes with complete cleanup;
+the transport guide records their environment and measurement limits.
+
+Next: Step 11 binds real client and server endpoints.
 
 ## References
 
