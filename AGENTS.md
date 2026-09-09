@@ -34,7 +34,7 @@ artifact. Follow [the simulator plan](docs/SIMULATORS.md); use TDD and SOLID rev
 for simulator code as well as library code. Actual load measurements must execute
 freshly, even though compilation and deterministic tests can use build caches.
 
-Research and Steps 1–11 are complete. Step 12, message exchange, is next.
+Research and Steps 1–12 are complete. Step 13, the first simulators, is next.
 Bounded fields, raw TLVs, explicit profiles, bind/control
 and message codecs, deterministic session/version policies, and bounded request
 ownership are implemented. See [field contracts](docs/FIELDS.md), [command contracts](docs/COMMANDS.md),
@@ -42,8 +42,9 @@ ownership are implemented. See [field contracts](docs/FIELDS.md), [command contr
 and [request contracts](docs/REQUESTS.md). Bounded TCP transport and listener
 adapters implement [frame transport ports](docs/TRANSPORT.md). [Client/server
 binding](docs/ENDPOINTS.md), authentication, enquiries, cancellation and bounded
-shutdown are implemented for both profiles. Message application handlers and
-simulators remain planned.
+shutdown are implemented for both profiles. [Message exchange](docs/EXCHANGE.md)
+adds typed submission, delivery and data-message senders, optional asynchronous
+handlers, ordered bounded replies and handler cleanup. Simulators remain Step 13.
 The design baseline uses one library artifact, no initial runtime dependencies,
 one asynchronous request mechanism, and focused
 endpoint capabilities. Simulator tooling will be a separate application subproject.
@@ -53,8 +54,8 @@ Use [the API contracts](docs/API.md), [protocol inventory](docs/PROTOCOL.md),
 [TLV inventory](docs/TLVS.md), and [first test scenarios](docs/TEST_PLAN.md) as the
 implementation baseline. [Workload profiles](docs/WORKLOADS.md) contain provisional
 development targets; production capacity and latency requirements remain open.
-Binding examples are compiled from the separate examples source set; planned
-messaging capabilities remain design contracts. Refine names through TDD and
+Binding and messaging examples are compiled from the separate examples source
+set and exercised against real endpoints and raw peers. Refine names through TDD and
 document changes to the agreed behavior.
 
 The user wants strong Java coding practices and development caching. The build
@@ -161,7 +162,8 @@ completed.
   evidence is in [the transport review](docs/reviews/0009-tcp-transport.md) and
   [the architecture review](docs/reviews/0009-transport-architecture.md). Step 11
   evidence is in [the endpoint review](docs/reviews/0010-client-server-binding.md)
-  and [the architecture review](docs/reviews/0010-endpoint-architecture.md).
+  and [the architecture review](docs/reviews/0010-endpoint-architecture.md). Step 12
+  evidence is in [the exchange review](docs/reviews/0011-message-exchange.md).
 
 ## References
 

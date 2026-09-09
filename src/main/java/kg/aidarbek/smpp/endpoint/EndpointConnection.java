@@ -2,7 +2,9 @@ package kg.aidarbek.smpp.endpoint;
 
 import java.net.SocketAddress;
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalInt;
@@ -13,7 +15,10 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.function.Consumer;
 import java.util.function.LongSupplier;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import kg.aidarbek.smpp.codec.CommandDispatchException;
+import kg.aidarbek.smpp.profile.MessageDirection;
 import kg.aidarbek.smpp.profile.ProtocolProfile;
 import kg.aidarbek.smpp.protocol.BindMode;
 import kg.aidarbek.smpp.protocol.BindRequest;
@@ -47,7 +52,10 @@ import kg.aidarbek.smpp.spi.WriteObserver;
 
 /** Serializes one connection's protocol lifecycle over the frame transport port. */
 final class EndpointConnection implements FrameListener, AutoCloseable {
-    private static final Set<Long> IMPLEMENTED = Set.of(1L, 2L, 9L, 6L, 0x15L);
+    private static final Set<Long> IMPLEMENTED = Stream.concat(
+                    Set.of(1L, 2L, 9L, 6L, 0x15L).stream(),
+                    OperationCatalog.all().stream().map(Operation::commandId))
+            .collect(Collectors.toUnmodifiableSet());
     private final UUID id = UUID.randomUUID();
     private final FrameTransport transport;
     private final SocketAddress peer;
@@ -61,6 +69,8 @@ final class EndpointConnection implements FrameListener, AutoCloseable {
     private final SessionStateMachine machine;
     private final EndpointPdus pdus;
     private final RequestWindow window;
+    private final MessageExchange messages;
+    private final Map<Long, Pdu<? extends Command>> messageRequests = new HashMap<>();
     private final BoundSession facade = new BoundSession(this);
     private final BoundedNotifications.Reservation boundNotification;
     private final BoundedNotifications.Reservation terminationNotification;
@@ -92,7 +102,9 @@ final class EndpointConnection implements FrameListener, AutoCloseable {
             AuthenticationDispatcher authentication,
             BindAuthenticator authenticator,
             Consumer<BoundSession> boundListener,
-            LongSupplier nanoClock) {
+            LongSupplier nanoClock,
+            HandlerDispatcher handlers,
+            ExchangeConfig exchange) {
         this.transport = Objects.requireNonNull(transport, "transport");
         this.peer = Objects.requireNonNull(peer, "peer");
         this.client = client;
@@ -111,6 +123,7 @@ final class EndpointConnection implements FrameListener, AutoCloseable {
         pdus = new EndpointPdus(client == null ? EndpointRole.MESSAGE_CENTER : EndpointRole.ESME, options.pduLimits());
         window =
                 new RequestWindow(id, options.requestWindow(), options.maximumPendingBytes(), notifications, nanoClock);
+        messages = new MessageExchange(this, facade, exchange, handlers, nanoClock);
         boundNotification = notifications.tryReserve().orElseThrow(() -> failure(EndpointException.Reason.CAPACITY));
         terminationNotification = notifications.tryReserve().orElseGet(() -> {
             boundNotification.release();
@@ -143,7 +156,9 @@ final class EndpointConnection implements FrameListener, AutoCloseable {
                 authentication,
                 authenticator,
                 boundListener,
-                System::nanoTime);
+                System::nanoTime,
+                null,
+                ExchangeConfig.defaults());
     }
 
     static EndpointConnection client(
@@ -170,7 +185,68 @@ final class EndpointConnection implements FrameListener, AutoCloseable {
                 null,
                 null,
                 ignored -> {},
-                nanoClock);
+                nanoClock,
+                null,
+                ExchangeConfig.defaults());
+    }
+
+    static EndpointConnection client(
+            FrameTransport transport,
+            ClientConfig client,
+            EndpointOptions options,
+            BoundedNotifications notifications,
+            HandlerDispatcher handlers,
+            ExchangeConfig exchange) {
+        return client(transport, client, options, notifications, handlers, exchange, System::nanoTime);
+    }
+
+    static EndpointConnection client(
+            FrameTransport transport,
+            ClientConfig client,
+            EndpointOptions options,
+            BoundedNotifications notifications,
+            HandlerDispatcher handlers,
+            ExchangeConfig exchange,
+            LongSupplier clock) {
+        return new EndpointConnection(
+                transport,
+                client.remoteAddress(),
+                client,
+                null,
+                options,
+                notifications,
+                null,
+                null,
+                ignored -> {},
+                clock,
+                handlers,
+                exchange);
+    }
+
+    static EndpointConnection server(
+            FrameTransport transport,
+            SocketAddress peer,
+            ServerConfig server,
+            EndpointOptions options,
+            BoundedNotifications notifications,
+            AuthenticationDispatcher authentication,
+            BindAuthenticator authenticator,
+            Consumer<BoundSession> boundListener,
+            HandlerDispatcher handlers,
+            ExchangeConfig exchange) {
+        return new EndpointConnection(
+                transport,
+                peer,
+                null,
+                server,
+                options,
+                notifications,
+                authentication,
+                authenticator,
+                boundListener,
+                System::nanoTime,
+                handlers,
+                exchange);
     }
 
     UUID id() {
@@ -191,6 +267,51 @@ final class EndpointConnection implements FrameListener, AutoCloseable {
 
     synchronized VersionNegotiation negotiation() {
         return machine.negotiation().orElseThrow();
+    }
+
+    synchronized boolean canSend(Operation<?, ?> operation) {
+        Objects.requireNonNull(operation, "operation");
+        return !closed
+                && !draining
+                && OperationCatalog.all().contains(operation)
+                && machine.requestPermission(PduDirection.OUTBOUND, operation.commandId(), SendRequirements.COMMON)
+                        == SessionDecision.ACCEPTED;
+    }
+
+    <Q extends Command, R extends Command> RequestHandle<R> send(
+            Operation<Q, R> operation, Q command, RequestOptions requestedOptions, SendRequirements requirements) {
+        long started = nanoClock.getAsLong();
+        synchronized (this) {
+            Objects.requireNonNull(command, "command");
+            Objects.requireNonNull(requirements, "requirements");
+            discardFinishedMessageContexts();
+            if (!canSend(operation))
+                throw new IllegalStateException("Operation is unavailable in the current lifecycle");
+            SendRequirements actual = operation.requestRequirements(command, requirements);
+            if (command.commandId() != operation.commandId()
+                    || machine.requestPermission(PduDirection.OUTBOUND, command.commandId(), actual)
+                            != SessionDecision.ACCEPTED)
+                throw new IllegalArgumentException("Operation fields exceed negotiated capabilities");
+            byte[] checked = pdus.encode(new Pdu<>(0, 1, command), profile());
+            RequestOptions requestOptions =
+                    requestedOptions == null ? RequestOptions.timeout(options.requestTimeout()) : requestedOptions;
+            RequestHandle<R> handle = window.admit(
+                    command.commandId(),
+                    operation.responseCommandId(),
+                    operation.responseType(),
+                    checked.length,
+                    requestOptions,
+                    started);
+            if (machine.request(PduDirection.OUTBOUND, handle.requestHeader(), actual) != SessionDecision.ACCEPTED) {
+                handle.cancel();
+                throw new IllegalStateException("Operation admission lost its lifecycle permission");
+            }
+            Pdu<Q> request = new Pdu<>(0, handle.identity().sequenceNumber(), command);
+            messageRequests.put(handle.identity().sequenceNumber(), request);
+            writeRequest(pdus.encode(request, profile()), handle);
+            discardFinishedMessageContexts();
+            return handle;
+        }
     }
 
     RequestHandle<ControlCommand> control(ControlCommand.Type type, RequestOptions requestedOptions) {
@@ -270,7 +391,7 @@ final class EndpointConnection implements FrameListener, AutoCloseable {
     }
 
     private void advanceShutdown() {
-        if (!draining || closed || !boundState() || window.pendingCount() != 0) return;
+        if (!draining || closed || !boundState() || window.pendingCount() != 0 || messages.pendingCount() != 0) return;
         long started = nanoClock.getAsLong();
         long remaining = drainDeadline - started;
         if (remaining <= 0) {
@@ -299,6 +420,8 @@ final class EndpointConnection implements FrameListener, AutoCloseable {
             return;
         }
         window.expire();
+        discardFinishedMessageContexts();
+        messages.expire(now);
         for (RequestHandle<?> handle : new RequestHandle<?>[] {binding, unbind}) {
             if (handle != null
                     && handle.isDone()
@@ -328,31 +451,50 @@ final class EndpointConnection implements FrameListener, AutoCloseable {
             if (client != null) {
                 long started = nanoClock.getAsLong();
                 bindDeadline = started + EndpointOptions.durationNanos(options.bindTimeout());
-                BindRequest command = client.bind();
-                mode = command.mode();
-                byte[] checked = pdus.encode(new Pdu<>(0, 1, command), profile());
-                binding = window.admit(
-                        command.commandId(),
-                        mode.responseCommandId(),
-                        BindResponse.class,
-                        checked.length,
-                        RequestOptions.timeout(options.bindTimeout()),
-                        started);
-                machine.bindRequest(
-                        PduDirection.OUTBOUND,
-                        mode,
-                        command.interfaceVersion(),
-                        binding.identity().sequenceNumber());
-                writeRequest(
-                        pdus.encode(new Pdu<>(0, binding.identity().sequenceNumber(), command), profile()), binding);
+                beginClientBind();
             }
         } catch (RuntimeException failure) {
             fail(failure);
         }
     }
 
+    /** Starts the ESME bind using the already selected total bind deadline. */
+    synchronized void beginClientBind() {
+        if (closed || client == null || machine.state() != SessionState.OPEN || binding != null)
+            throw new IllegalStateException("Connection is not ready for an ESME bind");
+        long started = nanoClock.getAsLong();
+        long remaining = bindDeadline - started;
+        if (remaining <= 0) {
+            fail(failure(EndpointException.Reason.BIND_TIMEOUT));
+            return;
+        }
+        BindRequest command = client.bind();
+        mode = command.mode();
+        byte[] checked = pdus.encode(new Pdu<>(0, 1, command), profile());
+        binding = window.admit(
+                command.commandId(),
+                mode.responseCommandId(),
+                BindResponse.class,
+                checked.length,
+                RequestOptions.timeout(Duration.ofNanos(remaining)),
+                started);
+        machine.bindRequest(
+                PduDirection.OUTBOUND,
+                mode,
+                command.interfaceVersion(),
+                binding.identity().sequenceNumber());
+        writeRequest(pdus.encode(new Pdu<>(0, binding.identity().sequenceNumber(), command), profile()), binding);
+    }
+
     @Override
-    public synchronized void frame(byte[] frame) {
+    public void frame(byte[] frame) {
+        long arrived = nanoClock.getAsLong();
+        synchronized (this) {
+            receiveFrame(frame, arrived);
+        }
+    }
+
+    private void receiveFrame(byte[] frame, long arrived) {
         if (closed) return;
         PduHeader raw;
         try {
@@ -426,7 +568,10 @@ final class EndpointConnection implements FrameListener, AutoCloseable {
                     client == null ? EndpointRole.ESME : EndpointRole.MESSAGE_CENTER,
                     machine.state(),
                     raw.commandId());
-            reject(raw, permitted ? 8 : 4, false);
+            var operation = OperationCatalog.find(raw.commandId());
+            if (permitted && operation.isPresent() && !draining)
+                messages.receive(operation.orElseThrow(), incoming, frame.length, arrived);
+            else reject(raw, permitted ? 8 : 4, false);
         }
     }
 
@@ -455,6 +600,7 @@ final class EndpointConnection implements FrameListener, AutoCloseable {
 
     private void response(Pdu<Command> response) {
         window.expire();
+        discardFinishedMessageContexts();
         Optional<RequestHandle<?>> pending = window.pending(response.sequenceNumber());
         if (pending.isEmpty()) return;
         RequestHandle<?> handle = pending.orElseThrow();
@@ -470,7 +616,24 @@ final class EndpointConnection implements FrameListener, AutoCloseable {
                                 Optional.of(new ResponseContext(PduDirection.OUTBOUND, handle.requestHeader())),
                                 SendRequirements.COMMON)
                         != SessionDecision.ACCEPTED) return;
-        if (!window.accept(id, response)) return;
+        var operation = OperationCatalog.find(handle.requestHeader().commandId());
+        if (operation.isPresent() && response.command().commandId() != 0x80000000L) {
+            try {
+                operation
+                        .orElseThrow()
+                        .validateResponse(
+                                messageRequests.get(response.sequenceNumber()),
+                                response,
+                                profile(),
+                                client == null ? MessageDirection.DELIVERY : MessageDirection.SUBMISSION);
+            } catch (RuntimeException invalidContext) {
+                protocolFailure();
+                return;
+            }
+        }
+        boolean accepted = window.accept(id, response);
+        discardFinishedMessageContexts();
+        if (!accepted) return;
         if (bindResponse) {
             OptionalInt advertisement =
                     response.command() instanceof BindResponse bind ? advertisement(bind) : OptionalInt.empty();
@@ -490,6 +653,10 @@ final class EndpointConnection implements FrameListener, AutoCloseable {
             machine.unbindResponse(PduDirection.INBOUND, header, SendRequirements.COMMON);
             if (machine.state() == SessionState.CLOSED) finishAfterReplies();
         } else advanceShutdown();
+    }
+
+    private void discardFinishedMessageContexts() {
+        messageRequests.keySet().removeIf(sequence -> window.pending(sequence).isEmpty());
     }
 
     private void writeRequest(byte[] frame, RequestHandle<?> handle) {
@@ -566,6 +733,42 @@ final class EndpointConnection implements FrameListener, AutoCloseable {
         if (pendingReplies == 0) close();
     }
 
+    ProtocolProfile messageProfile() {
+        return profile();
+    }
+
+    <Q extends Command, R extends Command> byte[] encodeMessageResponse(
+            Operation<Q, R> operation, Pdu<Command> request, HandlerResponse<?> response) {
+        R command = operation.responseType().cast(response.command());
+        if (command.commandId() != operation.responseCommandId())
+            throw new IllegalArgumentException("Incorrect response command");
+        SendRequirements requirements = operation.responseRequirements(command, response.requirements());
+        Pdu<R> pdu = new Pdu<>(response.commandStatus(), request.sequenceNumber(), command);
+        if (machine.responsePermission(
+                        PduDirection.OUTBOUND,
+                        EndpointPdus.header(pdu),
+                        Optional.of(new ResponseContext(PduDirection.INBOUND, EndpointPdus.header(request))),
+                        requirements)
+                != SessionDecision.ACCEPTED)
+            throw new IllegalArgumentException("Response exceeds negotiated capabilities or lifecycle");
+        byte[] frame = pdus.encode(pdu, profile());
+        operation.validateResponse(
+                request, pdu, profile(), client == null ? MessageDirection.SUBMISSION : MessageDirection.DELIVERY);
+        return frame;
+    }
+
+    long messageWriteDeadline() {
+        return nanoClock.getAsLong() + EndpointOptions.durationNanos(options.requestTimeout());
+    }
+
+    void writeMessage(byte[] frame, long deadline, WriteObserver observer) {
+        transport.write(frame, WriteClass.ORDINARY, deadline, observer);
+    }
+
+    void messageReplyFinished() {
+        advanceShutdown();
+    }
+
     private synchronized ProtocolProfile profile() {
         return machine.negotiation()
                 .flatMap(VersionNegotiation::effectiveProfile)
@@ -606,7 +809,9 @@ final class EndpointConnection implements FrameListener, AutoCloseable {
             if (closed) return;
             closed = true;
             machine.close();
+            messages.close();
             window.disconnect(closeReason);
+            messageRequests.clear();
             if (authenticationTicket != null) authenticationTicket.cancel();
             if (!notified) {
                 notified = true;

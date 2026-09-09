@@ -1,11 +1,12 @@
 # Library contracts
 
-Step 1 design baseline, updated through Step 11. Binding and control endpoint
-APIs are compiled; application messaging remains planned. Executed contracts are
+Step 1 design baseline, updated through Step 12. Binding, control and basic
+message exchange endpoint APIs are compiled and tested. Executed contracts are
 documented in [FRAMING.md](FRAMING.md), [FIELDS.md](FIELDS.md),
 [COMMANDS.md](COMMANDS.md), [MESSAGES.md](MESSAGES.md),
 [SESSIONS.md](SESSIONS.md), [REQUESTS.md](REQUESTS.md),
-[TRANSPORT.md](TRANSPORT.md), and [ENDPOINTS.md](ENDPOINTS.md). Refine future API
+[TRANSPORT.md](TRANSPORT.md), [ENDPOINTS.md](ENDPOINTS.md) and
+[EXCHANGE.md](EXCHANGE.md). Refine future API
 names through tests while preserving the behavior or documenting an intentional change.
 
 ## Scope and decisions
@@ -49,16 +50,27 @@ Authentication timeout cannot release capacity still occupied by blocked
 application code. The server's connection and callback bounds remain independent.
 
 A `BoundSession` exposes connection/version/bind metadata, `enquireLink`, `unbind`,
-closure and termination observation. Both roles bind RX, TX and TRX under 3.4 and
-5.0. Each control send rechecks current state. User callbacks and future publication
+closure and termination observation, plus optional submission, delivery and
+data-message senders. Both roles bind RX, TX and TRX under 3.4 and 5.0. Each send
+rechecks current state. User callbacks and future publication
 run outside socket progress and coordinator locks.
 
-## Planned messaging application contracts
+## Messaging application contracts
 
-Step 12 connects submission, delivery and data-message handlers. Focused sender
-capabilities will reflect the negotiated profile, bind role, local implementation
-and current state. A catalogue permission or existing codec alone does not expose
-a usable message service.
+`BoundSession.submission()`, `delivery()` and `dataMessages()` expose optional
+`OperationSender` capabilities according to negotiated profile, bind role and
+current state. `sender(MessageOperations.SUBMIT_SM)` and the corresponding
+operation keys provide the typed generic form. `send(command)` uses the default
+request deadline; overloads accept `RequestOptions` and stricter
+`SendRequirements`. Actual TLVs and version-specific fields are checked from the
+command, so a caller cannot weaken missing-advertisement restrictions.
+
+Register optional typed `RequestHandler` callbacks with `EndpointHandlers` and
+pass them through `ExchangeConfig` to the client or server. `IncomingRequest`
+contains the immutable PDU, session, decision deadline and cancellation
+observation. An asynchronous `HandlerResponse` carries status and the typed body;
+the library supplies correlation and validates original-request response rules.
+See [EXCHANGE.md](EXCHANGE.md) for exact signatures and bounds.
 
 An application owns storage and acceptance policy. A durable handler completes
 acceptance after its required storage succeeds; a simulator may accept in memory.
@@ -67,11 +79,12 @@ handset delivery or a later receipt for another submitted message. Optional quer
 replacement, cancellation, multiple-destination and broadcast services retain
 separate contracts as their features arrive.
 
-An absent handler never implies successful acceptance. The current binding-only
-endpoints validate available message formats and reply negatively when a service
-is unavailable; invalid state/direction and unknown commands have distinct error
-responses documented in [ENDPOINTS.md](ENDPOINTS.md). They expose no successful
-submission or delivery capability until those application services are implemented.
+An absent, failed, invalid or expired handler decision returns the paired
+`ESME_RSYSERR`; exhausted handler capacity returns `ESME_RTHROTTLED` when an
+ordered reply can be reserved. If no reply ownership can be reserved, the
+connection closes. Invalid state/direction and unknown commands retain distinct
+error responses documented in [ENDPOINTS.md](ENDPOINTS.md). Sender capability
+presence does not promise remote application acceptance.
 
 ## Requests, results, and cancellation
 
@@ -108,25 +121,27 @@ consume the same overall deadline. No public method hides an unbounded queue.
 The request timeout starts at API invocation and includes validation/admission,
 writing, and waiting for a response. The terminal transition uses monotonic time.
 Endpoint configuration controls TCP connection, binding/authentication, manual
-control requests and shutdown deadlines. TLS, message-handler completion and
-scheduled keepalive deadlines will be added with those features.
+requests and shutdown deadlines. `ExchangeOptions` controls message-handler
+completion from complete-frame arrival, including owner waits and queueing. TLS
+and scheduled keepalive deadlines remain future work.
 
 The implemented defaults are 5 seconds for TCP connection and 10 seconds for
-binding, manual requests and abort cleanup. These configurable values are library
-policy, not protocol-mandated timings. Ten seconds remains the proposed initial
-message-handler deadline for Step 12; workload profiles may override it.
+binding, requests, handler decisions and abort cleanup. These configurable values
+are library policy, not protocol-mandated timings; workload profiles may override them.
 
-Bind authentication returns asynchronous typed decisions. Message handlers will
-use the same execution boundary: application work and future notifications run
-outside transport read/write progress. The internal terminal
+Bind authentication and message handlers return asynchronous typed decisions.
+Both execute through separate bounded dispatchers outside transport read/write
+progress and coordinator locks. The internal terminal
 state must settle even when application notification is delayed. Bound dispatch
 queues and concurrency; define overload results before accepting callback work.
 Reserve capacity for control responses and shutdown.
 
-The planned message-service contract begins ordinary callbacks in receive order while
-allowing asynchronous processing to overlap. The initial response scheduler
-preserves peer-request order for these callbacks, with bounded pending replies
-and handler deadlines. Control replies use separate capacity so one slow message
+The message service begins ordinary callbacks in receive order while allowing
+asynchronous processing to overlap. Its response scheduler preserves peer-request
+order, with bounded reply counts/bytes through active write settlement and handler
+deadlines. Logical timeout or close retains physical capacity until invocation
+and returned stage finish. A full transport queue retains the same head reply
+and write budget for a later scan. Control replies use separate capacity so one slow message
 cannot prevent an `enquire_link` response. Correlation accepts out-of-order peer
 responses even though our default emission policy is ordered.
 
@@ -179,12 +194,16 @@ Closing a session does not close a shared application executor or its owner.
 Internally created executors belong to the endpoint; supplied executors belong
 to the caller unless ownership is explicitly transferred.
 
-`shutdown(grace)` stops new work, drains within the deadline, unbinds eligible
+`shutdown(grace)` stops new work, drains outgoing requests and incoming message
+replies within the deadline, unbinds eligible
 sessions, and then closes connections. `close()` is the idempotent abort fallback:
 stop I/O, settle internal pending outcomes, and request owned-executor shutdown.
 It does not wait indefinitely for application code. A separate termination result
 reports completed cleanup or the specific tasks that exceeded the shutdown bound.
-The implementation must document when these asynchronous notifications can finish.
+`EndpointTermination.remainingHandlers()` includes physically unfinished message
+callbacks/stages; `complete()` also requires their workers to terminate. See
+[endpoint cleanup](ENDPOINTS.md) and [exchange cleanup](EXCHANGE.md) for bounded
+notification and late-completion behavior.
 
 Set explicit bounds for accepted and connecting sockets, requests, queued bytes,
 frame size, handler work, reply buffering, and optional receipt/reassembly state.
@@ -218,7 +237,7 @@ flowchart TD
     Codec --> Values
     Core --> Auth[Bind authentication contract]
     Auth --> Values
-    Core --> Handlers[Message handler contracts: planned]
+    Core --> Handlers[Typed message handler contracts]
     Handlers --> Values
 ```
 
@@ -239,8 +258,8 @@ remain outside the library. Dependencies never point back to simulator tooling.
 | Endpoint composition | Construct variable infrastructure at the boundary; keep session policies independent of concrete adapters. |
 | Simulators | Separate schedules, response policies, counters, and report output; consume the public API. |
 
-The diagram distinguishes implemented binding/control layers from planned
-message services and simulator tooling. It does not establish SOLID compliance for the future types. When code
+The diagram distinguishes implemented endpoint/message layers from planned
+simulator tooling. It does not establish SOLID compliance for future types. When code
 arrives, review every affected type under [the SOLID policy](SOLID.md) and record
 real [TDD evidence](TDD.md).
 

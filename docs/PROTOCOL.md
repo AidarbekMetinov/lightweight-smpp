@@ -1,6 +1,6 @@
 # Protocol support inventory
 
-Step 1 baseline, updated after Step 11. Bind/control codecs have
+Step 1 baseline, updated after Step 12. Bind/control codecs have
 [Step 6 evidence](reviews/0005-session-command-codecs.md), and basic message codecs
 have [Step 7 evidence](reviews/0006-message-codecs.md) for both profiles.
 The shared [framing](reviews/0002-pdu-framing.md) and
@@ -11,8 +11,10 @@ adds general correlation, deadlines and bounded terminal notification.
 [Step 10 transport](TRANSPORT.md) adds framed TCP I/O and bounded write/close
 contracts with local peers. [Step 11 endpoints](ENDPOINTS.md) add real binding,
 authentication, manual controls, request ownership and bounded cleanup for both
-profiles. Message services, remaining operation codecs, scheduled keepalives,
-simulators and independent-peer results remain **planned**. This inventory complements the specifications.
+profiles. [Step 12 exchange](EXCHANGE.md) adds submission, delivery and data
+senders/handlers, ordered reply bounds and handler cleanup. Remaining operation
+codecs, scheduled keepalives, simulators and independent-peer results remain
+**planned**. This inventory complements the specifications.
 
 `C` means our ESME client and `S` our message-center server. `TX`, `RX`, and `TRX`
 are SMPP bind modes, independent of TCP connection direction. `B` means any bound
@@ -42,9 +44,9 @@ evidence and do not establish that claim.
 | `unbind` | `00000006` / `80000006` | C or S in B | 3.4, 5.0 | 4.2 / 4.1.1.8–9 | 6, 11 | [Step 6](reviews/0005-session-command-codecs.md) | [Step 11](reviews/0010-client-server-binding.md) | — |
 | `enquire_link` | `00000015` / `80000015` | C or S; see control-state note | 3.4, 5.0 | 4.11 / 4.1.2 | 6, 11, 17 | [Step 6](reviews/0005-session-command-codecs.md) | [Step 11 manual controls](ENDPOINTS.md) | — |
 | `generic_nack` | none / `80000000` | C or S as error response | 3.4, 5.0 | 4.3 / 4.1.4 | 6, 8, 11 | [Step 6](reviews/0005-session-command-codecs.md) | [Step 11 error paths](ENDPOINTS.md) | — |
-| `submit_sm` | `00000004` / `80000004` | C in TX or TRX | 3.4, 5.0 | 4.4 / 4.2.1 | 7, 12 | [Step 7](reviews/0006-message-codecs.md) | — | — |
-| `deliver_sm` | `00000005` / `80000005` | S in RX or TRX | 3.4, 5.0 | 4.6 / 4.3.1 | 7, 12 | [Step 7](reviews/0006-message-codecs.md) | — | — |
-| `data_sm` | `00000103` / `80000103` | See version-specific note | 3.4, 5.0 | 4.7 / 4.2.2, 4.3.2 | 7, 12 | [Step 7](reviews/0006-message-codecs.md) | — | — |
+| `submit_sm` | `00000004` / `80000004` | C in TX or TRX | 3.4, 5.0 | 4.4 / 4.2.1 | 7, 12 | [Step 7](reviews/0006-message-codecs.md) | [Step 12](reviews/0011-message-exchange.md) | — |
+| `deliver_sm` | `00000005` / `80000005` | S in RX or TRX | 3.4, 5.0 | 4.6 / 4.3.1 | 7, 12 | [Step 7](reviews/0006-message-codecs.md) | [Step 12](reviews/0011-message-exchange.md) | — |
+| `data_sm` | `00000103` / `80000103` | See version-specific note | 3.4, 5.0 | 4.7 / 4.2.2, 4.3.2 | 7, 12 | [Step 7](reviews/0006-message-codecs.md) | [Step 12](reviews/0011-message-exchange.md) | — |
 | `query_sm` | `00000003` / `80000003` | C in TX or TRX | 3.4, 5.0 | 4.8 / 4.5.2 | 14 | — | — | — |
 | `cancel_sm` | `00000008` / `80000008` | C in TX or TRX | 3.4, 5.0 | 4.9 / 4.5.1 | 14 | — | — | — |
 | `replace_sm` | `00000007` / `80000007` | C in TX; TRX additionally in 5.0 | 3.4, 5.0 | 4.10 / 4.5.3 | 14 | — | — | — |
@@ -90,16 +92,17 @@ of byte parsing or networking. These cases run for both roles and both profiles:
 
 | Scope | Executed policy evidence | Live integration and remaining scope |
 | --- | --- | --- |
-| All catalogue request permissions | `SessionPermissionsTest` enumerates defined requests, modeled states and originating roles, including data/replace/enquiry version differences. | Remaining operation codecs and real sender/handler capabilities. |
+| All catalogue request permissions | `SessionPermissionsTest` enumerates defined requests, modeled states and originating roles, including data/replace/enquiry version differences. | Step 12 implements submit/deliver/data capabilities; remaining catalogue operations need codecs and services. |
 | Bind RX/TX/TRX and version policy | `SessionStateMachineTest` and `VersionNegotiationTest` cover both endpoints, accepted/rejected/duplicate binds, raw advertisements and restricted field requirements. | Step 11 adds authentication, actual writes, connection/bind deadlines and cleanup for all bind modes and both profiles. |
 | Unbind and closure | `SessionStateMachineTest` covers either initiator, crossed equal sequences, draining state and repeated close. | Steps 9–11 add request settlement, bounded reply flush and socket shutdown; messaging drain and later lifecycle features remain scoped to their steps. |
-| Ordinary responses and protocol errors | `SessionResponsePermissionTest` covers paired commands/directions/sequences, explicit correlation context, negative replies and invalid-header nack sequences. | Steps 9–11 integrate generation/late-response ownership and exactly-once completion for binding/control traffic. Message request services remain Step 12. |
+| Ordinary responses and protocol errors | `SessionResponsePermissionTest` covers paired commands/directions/sequences, explicit correlation context, negative replies and invalid-header nack sequences. | Steps 9–11 integrate generation/late-response ownership and exactly-once completion for binding/control traffic. Step 12 applies the same ownership to typed message senders and handler replies. |
 
 Implementation declarations are explicit inputs. A permitted catalogue operation
 does not imply a local codec or service exists. [Session contracts](SESSIONS.md)
 define this boundary and composition with the implemented codecs. No full
 `Session` or `Independent` table cell is completed by state-policy tests alone.
-Step 11 session evidence is recorded separately in its [endpoint review](reviews/0010-client-server-binding.md).
+Step 11 session evidence is recorded separately in its [endpoint review](reviews/0010-client-server-binding.md);
+Step 12 message lifecycle evidence is in the [exchange review](reviews/0011-message-exchange.md).
 Manual enquire-link is implemented; scheduled keepalives remain Step 17. Binding
 under 5.0 does not establish the remaining 5.0 command and application services.
 

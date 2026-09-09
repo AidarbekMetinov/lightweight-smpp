@@ -111,7 +111,11 @@ Step 11 adds [real endpoint binding](ENDPOINTS.md), raw-peer failures, explicit
 connect cancellation and bounded shutdown tests. The [endpoint architecture rules](reviews/0010-endpoint-architecture.md)
 keep concrete transport construction in composition. Client/server examples use
 a separate `examples` source set, are compiled for tests, and are excluded from
-all production archives. See the endpoint guide for runnable example commands.
+all production archives. Step 12 extends them with submission and independent
+delivery and adds [bounded message-exchange tests](reviews/0011-message-exchange.md).
+See [EXCHANGE.md](EXCHANGE.md) for typed handlers, controlled deadline/capacity
+scenarios and runnable example commands. Compile examples once before starting
+two direct Java processes; do not run concurrent Gradle invocations in one checkout.
 [Field contracts](FIELDS.md) explain the completed binary foundation. Step 6
 adds [bind/control codec contracts](COMMANDS.md), independent wire fixtures, and
 shared extension/ownership/boundary tests. Step 7 adds [message contracts](MESSAGES.md),

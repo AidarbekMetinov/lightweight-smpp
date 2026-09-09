@@ -59,7 +59,7 @@ class EndpointResourcesTest {
                 defaults.pduLimits());
         EndpointResources resources = new EndpointResources(options, null);
         IOException closeFailure = new IOException("fixture close failure");
-        EndpointConnectionTest.FakeTransport transport = new EndpointConnectionTest.FakeTransport(closeFailure);
+        FakeFrameTransport transport = new FakeFrameTransport(closeFailure);
         EndpointResources.Permit permit = resources.reserve();
         EndpointConnection connection = EndpointConnection.client(
                 transport,

@@ -1,6 +1,6 @@
 # First behavior scenarios and verification evidence
 
-Step 1 test-design baseline, updated after Step 11. Header/framing scenarios
+Step 1 test-design baseline, updated after Step 12. Header/framing scenarios
 `FRAME-01` through `FRAME-08` now have executed evidence in
 [the framing review](reviews/0002-pdu-framing.md). Generic field/TLV primitives,
 initial typed interpretation, and profile occurrence scenarios have
@@ -14,7 +14,9 @@ contracts have [Step 9 evidence](reviews/0008-request-tracking.md). Frame-port,
 real socket and listener contracts have [Step 10 evidence](reviews/0009-tcp-transport.md).
 Binding/control endpoints, authentication, explicit connection cancellation and
 bounded shutdown have [Step 11 evidence](reviews/0010-client-server-binding.md).
-Message application services, remaining operations and simulators stay **planned**. Write only the next scenario needed by
+Message application services and bounded handler/reply ownership have
+[Step 12 evidence](reviews/0011-message-exchange.md). Remaining operations and
+simulators stay **planned**. Write only the next scenario needed by
 the active roadmap step, observe its relevant failure, implement the smallest
 passing behavior, then refactor and review every affected type. Follow
 [TDD.md](TDD.md) and [SOLID.md](SOLID.md).
@@ -74,7 +76,7 @@ include both roles/profiles, all bind modes, duplicate/failed binds, unbinding,
 error responses and idempotent close. They use no sleeps or sockets.
 `SessionPermissionsTest`, `VersionNegotiationTest`, `SessionStateMachineTest`
 and `SessionResponsePermissionTest` supply the evidence. Steps 9–11 compose the
-binding/control subset with transport; message-handler scenarios remain later work.
+binding/control subset with transport; Step 12 adds message-handler integration.
 
 Step 9 executes the request portions of `API-04` through `API-06` and
 `SESSION-02` through `SESSION-05`: `RequestWindowTest` checks admission, exact
@@ -93,8 +95,33 @@ pair; `EndpointAdversarialTest` supplies raw peer version/failure/capacity cases
 shared frame contract. `AuthenticationDispatcherTest` and `EndpointResourcesTest`
 cover application execution and honest cleanup observations. The full class and
 case inventory is in the [endpoint review](reviews/0010-client-server-binding.md).
-`SESSION-06` currently covers bind authentication only; message handler ordering,
-acceptance, receipts and automatic reconnect remain their planned steps.
+That Step 11 snapshot covered bind authentication for `SESSION-06`. Step 12 adds
+message invocation/reply ordering, deadline and physical-capacity retention.
+Receipt helpers and automatic reconnect remain Steps 15 and 17.
+
+Step 12 exercises `API-03` through `API-06` and `SESSION-02` through `SESSION-07`
+for submit/deliver/data. `ExchangeMatrixTest` runs both profiles, all three bind
+modes, both directions and positive/negative application decisions; `data_sm`
+uses each profile's distinct permission matrix. `ExchangeSessionTest` inspects
+raw wire acknowledgements, out-of-order/nack/cancel/late responses and original
+request conditions. `ExchangeCapabilitiesTest` proves actual TLVs and 5.0-only
+fields cannot bypass missing-advertisement restrictions.
+
+`ExchangeConnectionTest` controls arrival/deadline/queue boundaries, retains reply
+slots through active writes, exercises full ordinary/control capacity and drains
+6,000 inline completions without recursive stack growth. `HandlerDispatcherTest`
+coordinates per-session invocation order and physical stage retention.
+`ExchangeFailureTest` covers absent/throwing/failed/null/invalid/slow handlers,
+graceful drain and repeated reconnects while one closed session still owns an
+unfinished handler. `FakeFrameTransportTest` checks faulty internal callbacks;
+the shared frame-port contract still runs on the fake and real TCP adapter.
+`EndpointExamplesTest` executes the compiled messaging pair and inspects each
+example against a raw peer. Submission acceptance and delivery acknowledgement
+are separate; receipt-state helpers are not claimed by this evidence.
+
+These own-endpoint/raw-byte scenarios do not establish pinned independent-peer
+interoperability. The [exchange review](reviews/0011-message-exchange.md) records
+actual red/green commands, characterization runs and the final case inventory.
 
 | ID | Contract scenario; executed subset described above |
 | --- | --- |
@@ -152,7 +179,9 @@ Step 10 adds port and adapter boundaries, bringing the suite to ten cases, with
 [actual port-to-codec and transport-to-session violations](reviews/0009-transport-architecture.md).
 Step 11 adds endpoint dependencies and the coordinator-to-port rule, bringing the
 suite to twelve cases. Its [architecture review](reviews/0010-endpoint-architecture.md)
-records actual forbidden dependency probes against final endpoint types.
+records actual forbidden dependency probes against final endpoint types. Step 12
+reruns those same twelve nonempty rules against the expanded endpoint package;
+no new package boundary or new violation-probe claim is introduced.
 
 Step 4 provides `reviewTest` and `solidReview`, with executed failing/passing
 cases for missing or stale evidence, new nested/local/anonymous types, malformed

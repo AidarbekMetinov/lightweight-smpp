@@ -15,6 +15,7 @@ import kg.aidarbek.smpp.transport.TcpTransportConfig;
 public final class SmppClient implements AutoCloseable {
     private final EndpointOptions options;
     private final EndpointResources resources;
+    private final ExchangeConfig exchange;
     /** Creates an endpoint with the documented default limits and owned workers. */
     public SmppClient() {
         this(EndpointOptions.defaults());
@@ -22,9 +23,17 @@ public final class SmppClient implements AutoCloseable {
     /** Creates an endpoint with explicit finite limits and owned workers.
      * @param options resource/deadline configuration */
     public SmppClient(EndpointOptions options) {
-        this.options = Objects.requireNonNull(options, "options");
-        resources = new EndpointResources(options, null);
+        this(options, ExchangeConfig.defaults());
     }
+    /** Creates an endpoint with explicit message policy and optional handlers on owned bounded workers.
+     * @param options connection/request/notification resource and deadline configuration
+     * @param exchange message-handler and ordered-response policy */
+    public SmppClient(EndpointOptions options, ExchangeConfig exchange) {
+        this.options = Objects.requireNonNull(options, "options");
+        this.exchange = Objects.requireNonNull(exchange, "exchange");
+        resources = new EndpointResources(options, null, exchange);
+    }
+
     /** Connects and completes only after successful binding.
      * @param config immutable target and bind request
      * @return protected bound-session result */
@@ -55,7 +64,8 @@ public final class SmppClient implements AutoCloseable {
                             65536,
                             0),
                     started + EndpointOptions.durationNanos(options.connectTimeout()));
-            connection = EndpointConnection.client(transport, config, options, resources.notifications);
+            connection = EndpointConnection.client(
+                    transport, config, options, resources.notifications, resources.handlers, exchange);
             permit.attach(connection);
             connection.start();
             return new ConnectionAttempt(connection.bound(), connection::cancelBind);

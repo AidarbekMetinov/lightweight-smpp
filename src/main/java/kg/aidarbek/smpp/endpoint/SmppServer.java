@@ -14,7 +14,7 @@ import kg.aidarbek.smpp.spi.FrameTransport;
 import kg.aidarbek.smpp.transport.TcpListener;
 import kg.aidarbek.smpp.transport.TcpTransportConfig;
 
-/** A message-center TCP listener exposing only binding and connection-control services. */
+/** A message-center TCP listener composing binding, control and optional typed application message services. */
 public final class SmppServer implements AutoCloseable {
     private final ServerConfig config;
     private final EndpointOptions options;
@@ -22,6 +22,7 @@ public final class SmppServer implements AutoCloseable {
     private final Consumer<BoundSession> boundListener;
     private final AuthenticationDispatcher authentication;
     private final EndpointResources resources;
+    private final ExchangeConfig exchange;
     private TcpListener listener;
     private boolean closed;
     private boolean started;
@@ -58,13 +59,30 @@ public final class SmppServer implements AutoCloseable {
             BindAuthenticator authenticator,
             Consumer<BoundSession> boundListener,
             Executor authenticationExecutor) {
+        this(config, options, authenticator, boundListener, authenticationExecutor, ExchangeConfig.defaults());
+    }
+    /** Creates a server with explicit message policy and optional typed application handlers on owned workers.
+     * @param config listener/version/authentication configuration
+     * @param options connection/request/notification limits and deadlines
+     * @param authenticator non-null focused asynchronous authentication service
+     * @param boundListener non-null session notification, dispatched outside I/O and coordinator locks
+     * @param authenticationExecutor caller-owned authentication executor, or null for owned invocation
+     * @param exchange message-handler and ordered-response policy */
+    public SmppServer(
+            ServerConfig config,
+            EndpointOptions options,
+            BindAuthenticator authenticator,
+            Consumer<BoundSession> boundListener,
+            Executor authenticationExecutor,
+            ExchangeConfig exchange) {
+        this.exchange = Objects.requireNonNull(exchange, "exchange");
         this.config = Objects.requireNonNull(config, "config");
         this.options = Objects.requireNonNull(options, "options");
         this.authenticator = Objects.requireNonNull(authenticator, "authenticator");
         this.boundListener = Objects.requireNonNull(boundListener, "boundListener");
         authentication = new AuthenticationDispatcher(
                 config.authenticationConcurrency(), config.authenticationQueue(), authenticationExecutor);
-        resources = new EndpointResources(options, authentication);
+        resources = new EndpointResources(options, authentication, exchange);
     }
 
     /** Binds once to the configured address.
@@ -112,7 +130,9 @@ public final class SmppServer implements AutoCloseable {
                     resources.notifications,
                     authentication,
                     authenticator,
-                    boundListener);
+                    boundListener,
+                    resources.handlers,
+                    exchange);
             permit.attach(connection);
             connection.start();
             return true;

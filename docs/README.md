@@ -62,14 +62,14 @@ SMPP 5.0 is the latest public standard verified in the research. The report also
 explains the unresolved “5.1” terminology in older Oracle documentation. The shared
 header/framing, field/TLV foundations, bind/control and message codecs, and
 deterministic session policies are implemented for both profiles. Binding and control
-endpoints now run for both profiles; complete version support and message services
-remain pending. Formatting, real
+endpoints and submission/delivery/data services now run for both profiles;
+complete version support remains pending. Formatting, real
 architecture rules, and automatic review coverage/freshness checks are active;
 SOLID and TDD policies apply to every change.
 
 ## Step 1 design baseline
 
-- [API contracts](API.md): implemented binding/control and planned messaging
+- [API contracts](API.md): implemented binding/control and message exchange
   contracts, outcomes, cancellation,
   callbacks, capability/version rules, resource ownership, and dependency diagram.
 - [Protocol inventory](PROTOCOL.md) and [TLV inventory](TLVS.md): commands, fields,
@@ -81,11 +81,10 @@ SOLID and TDD policies apply to every change.
 
 The baseline uses one asynchronous request mechanism and focused capabilities,
 one library artifact without initial runtime dependencies, and a separate
-application subproject for simulator tooling. Binding/control endpoint APIs and
-examples are now compiled; future messaging capabilities remain design contracts. Binary framing, fields, TLVs, and profile
-foundations, bind/control and message codecs, and session policies are implemented;
-live binding/control endpoints are implemented, while message services and
-simulators remain planned.
+application subproject for simulator tooling. Binding/control and basic messaging
+endpoint APIs and examples are compiled. Binary framing, fields, TLVs, profiles,
+codecs, session policies and bounded live message exchange are implemented;
+simulators remain Step 13.
 
 ## Remaining design choices
 
@@ -201,14 +200,30 @@ failures and shutdown. See [endpoint contracts and examples](ENDPOINTS.md),
 [architecture evidence](reviews/0010-endpoint-architecture.md).
 
 The combined Step 11 build freshly executed all 498 library/architecture cases;
-60 unchanged review-tool cases remained up to date. All 199 Java type identities
-have current SOLID evidence. Runtime dependencies remain empty, and examples
+60 unchanged review-tool cases remained up to date. That snapshot covered all
+199 Java type identities with current SOLID evidence. Runtime dependencies remain empty, and examples
 stay outside all three Apache-licensed production archives. The command-line
 client/server exchange and both Gradle example helpers ran successfully; repeated
 client execution reused configuration while running the exchange freshly.
 
-Next: Step 12 connects application submission and delivery handlers. Simulators
-start in Step 13; complete SMPP 5.0 coverage remains Step 16.
+## Step 12 message exchange
+
+Focused senders and optional typed asynchronous handlers connect `submit_sm`,
+`deliver_sm` and `data_sm` under both profiles and all permitted endpoint/mode
+combinations. One request window handles responses, cancellation and deadlines.
+Global handler limits retain physically unfinished work after timeout or close;
+ordered replies retain bounded count/bytes through output settlement. Control
+traffic has separate finite capacity, and graceful shutdown drains message work.
+See [exchange contracts and runnable examples](EXCHANGE.md) and
+[TDD/SOLID evidence](reviews/0011-message-exchange.md).
+
+The examples perform a real submission and an independent delivery; acceptance
+and handset delivery remain separate. The final formatted suite freshly executed
+559 library/architecture cases, including 138 endpoint and 12 architecture cases;
+the final build reused that matching output and restored 60 unchanged review-tool
+cases from cache. All 228 current Java identities have matching SOLID evidence.
+A separate client/server JVM smoke completed successfully. Simulators start in Step 13; common operations and encoding/
+receipt helpers remain Steps 14–15, and complete SMPP 5.0 coverage remains Step 16.
 
 ## References
 

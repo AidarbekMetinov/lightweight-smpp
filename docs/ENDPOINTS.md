@@ -2,9 +2,10 @@
 
 `SmppClient` and `SmppServer` provide real TCP connection, bind, `enquire_link`,
 `unbind` and close operations. Both SMPP 3.4 and 5.0 support receiver,
-transmitter and transceiver binds. The public `BoundSession` exposes only those
-implemented control operations. Submission, delivery handlers, automatic enquiry,
-reconnect/retry, TLS and simulators are later work.
+transmitter and transceiver binds. `BoundSession` also exposes focused submission,
+delivery and data-message capabilities with optional asynchronous handlers,
+described in [EXCHANGE.md](EXCHANGE.md). Automatic enquiry, reconnect/retry, TLS
+and simulators remain later work.
 
 The endpoint package composes the existing [session policy](SESSIONS.md),
 [request window](REQUESTS.md) and [TCP frame transport](TRANSPORT.md). The
@@ -38,10 +39,12 @@ project execution lock.
 listens only on loopback, accepts versions 3.4 and 5.0, and explicitly advertises
 5.0. Its literal `demo` credentials are for this local example.
 [ExampleClient](../src/examples/java/kg/aidarbek/examples/ExampleClient.java)
-requests a 3.4 transceiver, requires an advertisement, sends an enquiry,
-unbinds and checks cleanup. It retains effective 3.4 despite the server's 5.0
-advertisement. The compiled example test executes the same exchange over an
-ephemeral local port.
+requests a 3.4 transceiver, requires an advertisement, submits raw example bytes,
+acknowledges an independent welcome delivery and sends an enquiry. It drains
+message work before unbinding and checks cleanup. Effective 3.4 is retained despite
+the server's 5.0 advertisement. The compiled examples are tested together and
+against raw peers; the [exchange guide](EXCHANGE.md) explains their application
+acceptance behavior.
 
 ## Construct and observe a connection
 
@@ -111,8 +114,9 @@ requested 3.4 remains effective 3.4 when the peer advertises 5.0; requested 5.0 
 an explicit 3.4 advertisement fails. Missing advertisement, when allowed, retains
 the raw absence and restricts effective sending to known common, TLV-free 3.4
 operations and fields. Unknown advertisements fail. Existing `SendRequirements`
-and negotiated profiles remain the boundary for future sending capabilities;
-these control methods send only common fields and no optional parameters.
+and negotiated profiles govern current message capabilities: actual TLVs and
+version-specific fields are derived or checked before admission. These control
+methods send only common fields and no optional parameters.
 
 ## Workers and admission bounds
 
@@ -128,6 +132,11 @@ each connection reserves its bind observation and termination notification, and
 each outgoing request reserves its result notification. Thus notification capacity
 can reject a connection or request before its nominal connection/window limit.
 There is no unbounded completion fallback or per-session notifier worker.
+
+Message handlers use a separate endpoint-wide fixed dispatcher with bounded
+concurrency/queueing, per-session invocation order and physical capacity retention
+after timeout or closure. [Exchange options](EXCHANGE.md) also bound ordered
+reply counts/bytes through write completion.
 
 A server separately owns a fixed authentication dispatcher with the configured
 concurrency and finite queue. An active slot remains held while invoking the
@@ -146,7 +155,7 @@ result/lifecycle notifications always use the owned notification pool.
 A connection permit is retained until successful physical cleanup, including a
 transport allocated before connection construction fails. Failed cleanup retains
 the permit and its reported cause. Successfully closed connections can release
-their transport permits while globally bounded authentication/notification work
+their transport permits while globally bounded authentication/message/notification work
 remains occupied; further admission still respects those independent global
 limits. The accept loop has no application queue of accepted sockets.
 
@@ -156,14 +165,15 @@ limits. The accept loop has no application queue of accepted sockets.
 aborts all owned connections immediately and initiates cleanup using the configured
 shutdown bound. It does not synchronously wait for application callbacks.
 `shutdown(grace)` stops connection/request admission, drains already pending
-outbound requests, sends unbind when the window drains, and closes transports
+outbound requests and admitted incoming message replies, sends unbind when both
+drain, and closes transports
 when the total grace expires. Peer-originated unbinds are answered during this
 process; crossed unbind requests retain both obligations until replies finish.
 Repeated calls share one termination result; abort may shorten a pending grace.
 
 `endpoint.termination()` returns an immutable `EndpointTermination` snapshot when
 cleanup finishes or the bound expires. `complete()` requires zero retained
-connections/authentication/notifications, stopped listener/timer/application
+connections/authentication/handlers/notifications, stopped listener/timer/application
 workers, and no cleanup failures. Inspect each count and the original failure
 references when it is false. A bounded result does not claim that uncooperative
 application code was stopped. Such work remains globally bounded on daemon
@@ -177,7 +187,7 @@ notification dispatch never wait for application-result dependents. Deadline
 expiry is checked at request boundaries and by one periodic 5 ms endpoint scan;
 it is a bounded policy with scheduling resolution, not a real-time guarantee.
 
-Well-formed messages for currently unavailable services receive the paired
+Well-formed messages without a registered handler receive the paired
 `ESME_RSYSERR` response only where the exact negotiated version/mode/direction
 matrix permits that request; otherwise they receive `ESME_RINVBNDSTS`. Unknown or
 unimplemented command codecs receive `generic_nack` with `ESME_RINVCMDID`.

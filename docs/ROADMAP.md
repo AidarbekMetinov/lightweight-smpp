@@ -5,7 +5,7 @@ runnable client and server simulators for functional and heavy-load testing.
 The [research report](RESEARCH.md) explains the protocol targets and architecture.
 The [simulator plan](SIMULATORS.md) defines workloads and measurement requirements.
 
-Current stage: **research and Steps 1–11 completed; Step 12 is next**.
+Current stage: **research and Steps 1–12 completed; Step 13 is next**.
 Java 21, Gradle, JUnit, strict compiler warnings, local caching, formatting, and Git
 are configured. Header values, a binary header codec, bounded framing, behavior
 tests, and meaningful architecture rules are implemented. Automatic review-evidence
@@ -14,7 +14,8 @@ Bounded fields, ordered raw TLVs, explicit 3.4/5.0 catalogues, initial occurrenc
 rules, typed interpretation, bind/control codecs, and basic message codecs are
 implemented. Deterministic session/version policies now cover both endpoint
 roles. Bounded request tracking, TCP frame transport and real binding/control
-endpoints are implemented. Message handlers are next.
+endpoints are implemented. Typed submission, delivery and data-message handlers,
+bounded ordered replies and handler cleanup are implemented in Step 12.
 
 Each step delivers one coherent result. Larger steps contain several small TDD
 cycles and may use several simple commits. Follow [TDD](TDD.md), review every
@@ -347,6 +348,13 @@ for each endpoint, keeping the feature inventory accurate.
 Suggested commit: `Add client and server binding`.
 
 ## 12. Exchange submissions and deliveries
+
+Status: **completed**. The final build passes 559 library/architecture cases,
+with 228 current type identities covered by SOLID evidence.
+
+The [exchange guide](EXCHANGE.md) describes implemented senders, asynchronous
+handlers, deadlines, ordered reply bounds and runnable messaging examples.
+[The review](reviews/0011-message-exchange.md) records TDD and type evidence.
 
 Connect client submission to server application acceptance and server delivery to
 client callbacks. Define acknowledgement deadlines, application errors, and

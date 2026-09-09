@@ -19,6 +19,8 @@ import kg.aidarbek.smpp.request.BoundedNotifications;
 final class EndpointResources implements AutoCloseable {
     final EndpointOptions options;
     final BoundedNotifications notifications;
+    final HandlerDispatcher handlers;
+    final ExchangeConfig exchange;
     private final AuthenticationDispatcher authentication;
     private final ScheduledThreadPoolExecutor timer;
     private final ReentrantLock lock = new ReentrantLock();
@@ -34,6 +36,13 @@ final class EndpointResources implements AutoCloseable {
     private boolean listenerAttached;
 
     EndpointResources(EndpointOptions options, AuthenticationDispatcher authentication) {
+        this(options, authentication, ExchangeConfig.defaults());
+    }
+
+    EndpointResources(EndpointOptions options, AuthenticationDispatcher authentication, ExchangeConfig exchange) {
+        this.exchange = exchange;
+        handlers = new HandlerDispatcher(
+                exchange.options().handlerConcurrency(), exchange.options().handlerQueue());
         this.options = options;
         this.authentication = authentication;
         notifications = new BoundedNotifications(
@@ -156,12 +165,14 @@ final class EndpointResources implements AutoCloseable {
         try {
             while (connectionCount() > 0 && System.nanoTime() - shutdownDeadline < 0) awaitChange();
             for (EndpointConnection connection : snapshot()) connection.close();
+            handlers.close();
             notifications.close();
             timer.shutdown();
             while (!cleanupComplete() && System.nanoTime() - shutdownDeadline < 0) awaitChange();
         } catch (InterruptedException interruption) {
             interrupted = true;
             for (EndpointConnection connection : snapshot()) connection.close();
+            handlers.close();
             notifications.close();
             timer.shutdown();
         } finally {
@@ -169,9 +180,12 @@ final class EndpointResources implements AutoCloseable {
                     connectionCount(),
                     authentication == null ? 0 : authentication.outstanding(),
                     notifications.outstandingCount(),
+                    handlers.outstanding(),
                     listenerTermination.isDone() && !listenerTermination.isCompletedExceptionally(),
                     timer.isTerminated(),
-                    notifications.isTerminated() && (authentication == null || authentication.isTerminated()),
+                    notifications.isTerminated()
+                            && handlers.isTerminated()
+                            && (authentication == null || authentication.isTerminated()),
                     failureSnapshot());
             if (interrupted) Thread.currentThread().interrupt();
             // Network cleanup and its terminal snapshot are already settled; dependent application
@@ -185,6 +199,7 @@ final class EndpointResources implements AutoCloseable {
                 && listenerTermination.isDone()
                 && timer.isTerminated()
                 && notifications.isTerminated()
+                && handlers.isTerminated()
                 && (authentication == null || authentication.isTerminated());
     }
 

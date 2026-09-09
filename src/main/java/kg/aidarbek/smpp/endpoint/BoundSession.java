@@ -1,17 +1,25 @@
 package kg.aidarbek.smpp.endpoint;
 
 import java.net.SocketAddress;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletionStage;
 import kg.aidarbek.smpp.protocol.BindMode;
+import kg.aidarbek.smpp.protocol.Command;
 import kg.aidarbek.smpp.protocol.ControlCommand;
+import kg.aidarbek.smpp.protocol.DataSm;
+import kg.aidarbek.smpp.protocol.DataSmResponse;
+import kg.aidarbek.smpp.protocol.DeliverSm;
+import kg.aidarbek.smpp.protocol.DeliverSmResponse;
+import kg.aidarbek.smpp.protocol.SubmitSm;
+import kg.aidarbek.smpp.protocol.SubmitSmResponse;
 import kg.aidarbek.smpp.request.RequestHandle;
 import kg.aidarbek.smpp.request.RequestOptions;
 import kg.aidarbek.smpp.session.SessionState;
 import kg.aidarbek.smpp.session.VersionNegotiation;
 
 /**
- * Thread-safe bound-session capability: connection enquiry, unbinding and closure only.
+ * Thread-safe bound-session facade exposing implemented message and connection-control capabilities.
  * Each request is rechecked against the current lifecycle and uses the shared request mechanism.
  */
 public final class BoundSession implements AutoCloseable {
@@ -19,6 +27,34 @@ public final class BoundSession implements AutoCloseable {
 
     BoundSession(EndpointConnection connection) {
         this.connection = connection;
+    }
+
+    /** Returns a currently permitted, locally implemented typed sending capability.
+     * This describes local sending support; the peer may reject a request or have no application handler.
+     * @param <Q> request representation
+     * @param <R> paired response representation
+     * @param operation non-null library catalogue operation
+     * @return current capability, or empty when role, version, mode or lifecycle forbids it */
+    public <Q extends Command, R extends Command> Optional<OperationSender<Q, R>> sender(Operation<Q, R> operation) {
+        return connection.canSend(operation)
+                ? Optional.of(new OperationSender<>(connection, operation))
+                : Optional.empty();
+    }
+    /** Returns ESME submission capability when the current mode/version permit it.
+     * @return optional submission sender */
+    public Optional<OperationSender<SubmitSm, SubmitSmResponse>> submission() {
+        return sender(MessageOperations.SUBMIT_SM);
+    }
+    /** Returns message-center delivery capability when currently permitted.
+     * @return optional delivery sender */
+    public Optional<OperationSender<DeliverSm, DeliverSmResponse>> delivery() {
+        return sender(MessageOperations.DELIVER_SM);
+    }
+    /** Returns data_sm capability for this endpoint's exact negotiated request direction.
+     * SMPP 3.4 allows both origins in all bound modes; 5.0 applies its direction-specific mode table.
+     * @return optional data-message sender */
+    public Optional<OperationSender<DataSm, DataSmResponse>> dataMessages() {
+        return sender(MessageOperations.DATA_SM);
     }
 
     /** Returns the immutable connection generation.

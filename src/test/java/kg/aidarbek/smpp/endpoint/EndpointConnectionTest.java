@@ -10,14 +10,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.net.InetSocketAddress;
 import java.time.Duration;
 import java.util.HexFormat;
-import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionStage;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -33,11 +29,9 @@ import kg.aidarbek.smpp.request.RequestOptions;
 import kg.aidarbek.smpp.request.TransmissionCertainty;
 import kg.aidarbek.smpp.session.SessionState;
 import kg.aidarbek.smpp.spi.FrameListener;
-import kg.aidarbek.smpp.spi.FrameTransport;
 import kg.aidarbek.smpp.spi.FrameTransportContract;
 import kg.aidarbek.smpp.spi.TransportFailure;
 import kg.aidarbek.smpp.spi.WriteClass;
-import kg.aidarbek.smpp.spi.WriteHandle;
 import kg.aidarbek.smpp.spi.WriteObserver;
 import org.junit.jupiter.api.Test;
 
@@ -45,7 +39,7 @@ class EndpointConnectionTest {
     @Test
     void deferredFakeRejectsAtItsQueueBoundWithoutRetainingAnUnacceptedWrite() throws Exception {
         BoundedNotifications notifications = new BoundedNotifications(32, 1);
-        FakeTransport transport = new FakeTransport();
+        FakeFrameTransport transport = new FakeFrameTransport();
         EndpointConnection connection = EndpointConnection.client(
                 transport,
                 new ClientConfig(
@@ -68,6 +62,9 @@ class EndpointConnectionTest {
             assertTrue(
                     error.getCause().getCause() instanceof TransportFailure,
                     "Queue refusal must obey the transport failure contract");
+            assertEquals(
+                    TransportFailure.Kind.FULL,
+                    ((TransportFailure) error.getCause().getCause()).kind());
             assertEquals(8, transport.deferred.size());
         } finally {
             connection.close();
@@ -78,7 +75,7 @@ class EndpointConnectionTest {
 
     @Test
     void fakeTerminationWaitsForTheWinningCloseCallbackAndAcceptedWriteSettlement() throws Exception {
-        FakeTransport transport = new FakeTransport();
+        FakeFrameTransport transport = new FakeFrameTransport();
         CountDownLatch writing = new CountDownLatch(1);
         CountDownLatch closing = new CountDownLatch(1);
         CompletableFuture<Void> releaseWrite = new CompletableFuture<>();
@@ -149,7 +146,7 @@ class EndpointConnectionTest {
     void clientBindExpiryUsesTheWinningWindowDeadlineOutcome() throws Exception {
         AtomicLong clock = new AtomicLong(System.nanoTime());
         BoundedNotifications notifications = new BoundedNotifications(8, 1);
-        FakeTransport transport = new FakeTransport();
+        FakeFrameTransport transport = new FakeFrameTransport();
         EndpointConnection connection = EndpointConnection.client(
                 transport,
                 new ClientConfig(
@@ -181,7 +178,7 @@ class EndpointConnectionTest {
     void bindAdmissionFailureAndTransportDisconnectSettleTheObservedWorkflow() throws Exception {
         for (boolean exhaustedNotifications : new boolean[] {true, false}) {
             BoundedNotifications notifications = new BoundedNotifications(exhaustedNotifications ? 2 : 8, 1);
-            FakeTransport transport = new FakeTransport();
+            FakeFrameTransport transport = new FakeFrameTransport();
             EndpointConnection connection = EndpointConnection.client(
                     transport,
                     new ClientConfig(
@@ -223,7 +220,7 @@ class EndpointConnectionTest {
     @Test
     void aResponseCannotSettleAQueuedBindOrControlBeforeItsWriteGuard() throws Exception {
         BoundedNotifications notifications = new BoundedNotifications(16, 1);
-        FakeTransport transport = new FakeTransport();
+        FakeFrameTransport transport = new FakeFrameTransport();
         transport.deferWrites = true;
         EndpointConnection connection = EndpointConnection.client(
                 transport,
@@ -266,7 +263,7 @@ class EndpointConnectionTest {
     void controlInvocationBudgetIncludesWaitingForTheConnectionOwner() throws Exception {
         AtomicLong clock = new AtomicLong(System.nanoTime());
         BoundedNotifications notifications = new BoundedNotifications(8, 1);
-        FakeTransport transport = new FakeTransport();
+        FakeFrameTransport transport = new FakeFrameTransport();
         EndpointConnection connection = EndpointConnection.client(
                 transport,
                 new ClientConfig(
@@ -314,7 +311,7 @@ class EndpointConnectionTest {
     void failedInitialBindWritePreservesWinningRequestFailureAndTransmissionKnowledge() throws Exception {
         for (boolean afterGuard : new boolean[] {false, true}) {
             BoundedNotifications notifications = new BoundedNotifications(8, 1);
-            FakeTransport transport = new FakeTransport();
+            FakeFrameTransport transport = new FakeFrameTransport();
             TransportFailure writeFailure = new TransportFailure(
                     afterGuard ? TransportFailure.Kind.WRITE_FAILED : TransportFailure.Kind.REJECTED, afterGuard, null);
             transport.writeFailure = writeFailure;
@@ -353,7 +350,7 @@ class EndpointConnectionTest {
     @Test
     void cancellationBeforeTransportStartNeverWritesABind() throws Exception {
         BoundedNotifications notifications = new BoundedNotifications(8, 1);
-        FakeTransport transport = new FakeTransport();
+        FakeFrameTransport transport = new FakeFrameTransport();
         ClientConfig config = new ClientConfig(
                 new InetSocketAddress("127.0.0.1", 1),
                 new BindRequest(BindMode.TRANSCEIVER, "", "", "", 0x34, 0, 0, ""),
@@ -377,7 +374,7 @@ class EndpointConnectionTest {
 
     @Test
     void immediateFakeSharesTheRealTransportOwnershipAndLifecycleContract() throws Exception {
-        FakeTransport transport = new FakeTransport();
+        FakeFrameTransport transport = new FakeFrameTransport();
         try {
             FrameTransportContract.verify(
                     transport, transport::receive, () -> transport.writes.poll(3, TimeUnit.SECONDS));
@@ -390,7 +387,7 @@ class EndpointConnectionTest {
     void prebindMessageAndUnknownRequestReceiveDistinctNegativesWhileMalformedResponseOnlyCloses() throws Exception {
         BoundedNotifications notifications = new BoundedNotifications(8, 1);
         AuthenticationDispatcher authentication = new AuthenticationDispatcher(1, 1, null);
-        FakeTransport transport = new FakeTransport();
+        FakeFrameTransport transport = new FakeFrameTransport();
         ServerConfig config = new ServerConfig(
                 new InetSocketAddress("127.0.0.1", 0), Set.of(SmppVersion.V3_4), SmppVersion.V3_4, "mc", 1, 1);
         EndpointConnection connection = EndpointConnection.server(
@@ -426,7 +423,7 @@ class EndpointConnectionTest {
         for (boolean sendBind : new boolean[] {false, true}) {
             BoundedNotifications notifications = new BoundedNotifications(8, 1);
             AuthenticationDispatcher authentication = new AuthenticationDispatcher(1, 1, null);
-            FakeTransport transport = new FakeTransport();
+            FakeFrameTransport transport = new FakeFrameTransport();
             CompletableFuture<BindDecision> decision = new CompletableFuture<>();
             CountDownLatch invoked = new CountDownLatch(1);
             AtomicInteger bound = new AtomicInteger();
@@ -474,7 +471,7 @@ class EndpointConnectionTest {
     void clientReportsNegativeAndUnsupportedVersionOutcomesWithoutLosingRawStatusOrAdvertisement() throws Exception {
         for (boolean negative : new boolean[] {false, true}) {
             BoundedNotifications notifications = new BoundedNotifications(8, 1);
-            FakeTransport transport = new FakeTransport();
+            FakeFrameTransport transport = new FakeFrameTransport();
             ClientConfig config = new ClientConfig(
                     new InetSocketAddress("127.0.0.1", 1),
                     new BindRequest(BindMode.TRANSCEIVER, "", "", "", 0x50, 0, 0, ""),
@@ -510,7 +507,7 @@ class EndpointConnectionTest {
     void serverRejectsUnacceptedRequestedVersionBeforeAuthenticationAndClosesAfterReply() throws Exception {
         BoundedNotifications notifications = new BoundedNotifications(8, 1);
         AuthenticationDispatcher authentication = new AuthenticationDispatcher(1, 1, null);
-        FakeTransport transport = new FakeTransport();
+        FakeFrameTransport transport = new FakeFrameTransport();
         AtomicInteger authentications = new AtomicInteger();
         ServerConfig config = new ServerConfig(
                 new InetSocketAddress("127.0.0.1", 0), Set.of(SmppVersion.V3_4), SmppVersion.V3_4, "mc", 1, 1);
@@ -545,7 +542,7 @@ class EndpointConnectionTest {
     @Test
     void clientBindsThroughRequestWindowAndKeepsRequestedVersionSeparateFromAdvertisement() throws Exception {
         BoundedNotifications notifications = new BoundedNotifications(16, 1);
-        FakeTransport transport = new FakeTransport();
+        FakeFrameTransport transport = new FakeFrameTransport();
         ClientConfig config = new ClientConfig(
                 new InetSocketAddress("127.0.0.1", 1),
                 new BindRequest(BindMode.TRANSMITTER, "", "", "", 0x34, 0, 0, ""),
@@ -579,7 +576,7 @@ class EndpointConnectionTest {
     void serverControlsKeepPeerRequestNamespaceSeparateAndFinishCrossedUnbinds() throws Exception {
         BoundedNotifications notifications = new BoundedNotifications(16, 1);
         AuthenticationDispatcher authentication = new AuthenticationDispatcher(1, 1, null);
-        FakeTransport transport = new FakeTransport();
+        FakeFrameTransport transport = new FakeFrameTransport();
         CompletableFuture<BoundSession> bound = new CompletableFuture<>();
         ServerConfig config = new ServerConfig(
                 new InetSocketAddress("127.0.0.1", 0), Set.of(SmppVersion.V3_4), SmppVersion.V3_4, "mc", 1, 1);
@@ -637,7 +634,7 @@ class EndpointConnectionTest {
     void serverAuthenticatesRawBindAndWritesAdvertisedSuccessBeforeNotifyingApplication() throws Exception {
         BoundedNotifications notifications = new BoundedNotifications(8, 1);
         AuthenticationDispatcher authentication = new AuthenticationDispatcher(1, 1, null);
-        FakeTransport transport = new FakeTransport();
+        FakeFrameTransport transport = new FakeFrameTransport();
         CompletableFuture<BoundSession> bound = new CompletableFuture<>();
         ServerConfig config = new ServerConfig(
                 new InetSocketAddress("127.0.0.1", 0),
@@ -683,146 +680,5 @@ class EndpointConnectionTest {
 
     private static byte[] hex(String value) {
         return HexFormat.of().parseHex(value);
-    }
-
-    static final class FakeTransport implements FrameTransport {
-        final BlockingQueue<byte[]> writes = new LinkedBlockingQueue<>(8);
-        private final CompletableFuture<Void> termination = new CompletableFuture<>();
-        private final Throwable terminationFailure;
-        private volatile FrameListener listener;
-        private volatile boolean closed;
-        private int activeWrites;
-        private boolean publishingTermination;
-        private boolean closeCallbackFinished;
-        private TransportFailure writeFailure;
-        private boolean failAfterGuard;
-        private boolean deferWrites;
-        private final BlockingQueue<PendingWrite> deferred = new LinkedBlockingQueue<>(8);
-
-        FakeTransport() {
-            this(null);
-        }
-
-        FakeTransport(Throwable terminationFailure) {
-            this.terminationFailure = terminationFailure;
-        }
-
-        @Override
-        public void start(FrameListener installed) {
-            synchronized (this) {
-                if (listener != null || closed) throw new IllegalStateException("Cannot start transport");
-                listener = Objects.requireNonNull(installed, "listener");
-            }
-            installed.connected();
-        }
-
-        void receive(byte[] frame) {
-            if (listener != null && !closed) listener.frame(frame.clone());
-        }
-
-        @Override
-        public WriteHandle write(byte[] frame, WriteClass writeClass, long deadline, WriteObserver observer) {
-            Objects.requireNonNull(frame, "frame");
-            Objects.requireNonNull(writeClass, "writeClass");
-            Objects.requireNonNull(observer, "observer");
-            synchronized (this) {
-                if (closed || listener == null) throw new TransportFailure(TransportFailure.Kind.CLOSED, false, null);
-                if (frame.length < 16
-                        || frame.length > 1048576
-                        || EndpointPdus.header(frame).commandLength() != frame.length)
-                    throw new IllegalArgumentException("Invalid complete frame");
-                if (System.nanoTime() - deadline >= 0)
-                    throw new TransportFailure(TransportFailure.Kind.WRITE_TIMEOUT, false, null);
-                if (writeFailure != null && !failAfterGuard) throw writeFailure;
-                if (writes.remainingCapacity() == 0 || (deferWrites && deferred.remainingCapacity() == 0))
-                    throw new TransportFailure(TransportFailure.Kind.REJECTED, false, null);
-                activeWrites++;
-            }
-            PendingWrite accepted = new PendingWrite(frame.clone(), deadline, observer);
-            if (deferWrites) deferred.add(accepted);
-            else accepted.send();
-            return accepted;
-        }
-
-        private final class PendingWrite implements WriteHandle {
-            private final byte[] frame;
-            private final long deadline;
-            private final WriteObserver observer;
-            private boolean settled;
-
-            PendingWrite(byte[] frame, long deadline, WriteObserver observer) {
-                this.frame = frame;
-                this.deadline = deadline;
-                this.observer = observer;
-            }
-
-            void send() {
-                settle(null);
-            }
-
-            @Override
-            public boolean cancel() {
-                return settle(new TransportFailure(TransportFailure.Kind.CANCELLED, false, null));
-            }
-
-            private boolean settle(TransportFailure cancelled) {
-                synchronized (this) {
-                    if (settled) return false;
-                    settled = true;
-                }
-                deferred.remove(this);
-                try {
-                    if (cancelled != null) observer.failed(cancelled);
-                    else if (System.nanoTime() - deadline >= 0)
-                        observer.failed(new TransportFailure(TransportFailure.Kind.WRITE_TIMEOUT, false, null));
-                    else if (observer.beforeWrite()) {
-                        if (writeFailure != null) observer.failed(writeFailure);
-                        else {
-                            writes.add(frame);
-                            observer.written();
-                        }
-                    } else observer.failed(new TransportFailure(TransportFailure.Kind.REJECTED, false, null));
-                } finally {
-                    synchronized (FakeTransport.this) {
-                        activeWrites--;
-                    }
-                    publishTermination();
-                }
-                return true;
-            }
-        }
-
-        @Override
-        public CompletionStage<Void> termination() {
-            return termination.minimalCompletionStage();
-        }
-
-        @Override
-        public void close() {
-            synchronized (this) {
-                if (closed) return;
-                closed = true;
-            }
-            try {
-                if (listener != null) listener.closed(new TransportFailure(TransportFailure.Kind.CLOSED, false, null));
-            } finally {
-                for (PendingWrite pending : deferred) pending.cancel();
-                synchronized (this) {
-                    closeCallbackFinished = true;
-                }
-                publishTermination();
-            }
-        }
-
-        private void publishTermination() {
-            synchronized (this) {
-                if (!closed || !closeCallbackFinished || activeWrites != 0 || publishingTermination) return;
-                publishingTermination = true;
-            }
-            Thread.ofVirtual().name("fake-transport-cleanup").start(() -> {
-                if (terminationFailure == null) termination.complete(null);
-                else termination.completeExceptionally(terminationFailure);
-            });
-        }
     }
 }
