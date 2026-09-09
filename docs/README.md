@@ -44,7 +44,8 @@ be revisited when the library's scope is settled.
   lessons, architecture, design principles, testing, and tradeoffs.
 - [Implementation plan](ROADMAP.md): ordered milestones, behavior tests, per-type
   review requirements, and completion criteria.
-- [SOLID policy](SOLID.md): mandatory review coverage, evidence, and planned checks.
+- [SOLID policy](SOLID.md) and [evidence format](REVIEW_FORMAT.md): mandatory
+  per-type reviews, current source hashes, and automatic coverage checks.
 - [TDD workflow](TDD.md): observed red, minimal green, refactoring, and regression tests.
 - [Simulator design](SIMULATORS.md): client/server modes, workloads, fault scenarios,
   metrics, and reproducible heavy-load results.
@@ -52,8 +53,8 @@ be revisited when the library's scope is settled.
 SMPP 5.0 is the latest public standard verified in the research. The report also
 explains the unresolved “5.1” terminology in older Oracle documentation. The shared
 header/framing layer is implemented for both profiles; complete version support
-remains pending. Formatting and real architecture rules are active. Automatic
-review coverage is the next tooling increment; SOLID and TDD policies apply now.
+remains pending. Formatting, real architecture rules, and automatic review
+coverage/freshness checks are active; SOLID and TDD policies apply to every change.
 
 ## Step 1 design baseline
 
@@ -97,7 +98,15 @@ stream assembly are implemented with permanent behavior tests. Five architecture
 checks select actual production types. See [framing contracts](FRAMING.md) and
 [the TDD/SOLID review](reviews/0002-pdu-framing.md).
 
-Next: Step 4 checks the coverage and freshness of recorded SOLID reviews.
+## Step 4 review coverage
+
+The JDK-based validator discovers every selected Java type, including nested,
+local, and anonymous classes. `solidReview` rejects missing, stale, malformed,
+or unresolved evidence; `reviewTest` verifies the tool itself. Both run through
+`check`, with declared inputs and verified cache reuse. See [the tool contract](REVIEW_FORMAT.md)
+and [the review](reviews/0003-review-coverage.md).
+
+Next: Step 5 adds field primitives, TLVs, and explicit protocol profiles.
 
 ## References
 

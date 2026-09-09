@@ -19,11 +19,98 @@ repositories {
     mavenCentral()
 }
 
+sourceSets {
+    review
+    reviewTest {
+        compileClasspath += sourceSets.review.output
+        runtimeClasspath += sourceSets.review.output
+    }
+}
+
 dependencies {
     testImplementation platform('org.junit:junit-bom:6.0.0')
     testImplementation 'org.junit.jupiter:junit-jupiter'
     testImplementation 'com.tngtech.archunit:archunit:1.4.2'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    reviewTestImplementation platform('org.junit:junit-bom:6.0.0')
+    reviewTestImplementation 'org.junit.jupiter:junit-jupiter'
+    reviewTestRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.register('reviewTest', Test) {
+    description = 'Tests the development-only SOLID review validator.'
+    group = 'verification'
+    testClassesDirs = sourceSets.reviewTest.output.classesDirs
+    classpath = sourceSets.reviewTest.runtimeClasspath
+}
+
+def reviewSourceFiles = fileTree(projectDir) {
+    include '**/*.java'
+    exclude 'build/**', '**/.git/**', '**/.gradle/**'
+}
+def reviewDocumentFiles = fileTree('docs/reviews') {
+    include '**/*.md'
+}
+def reviewLauncher = javaToolchains.launcherFor(java.toolchain)
+
+['solidReview': false, 'solidReviewInventory': true].each { taskName, inventoryOnly ->
+    def reviewArguments = objects.newInstance(SolidReviewArguments)
+    reviewArguments.repositoryDirectory.set(layout.projectDirectory)
+    reviewArguments.javaSources.from(reviewSourceFiles)
+    reviewArguments.reviewDocuments.from(inventoryOnly ? files() : reviewDocumentFiles)
+    reviewArguments.inventoryOnly.set(inventoryOnly)
+    reviewArguments.outputFile.set(layout.buildDirectory.file(
+            inventoryOnly ? 'reports/solid-review/types.tsv' : 'reports/solid-review/coverage.tsv'))
+
+    tasks.register(taskName, JavaExec) {
+        description = inventoryOnly ? 'Lists every current Java type and source hash.'
+                : 'Checks current SOLID review evidence for every project-owned Java type.'
+        group = 'verification'
+        javaLauncher = reviewLauncher
+        classpath = sourceSets.review.runtimeClasspath
+        mainClass = 'kg.aidarbek.smpp.review.ReviewCheck'
+        workingDir = layout.projectDirectory
+        argumentProviders.add(reviewArguments)
+        inputs.files('docs/SOLID.md', 'docs/REVIEW_FORMAT.md')
+                .withPropertyName('reviewPolicy').withPathSensitivity(PathSensitivity.RELATIVE)
+        outputs.file(reviewArguments.outputFile)
+        // Exact consumed files, policy, launcher, mode and tool classpath are tracked;
+        // the output contains only sorted relative paths, type identities and hashes.
+        outputs.cacheIf('Deterministic review result with all consumed inputs declared') { true }
+    }
+}
+
+tasks.named('check') {
+    dependsOn 'reviewTest', 'solidReview'
+}
+
+abstract class SolidReviewArguments implements CommandLineArgumentProvider {
+    @Internal
+    abstract DirectoryProperty getRepositoryDirectory()
+
+    @InputFiles
+    @PathSensitive(PathSensitivity.RELATIVE)
+    abstract ConfigurableFileCollection getJavaSources()
+
+    @InputFiles
+    @PathSensitive(PathSensitivity.RELATIVE)
+    abstract ConfigurableFileCollection getReviewDocuments()
+
+    @Input
+    abstract Property<Boolean> getInventoryOnly()
+
+    @Internal
+    abstract RegularFileProperty getOutputFile()
+
+    @Override
+    Iterable<String> asArguments() {
+        def root = repositoryDirectory.get().asFile.toPath()
+        def relative = { File file -> root.relativize(file.toPath()).toString().replace(File.separator, '/') }
+        def result = [inventoryOnly.get() ? '--inventory-files' : '--check-files', '.', relative(outputFile.get().asFile)]
+        javaSources.files.sort().each { file -> result.addAll(['--source', relative(file)]) }
+        reviewDocuments.files.sort().each { file -> result.addAll(['--report', relative(file)]) }
+        return result
+    }
 }
 
 spotless {

@@ -106,9 +106,12 @@ allowed dependency directions, no package cycles, and transport-independent core
 contracts. Isolated forbidden dependencies and a package cycle were detected; the final
 rules select real, nonempty production packages.
 
-Step 4 introduces the review-coverage validator, with failing cases for missing or
-stale type evidence, new nested types, and unresolved findings. Its metadata result
-supports the required class review; it does not prove the semantic verdicts.
+Step 4 provides `reviewTest` and `solidReview`, with executed failing/passing
+cases for missing or stale evidence, new nested/local/anonymous types, malformed
+reports, and unresolved findings. See [the evidence format](REVIEW_FORMAT.md)
+and [the observed tool checks](reviews/0003-review-coverage.md).
+The metadata result supports the required class review; it does not prove the
+semantic verdicts.
 
 For each implemented scenario record the actual test name, applicable version and
 role, observed red command/failure, green command/result, refactoring checks, final

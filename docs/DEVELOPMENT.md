@@ -104,7 +104,13 @@ against real production types. See [the framing guide](FRAMING.md) and
 [its TDD/SOLID evidence](reviews/0002-pdu-framing.md). Step 2
 [tooling evidence](reviews/0001-code-checks.md) remains a historical isolated probe.
 
-The automatic review-evidence validator remains planned for Step 4. Simulators will have
+The development-only review validator runs through `solidReview`; its own tests
+run through `reviewTest`. Both are dependencies of `check`. Run
+`./gradlew solidReviewInventory --console=plain` after formatting to obtain the
+current type inventory and hashes. Follow [the evidence format](REVIEW_FORMAT.md)
+and complete the semantic SOLID review; the tool checks coverage and freshness.
+[The tool review](reviews/0003-review-coverage.md) records executed tests and
+source/report/policy invalidation plus matching-output restoration from cache. Simulators will have
 deterministic behavior tests and separate explicit load-run commands; see
 [the simulator design](SIMULATORS.md).
 

@@ -5,11 +5,11 @@ runnable client and server simulators for functional and heavy-load testing.
 The [research report](RESEARCH.md) explains the protocol targets and architecture.
 The [simulator plan](SIMULATORS.md) defines workloads and measurement requirements.
 
-Current stage: **research and Steps 1–3 completed; Step 4 is next**.
+Current stage: **research and Steps 1–4 completed; Step 5 is next**.
 Java 21, Gradle, JUnit, strict compiler warnings, local caching, formatting, and Git
 are configured. Header values, a binary header codec, bounded framing, behavior
 tests, and meaningful architecture rules are implemented. Automatic review-evidence
-coverage is the next tooling increment.
+coverage and freshness checks run through the normal verification lifecycle.
 
 Each step delivers one coherent result. Larger steps contain several small TDD
 cycles and may use several simple commits. Follow [TDD](TDD.md), review every
@@ -126,6 +126,12 @@ Keep the initial review evidence manually checked until Step 4 is implemented.
 Suggested commit: `Add PDU framing`.
 
 ## 4. Check review coverage and freshness automatically
+
+Status: **completed**. `solidReview` inventories Java types using immutable source
+snapshots and the JDK parser, then verifies current evidence for every identity.
+`reviewTest` covers the tool and `check` runs both tasks. See [the evidence format](REVIEW_FORMAT.md)
+and [the review](reviews/0003-review-coverage.md) for TDD, full type/fixture reviews,
+self-review bootstrap, and source/report/policy cache invalidation evidence.
 
 Implement a small development-only check of type identities and final source
 hashes against recorded review evidence. Use Java parsing support instead of

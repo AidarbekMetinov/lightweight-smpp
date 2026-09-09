@@ -6,8 +6,8 @@ logic, including records, enums, interfaces, and nested or local types. Review
 all five principles even when a particular obligation is not applicable.
 
 This policy is active now. ArchUnit rules run through Jupiter against actual
-protocol/framing types. Automatic review-coverage checks follow in Step 4 of
-the [roadmap](ROADMAP.md).
+protocol/framing types. `solidReview` checks current type identities and source
+hashes against recorded evidence; `check` runs both layers.
 The [research report](RESEARCH.md) explains the supporting design literature and
 the distinction between structural checks and behavioral review.
 
@@ -58,16 +58,18 @@ every possible future requirement.
 7. Report completion only when the inventory is covered, the reviews are current,
    no known violation remains, and the relevant checks pass.
 
-Inventory commands can help, but reviewing only `git diff HEAD` misses untracked
-files. Source parsing is required for a future automated type inventory; a simple
-regular expression is not a reliable Java parser.
+Reviewing only `git diff HEAD` misses untracked files. Run
+`./gradlew solidReviewInventory --console=plain` to inventory current Java types
+through the JDK parser, including nested, local, and anonymous types. See
+[the input scope and identity rules](REVIEW_FORMAT.md).
 
 No additional permission step is created by this policy. Carry out the review and
 fixes as part of the authorized implementation step.
 
 ## Evidence format
 
-Use this structure in each change report. Add one type review for every affected
+Use this narrative structure in each change report, plus the required
+[`solid-review` blocks](REVIEW_FORMAT.md). Add one type review for every affected
 type, including new or changed tests. Existing report entries remain historical;
 subsequent changes need new evidence for the new source version.
 
@@ -109,18 +111,19 @@ absent obligation and cannot be used to excuse a violation or missing review.
 For local or anonymous types without a stable qualified name, record the enclosing
 type, enclosing member, and source location tied to the recorded file hash.
 
-## Planned automated support
+## Automated support
 
-Introduce architecture tests alongside the first real Java types. Enforce the
-package dependency rules, absence of cycles, and separation of public API from
-transport and framework implementation details. Confirm that rules actually select
-the intended classes; a vacuous success must not be reported as coverage.
+Architecture tests enforce package dependency rules, absence of cycles, and
+separation from infrastructure against actual production types. Extend them with
+new package boundaries as code arrives. Confirm that every rule selects its
+intended types; a vacuous success must not be reported as coverage.
 
-A later build check will reconcile the current type inventory and file hashes
-against review records. It must detect missing entries, stale hashes, renamed
-types, and newly added nested types. Its inputs must include Java source contents,
-review documents, and its rule configuration so Gradle caching remains correct.
-It should not depend on an undeclared Git working-tree state.
+`solidReview` reconciles current type identities and whole-file hashes against
+review records. It rejects missing entries, stale hashes, renamed or newly nested
+types without coverage, malformed evidence, and unresolved findings. Gradle tracks
+the exact source/report file lists, policy documents, launcher, mode, and tool
+classpath. It does not depend on Git state. The development-only `review` and
+`reviewTest` source sets stay outside the published library.
 
 That check can enforce evidence coverage and freshness. The reviewer still has to
 evaluate the substance of the design; a recorded verdict is not a machine proof.
@@ -130,5 +133,7 @@ evaluate the substance of the design; a recorded verdict is not a machine proof.
 Step 3's three production types and four test classes have a complete
 [framing review](reviews/0002-pdu-framing.md), with final source hashes and
 principle-by-principle findings. Actual package rules run in `ArchitectureTest`.
-Each later implementation step must provide current evidence for every affected
-type; historical reports do not cover changed source.
+The validator's 13 Java types also have a complete
+[tooling review](reviews/0003-review-coverage.md), and it checks those same records
+alongside library/test types. Each later implementation step must provide current
+evidence for every affected type; historical reports do not cover changed source.

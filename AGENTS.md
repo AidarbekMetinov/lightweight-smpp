@@ -31,8 +31,9 @@ artifact. Follow [the simulator plan](docs/SIMULATORS.md); use TDD and SOLID rev
 for simulator code as well as library code. Actual load measurements must execute
 freshly, even though compilation and deterministic tests can use build caches.
 
-Research and Steps 1–3 are complete. Step 4, automatic review-evidence coverage
-and freshness checks, is next. The design baseline uses one library artifact,
+Research and Steps 1–4 are complete. Step 5, field primitives, TLVs, and explicit
+protocol profiles, is next in the authorized implementation run. The design
+baseline uses one library artifact,
 no initial runtime dependencies, one asynchronous request mechanism, and focused
 endpoint capabilities. Simulator tooling will be a separate application subproject.
 Do not implement later roadmap steps without a request to proceed with them.
@@ -73,8 +74,8 @@ completed.
 - Use architecture checks and contract tests to support review. A passing linter,
   compiler, coverage report, or architecture test alone does not establish SOLID
   compliance. ArchUnit core is available to Jupiter tests; project architecture
-  rules cover the production header/framing packages; the review-evidence validator
-  is the next increment in Step 4.
+  rules cover the production header/framing packages. `solidReview` checks review
+  coverage and freshness, including the tool's own Java sources and tests.
 - Keep abstractions purposeful. SOLID does not require an interface for every
   class, a subclass hierarchy for every command, or separate Gradle modules.
 
@@ -105,8 +106,11 @@ completed.
   [the development guide](docs/DEVELOPMENT.md).
 - Java formatting uses pinned Spotless and Palantir Java Format versions. Use
   `./gradlew spotlessApply --console=plain` to apply formatting before final source
-  hashes and class review. `./gradlew check --console=plain` includes formatting
-  verification and tests; checking does not rewrite source files.
+  hashes and class review. Run `./gradlew solidReviewInventory --console=plain`
+  to list current type identities and hashes. Record every affected type in the
+  [review evidence format](docs/REVIEW_FORMAT.md). `./gradlew check --console=plain`
+  includes formatting, behavior and tooling tests, and review coverage; checking
+  does not rewrite source files.
 - Keep compiler warnings enabled and fix them. Any warning suppression should be
   narrow and explain why it is necessary.
 - Preserve Gradle build and configuration caching. New task logic must declare its
@@ -130,7 +134,8 @@ completed.
 - Report clearly when a successful build had no tests to run.
 - Step 2 tooling evidence is in [the code-check review](docs/reviews/0001-code-checks.md).
   Step 3 framing contracts and evidence are in [the framing guide](docs/FRAMING.md)
-  and [the framing review](docs/reviews/0002-pdu-framing.md).
+  and [the framing review](docs/reviews/0002-pdu-framing.md). Step 4 validator
+  evidence is in [the review-coverage report](docs/reviews/0003-review-coverage.md).
 
 ## References
 
