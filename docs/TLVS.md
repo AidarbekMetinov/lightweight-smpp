@@ -1,7 +1,9 @@
 # TLV support inventory
 
-Step 1 baseline. All entries are **planned**, with no implementation or test
-evidence yet. The tag lists contain 44 distinct values in 3.4 and 64 in 5.0.
+Step 1 baseline, updated after Step 5. Raw bounded TLV encoding/decoding and
+ordered immutable storage are implemented. Typed interpretation currently covers
+`0210` and `0428` in the contexts below; other typed semantics remain **planned**.
+Profile catalogues contain all 44 distinct 3.4 tags and 64 distinct 5.0 tags.
 `—` in the 3.4 column means a 5.0 addition. References are to the cited
 specifications, not Java implementation sections.[^1][^2]
 
@@ -117,6 +119,23 @@ well-formed unknown/unexpected TLVs follow compatibility handling: preserve raw
 data and ignore its unsupported semantics. Do not reject a message solely because
 it contains a well-formed extension the local application does not understand.
 
+## Executed foundation evidence
+
+The [field/profile review](reviews/0004-fields-profiles.md) records these tests:
+
+| Scope | Executed evidence | Remaining scope |
+| --- | --- | --- |
+| Raw TLV framing/storage | `TlvCodecTest`, `TlvTest`, `OptionalParametersTest`: independent bytes, malformed lengths, byte/count bounds, unknown/repeated values, ownership and equality. | Per-tag meanings and full command bodies. |
+| `TLV-0210` | `TypedTlvRegistryTest`, `UnsignedByteTlvCodecTest`: one raw version octet in all three bind responses for both profiles, including unknown values. | Bind negotiation, successful/error response policy, endpoint behavior. |
+| `TLV-0428` / `TLV-CONGESTION` | Same typed tests: 5.0 response context, exact length, supported 0..100 range, reserved incoming values ignored semantically. | Session observation/admission policy and independent peers. |
+| `TLV-REPEAT` / `TLV-BROADCAST` | `ProtocolProfileTest`, `TlvRulesTest`: required/singleton/repeatable occurrence checks, preserved unknown input, and immediate-priority repetition exception. | Other command contexts, value semantics and per-area/callback correlations. |
+| `TLV-EXTENSION` | `TypedTlvRegistryTest`: scoped registration, duplicate rejection, immutable extension, and continued raw block bounds. | Provider-specific interoperability evidence. |
+
+Catalogue equality is verified separately from supported interpretation. These
+checks apply to network-independent binary/profile behavior and establish no
+session or independent-peer result. [The field guide](FIELDS.md) states exact
+API contracts and composition order.
+
 ## Planned validation for every tag
 
 For each `TLV-xxxx`, create a version/command-specific fixture with independently
@@ -126,8 +145,9 @@ and the result when the tag is permitted, unexpected, or unsupported.
 
 Expand the context sources into executable per-command cases when that command
 is implemented. Require both directions where applicable, and record the test
-names in its evidence. This source-index stage does not claim that a complete
-executable allow-list already exists.
+names in its evidence. The implemented occurrence rules cover bind/control
+responses and 5.0 broadcast requests with explicit priority; the remaining contexts
+still need executable rules.
 
 The following cross-field cases have their own planned scenarios:
 

@@ -6,8 +6,8 @@ logic, including records, enums, interfaces, and nested or local types. Review
 all five principles even when a particular obligation is not applicable.
 
 This policy is active now. ArchUnit rules run through Jupiter against actual
-protocol/framing types. `solidReview` checks current type identities and source
-hashes against recorded evidence; `check` runs both layers.
+protocol, codec, and profile types. `solidReview` checks current type identities
+and source hashes against recorded evidence; `check` runs both layers.
 The [research report](RESEARCH.md) explains the supporting design literature and
 the distinction between structural checks and behavioral review.
 
@@ -135,5 +135,8 @@ Step 3's three production types and four test classes have a complete
 principle-by-principle findings. Actual package rules run in `ArchitectureTest`.
 The validator's 13 Java types also have a complete
 [tooling review](reviews/0003-review-coverage.md), and it checks those same records
-alongside library/test types. Each later implementation step must provide current
-evidence for every affected type; historical reports do not cover changed source.
+alongside library/test types. Step 5 adds 23 types and updates ArchitectureTest;
+[its review](reviews/0004-fields-profiles.md) supplies current evidence for all 24
+affected identities. The combined inventory contains 43 current types. Each later
+step must provide evidence for every affected type; historical reports do not
+cover changed source.

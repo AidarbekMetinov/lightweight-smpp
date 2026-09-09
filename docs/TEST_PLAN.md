@@ -1,8 +1,10 @@
 # First behavior scenarios and verification evidence
 
-Step 1 test-design baseline, updated after Step 3. Header/framing scenarios
+Step 1 test-design baseline, updated after Step 5. Header/framing scenarios
 `FRAME-01` through `FRAME-08` now have executed evidence in
-[the framing review](reviews/0002-pdu-framing.md). Field, command, API, session,
+[the framing review](reviews/0002-pdu-framing.md). Generic field/TLV primitives,
+initial typed interpretation, and profile occurrence scenarios have
+[Step 5 evidence](reviews/0004-fields-profiles.md). Complete command, API, session,
 and simulator scenarios remain **planned**. Write only the next scenario needed by
 the active roadmap step, observe its relevant failure, implement the smallest
 passing behavior, then refactor and review every affected type. Follow

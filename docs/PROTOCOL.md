@@ -1,10 +1,11 @@
 # Protocol support inventory
 
-Step 1 baseline, updated after Step 3. Operation/body codecs, sessions, simulators,
-and independent-peer results below remain **planned**. The shared header and
-bounded framer now have [executed evidence](reviews/0002-pdu-framing.md); this
-does not establish any complete operation codec. This is a traceability inventory,
-not a replacement for either specification.
+Step 1 baseline, updated after Step 5. Operation/body codecs, sessions, simulators,
+and independent-peer results below remain **planned**. The shared header/framer
+have [executed evidence](reviews/0002-pdu-framing.md); bounded fields, TLVs, and
+profile membership have [field/profile evidence](reviews/0004-fields-profiles.md).
+These establish the binary foundation, with no complete operation codec claim.
+This inventory complements the specifications.
 
 `C` means our ESME client and `S` our message-center server. `TX`, `RX`, and `TRX`
 are SMPP bind modes, independent of TCP connection direction. `B` means any bound
@@ -75,7 +76,9 @@ every deployed peer follows the same interpretation.[^1][^2]
 Both profiles include these field identities. A field's occurrence, length,
 meaning, and reserved values still depend on its enclosing command. The test
 identity for each field is `FIELD-<name>`; grouped aliases each need their own
-applicable cases. All field implementation/evidence is pending.
+applicable cases. Raw header values/translation and generic bounded unsigned,
+ASCII C-octet, and raw-octet primitives are verified. Full field-specific and
+command/body validation remains pending; see [the field contracts](FIELDS.md).
 
 | Field or related aliases | 3.4 section | 5.0 section | Planned validation focus |
 | --- | --- | --- | --- |

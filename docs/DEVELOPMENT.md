@@ -99,8 +99,10 @@ review. Keep the pinned build formatter as the shared result across editors;
 See [Spotless](https://github.com/diffplug/spotless/tree/main/plugin-gradle) and
 [Palantir Java Format](https://github.com/palantir/palantir-java-format/tree/2.96.0).
 
-Step 3 supplies permanent header/framing behavior tests and architecture checks
-against real production types. See [the framing guide](FRAMING.md) and
+Steps 3 and 5 supply permanent header, framing, field, TLV, and profile tests,
+with architecture checks against real protocol/codec/profile types.
+[Field contracts](FIELDS.md) explain the completed binary foundation. See
+[the framing guide](FRAMING.md) and
 [its TDD/SOLID evidence](reviews/0002-pdu-framing.md). Step 2
 [tooling evidence](reviews/0001-code-checks.md) remains a historical isolated probe.
 

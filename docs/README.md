@@ -52,8 +52,8 @@ be revisited when the library's scope is settled.
 
 SMPP 5.0 is the latest public standard verified in the research. The report also
 explains the unresolved “5.1” terminology in older Oracle documentation. The shared
-header/framing layer is implemented for both profiles; complete version support
-remains pending. Formatting, real architecture rules, and automatic review
+header/framing and field/TLV foundations are implemented for both profiles;
+complete version support remains pending. Formatting, real architecture rules, and automatic review
 coverage/freshness checks are active; SOLID and TDD policies apply to every change.
 
 ## Step 1 design baseline
@@ -70,8 +70,8 @@ coverage/freshness checks are active; SOLID and TDD policies apply to every chan
 The baseline uses one asynchronous request mechanism and focused capabilities,
 one library artifact without initial runtime dependencies, and a separate
 application subproject for simulator tooling. API class names remain sketches
-until implementation tests establish them. Header/framing code is the first library
-increment; endpoint APIs and simulators remain planned.
+until implementation tests establish them. Binary framing, fields, TLVs, and profile
+foundations are implemented; endpoint APIs and simulators remain planned.
 
 ## Remaining design choices
 
@@ -106,7 +106,15 @@ or unresolved evidence; `reviewTest` verifies the tool itself. Both run through
 `check`, with declared inputs and verified cache reuse. See [the tool contract](REVIEW_FORMAT.md)
 and [the review](reviews/0003-review-coverage.md).
 
-Next: Step 5 adds field primitives, TLVs, and explicit protocol profiles.
+## Step 5 fields and profiles
+
+Bounded binary cursors, immutable ordered raw TLVs, profile catalogues, occurrence
+rules, and the first typed TLV interpretations are implemented. The library and
+architecture suite contains 95 passing cases; the review tool has 60. Current
+review evidence covers all 43 Java type identities. See [field contracts](FIELDS.md)
+and [the review](reviews/0004-fields-profiles.md) for precise scope and verification.
+
+Next: Step 6 implements binding and control command codecs.
 
 ## References
 

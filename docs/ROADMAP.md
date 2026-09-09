@@ -5,11 +5,14 @@ runnable client and server simulators for functional and heavy-load testing.
 The [research report](RESEARCH.md) explains the protocol targets and architecture.
 The [simulator plan](SIMULATORS.md) defines workloads and measurement requirements.
 
-Current stage: **research and Steps 1–4 completed; Step 5 is next**.
+Current stage: **research and Steps 1–5 completed; Step 6 is next**.
 Java 21, Gradle, JUnit, strict compiler warnings, local caching, formatting, and Git
 are configured. Header values, a binary header codec, bounded framing, behavior
 tests, and meaningful architecture rules are implemented. Automatic review-evidence
 coverage and freshness checks run through the normal verification lifecycle.
+Bounded fields, ordered raw TLVs, explicit 3.4/5.0 catalogues, initial occurrence
+rules, and typed interpretation are implemented; complete command codecs and
+endpoint behavior remain later steps.
 
 Each step delivers one coherent result. Larger steps contain several small TDD
 cycles and may use several simple commits. Follow [TDD](TDD.md), review every
@@ -153,6 +156,13 @@ and reuse when inputs match. Keep tooling out of the library's runtime artifact.
 Suggested commit: `Check SOLID review coverage`.
 
 ## 5. Add field primitives, TLVs, and version profiles
+
+Status: **completed as the binary foundation**. [Field contracts](FIELDS.md)
+define bounded atomic cursors, ordered raw TLVs, exact profile catalogues, initial
+command occurrence rules, and extensible typed interpretation for version and
+congestion octets. [The review](reviews/0004-fields-profiles.md) records TDD, final
+per-type hashes, current coverage, and the new nonempty profile architecture rule.
+Complete command semantics and remaining typed TLVs stay in subsequent steps.
 
 Implement bounded binary fields, C-octet strings, optional-parameter storage,
 and explicit profile capabilities from the support inventory. Separate raw TLV

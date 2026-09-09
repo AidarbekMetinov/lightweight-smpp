@@ -11,6 +11,8 @@ import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
 import kg.aidarbek.smpp.codec.PduFramer;
 import kg.aidarbek.smpp.codec.PduHeaderCodec;
+import kg.aidarbek.smpp.profile.ProtocolProfile;
+import kg.aidarbek.smpp.profile.SmppVersion;
 import kg.aidarbek.smpp.protocol.PduHeader;
 import org.junit.jupiter.api.Test;
 
@@ -27,6 +29,8 @@ final class ArchitectureTest {
         assertTrue(LIBRARY.contain(PduHeader.class));
         assertTrue(LIBRARY.contain(PduHeaderCodec.class));
         assertTrue(LIBRARY.contain(PduFramer.class));
+        assertTrue(LIBRARY.contain(ProtocolProfile.class));
+        assertTrue(LIBRARY.contain(SmppVersion.class));
         assertFalse(LIBRARY.contain(ArchitectureTest.class));
     }
 
@@ -57,6 +61,17 @@ final class ArchitectureTest {
                         "java.nio..",
                         "java.time..",
                         "java.util..")
+                .check(LIBRARY);
+    }
+
+    @Test
+    void profilesDependOnlyOnProfilesProtocolAndJdkValues() {
+        classes()
+                .that()
+                .resideInAPackage(PROFILE)
+                .should()
+                .onlyDependOnClassesThat()
+                .resideInAnyPackage(PROFILE, PROTOCOL, "java.lang..", "java.math..", "java.time..", "java.util..")
                 .check(LIBRARY);
     }
 
