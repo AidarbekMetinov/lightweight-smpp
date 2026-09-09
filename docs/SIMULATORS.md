@@ -7,6 +7,12 @@ both endpoints under functional, stress, and sustained-load scenarios. Support
 SMPP 3.4 and 5.0 according to the library's implemented feature inventory.
 This document is a design plan; neither simulator exists yet.
 
+[Workload criteria](WORKLOADS.md) now define the Step 1 provisional profiles,
+measurement environment, and acceptance/accounting rules. Production workload
+requirements remain open. [API contracts](API.md) define the public behavior the
+simulators exercise, and [the test plan](TEST_PLAN.md) identifies their first
+deterministic verification scenarios.
+
 Build an initial usable pair in [roadmap Step 13](ROADMAP.md), extend its scenarios
 as library features arrive, and complete heavy-load measurement in Step 18.
 Both tools follow the same [TDD](TDD.md) and per-type [SOLID review](SOLID.md)

@@ -54,17 +54,33 @@ explains the unresolved “5.1” terminology in older Oracle documentation. No 
 version is implemented in this project yet. Formatting, architecture, and review
 coverage automation are planned; the written SOLID and TDD policies apply now.
 
+## Step 1 design baseline
+
+- [API contracts](API.md): client/server usage sketches, outcomes, cancellation,
+  callbacks, capability/version rules, resource ownership, and dependency diagram.
+- [Protocol inventory](PROTOCOL.md) and [TLV inventory](TLVS.md): commands, fields,
+  tags, source references, version/role permissions, and pending evidence.
+- [First test scenarios](TEST_PLAN.md): framing fixtures and contracts to drive
+  implementation through TDD.
+- [Workload criteria](WORKLOADS.md): provisional simulator profiles, measurement
+  accounting, acceptance goals, and the inspected local hardware baseline.
+
+The baseline uses one asynchronous request mechanism and focused capabilities,
+one library artifact without initial runtime dependencies, and a separate
+application subproject for simulator tooling. API class names remain sketches
+until implementation tests establish them. No library or simulator is implemented.
+
 ## Remaining design choices
 
-These choices are open for discussion:
+These choices remain open:
 
-- One library module, adding a separate simulator application when needed.
-- No runtime dependencies initially, adding them when a concrete need justifies it.
-- JDK sockets with virtual threads as the first transport experiment.
-- Public API and callback details, workload targets, and compatibility policies.
+- Final transport selection after the JDK sockets/virtual-thread experiment.
+- Production workload, latency, and deployment requirements; local profiles are provisional.
+- Provider-specific exceptions backed by interoperability evidence.
+- Exact API names and additional dependencies justified by implementation needs.
 
-The next step is to sketch client and server usage examples, define the detailed
-version/role support inventory, and set workload criteria for the simulators.
+Next: Step 2 sets up the test and deterministic formatting workflow. Step 3 starts
+the protocol implementation with the first failing header/framing test.
 
 ## References
 

@@ -31,9 +31,18 @@ artifact. Follow [the simulator plan](docs/SIMULATORS.md); use TDD and SOLID rev
 for simulator code as well as library code. Actual load measurements must execute
 freshly, even though compilation and deterministic tests can use build caches.
 
-The current step is research and planning. A single module and no initial runtime
-dependencies remain design recommendations. Do not implement the entire roadmap
-without a request to proceed with those steps.
+Research and Step 1 contract design are complete. Step 2, the test and formatting
+workflow, is next. The design baseline uses one library artifact, no initial
+runtime dependencies, one asynchronous request mechanism, and focused endpoint
+capabilities. Simulator tooling will be a separate application subproject.
+Do not implement later roadmap steps without a request to proceed with them.
+
+Use [the API contracts](docs/API.md), [protocol inventory](docs/PROTOCOL.md),
+[TLV inventory](docs/TLVS.md), and [first test scenarios](docs/TEST_PLAN.md) as the
+implementation baseline. [Workload profiles](docs/WORKLOADS.md) contain provisional
+development targets; production capacity and latency requirements remain open.
+API examples are design sketches, not compiled code. Refine names through TDD
+and document changes to the agreed behavior.
 
 The user wants strong Java coding practices and development caching. The build
 now uses a Java 21 toolchain as the development baseline, matching the installed

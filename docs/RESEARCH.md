@@ -37,6 +37,12 @@ The [roadmap](ROADMAP.md) converts the recommendations below into small delivery
 steps. Architecture names in this report are proposals to refine through tests,
 not classes already implemented.
 
+Step 1 has since established [API contracts](API.md), the
+[protocol inventory](PROTOCOL.md), [TLV inventory](TLVS.md),
+[test scenarios](TEST_PLAN.md), and [provisional workload criteria](WORKLOADS.md).
+Use those documents for current design decisions; this report records their
+research background.
+
 ## Protocol versions and compatibility
 
 ### Version targets

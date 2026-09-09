@@ -5,7 +5,7 @@ runnable client and server simulators for functional and heavy-load testing.
 The [research report](RESEARCH.md) explains the protocol targets and architecture.
 The [simulator plan](SIMULATORS.md) defines workloads and measurement requirements.
 
-Current stage: **research and planning completed; Step 1 is next**.
+Current stage: **research and Step 1 completed; Step 2 is next**.
 Java 21, Gradle, JUnit, strict compiler warnings, local caching, and Git are
 configured. No Java sources, simulators, or tests exist yet. The formatter,
 architecture tests, and review-evidence validator below are planned tooling.
@@ -45,6 +45,12 @@ capacity targets from a real workload in Step 1 and refine them with measurement
 
 ## 1. Define contracts and the support inventory
 
+Status: **completed as a design baseline**. Deliverables:
+[API contracts](API.md), [protocol inventory](PROTOCOL.md),
+[TLV inventory](TLVS.md), [first test scenarios](TEST_PLAN.md), and
+[workload criteria](WORKLOADS.md). Production performance requirements remain open;
+the documented numerical profiles are provisional development targets.
+
 Write small client and server usage examples before fixing public class names.
 Decide request completion semantics, callback acknowledgements, asynchronous and
 blocking needs, error representation, and resource ownership. Describe what the
@@ -59,7 +65,7 @@ Define simulator scenarios and measurable acceptance criteria: connections,
 offered messages per second, request windows, payload mix, duration, latency,
 errors, memory limits, and test hardware. Record unresolved numerical targets.
 
-**Review and completion:** agree on explicit contracts, a dependency diagram,
+**Review and completion:** establish explicit contracts, a dependency diagram,
 the inventory, and the first behavior-test list. This is a documentation step;
 proposed code examples do not establish executed TDD or reviewed implementations.
 
