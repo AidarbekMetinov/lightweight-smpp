@@ -143,3 +143,58 @@ I: pass | The private nested fixture exposes only the state needed by its enclos
 D: pass | Coordinates through real JDK latches/atomics and samples the same JDK management source used by production reports; it does not depend on endpoint implementation locks.
 findings: none
 ```
+
+## Fresh corrected-candidate allocation diagnostics
+
+This is a documentation/measurement follow-up to the sampler correction, with no
+Java or production-tool source change. The four existing reviewed sampler types
+and their hashes above are unchanged; no new project-owned Java types, fixtures or
+fakes require SOLID review. No artificial TDD red is claimed for this diagnostic.
+
+On 2026-09-09, the existing full candidate campaign runner executed two fresh
+sequential pairs through the inspected external JFR wrapper. The commands,
+child arguments, initial/final OS snapshots and all failed results are preserved
+under `build/runs/step19-corrected-jfr/`. The source digest is
+`fb3db4466410adc08ae1521edd2b4713134de38eed5eb7458eff86c95842b68c`;
+installed library SHA-256 is
+`609e0d4e6150e3704942339a9df621465f662ef86e52241bc696c2adbd5a717f`
+and simulator SHA-256 is
+`47705647225df458d2f4fc8cb18c12a37198d82b72c25c8fbace72d308649161`.
+A before/after manifest verifies the candidate inputs and executables were not
+mutated. No candidate rebuild, test-cache measurement, forced GC, carrier-pool
+change or global JVM option was used.
+
+Actual bounded execution evidence:
+
+- 13:49:16.722–13:50:13.924 UTC: SMPP 3.4 submission, 30-second measurement,
+  5-second warmup and drain bound, 500 offered/s, two connections, window 16,
+  raw 160-byte payload. Measurement had 15,000 planned, 1,281 skipped and
+  13,719 successful admitted requests; the campaign correctly exited 1.
+- 13:50:14.536–13:51:08.376 UTC: SMPP 5.0 bidirectional data, same aggregate
+  settings, 250 offered/s from each role. Client measurement had 7,500 planned,
+  97 skipped and 7,403 SUCCESS; server had 7,500 planned, 112 skipped,
+  7,387 SUCCESS and one LOCAL_FAILURE of unreported precise cause. Campaign
+  exit 1 and the original healthy criteria were retained.
+- Both pairs had zero campaign launch/cleanup errors, complete endpoint/sampler
+  termination and reaped child processes. All eight phase cohorts reconcile;
+  opposite receiver lifetime counts equal warmup-plus-measurement successes.
+  Latest sampled connection/request/reply/decision/stream ownership is zero.
+- `jfr summary` and selected JSON extraction succeeded for all four bounded
+  recordings. Independent counts are 982/800 samples for submission
+  server/client and 1,305/1,315 for data server/client. Each has zero DataLoss
+  events, completed chunk headers and a final size below 256 MiB. Grouped
+  sample counts and weights reconcile exactly with retained event records.
+
+The one-off driver and extraction arithmetic are investigation artifacts under
+the run directory, not additions to the shipped simulator. Their commands and
+manual checks are retained in `invocations.json`, `extraction-commands.json`,
+`verification.json`, `observed-inputs.json` and `post-run-integrity.json`. The
+[allocation report](../ALLOCATION.md) documents environment contention, exact
+artifact/recording hashes, configuration, actual outcomes, class weights and
+primary JDK references. The estimate is whole-recording sampled allocation
+pressure, including recorded startup and JSON reporting, not exact bytes/request,
+phase attribution, retained-memory proof, latency acceptance or a capacity claim.
+
+Document verification checked the report's copied counters/hashes against the
+retained JSON and JFR data, primary-source interpretation, local evidence links
+and unchanged Java/type inventory. Existing sampler source hashes remain valid.

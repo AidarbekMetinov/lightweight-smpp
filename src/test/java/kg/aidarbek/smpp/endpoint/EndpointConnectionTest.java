@@ -287,16 +287,19 @@ class EndpointConnectionTest {
                     result.complete(failure);
                 }
             });
-            synchronized (connection) {
+            connection.coordination.lock();
+            try {
                 invocation.start();
                 long waitBound = System.nanoTime() + TimeUnit.SECONDS.toNanos(2);
-                while (invocation.getState() != Thread.State.BLOCKED && System.nanoTime() - waitBound < 0)
+                while (!connection.coordination.hasQueuedThread(invocation) && System.nanoTime() - waitBound < 0)
                     Thread.onSpinWait();
-                assertEquals(Thread.State.BLOCKED, invocation.getState());
+                assertTrue(connection.coordination.hasQueuedThread(invocation));
                 clock.addAndGet(TimeUnit.MILLISECONDS.toNanos(11));
+            } finally {
+                connection.coordination.unlock();
             }
             Throwable failure = result.get(2, TimeUnit.SECONDS);
-            assertTrue(failure instanceof RequestFailure, "Monitor waiting must consume the original request budget");
+            assertTrue(failure instanceof RequestFailure, "Lock waiting must consume the original request budget");
             assertEquals(RequestFailure.Reason.DEADLINE_EXPIRED, ((RequestFailure) failure).reason());
             assertEquals(TransmissionCertainty.NOT_SENT, ((RequestFailure) failure).transmission());
             assertTrue(transport.writes.isEmpty());

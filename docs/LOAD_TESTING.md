@@ -66,6 +66,15 @@ scheduled cohort; interval throughput counts only completions observed before
 that interval ended. Warmup, measurement and drain remain explicit. A failed
 warmup or execution abort preserves observed partial accounting.
 
+After measurement scheduling stops, originating endpoints continue receiver
+maintenance until the original configured drain deadline, even when their own
+requests have already settled. A late local completion does not reset that
+deadline. Warmup still drains only its pending originating requests. This keeps
+the receiver available for an independently phased bidirectional peer during
+the declared grace period; it does not establish a cross-peer phase barrier or
+promise service beyond the configured lifetime. See the
+[receiver-grace regression and review](reviews/0018-receiver-grace.md).
+
 `--minimum-rate-ratio` is supported only for independent arrival plans. Its gate
 compares actual in-phase successful completions per observed phase second with
 planned arrivals per configured phase second; a delayed phase exit can therefore
@@ -267,3 +276,56 @@ measurement report, with machine details, binary/source hashes and concurrent
 host activity. The initial shared-host diagnostics missed strict offered-load
 criteria despite successful admitted requests; neither this implementation nor
 its unit tests establishes the provisional targets.
+
+## Final binary payload observations
+
+A fresh finite matrix used two separate installed simulator JVMs and an independent
+Python TCP observer for each of 24 pairs: SMPP 3.4/5.0 × payload lengths
+0/32/160/4096 × submit/deliver/bidirectional data. Each originating side sent four
+requests. The independent audit verified all 128 request bodies, 128 matching
+positive responses and 137216 payload bytes. Planned, attempted, admitted,
+successful terminal and receiver invocation counts all reconciled to 128, with
+zero skips, rejections or pending application work. All 48 JVM roles reported
+complete physical cleanup and zero remaining physical/request/reply/decision
+reservations. The retained observed-session cohort was one per role; that
+metadata is not a live connection count.
+
+| Carrier observed | Request frames | Payload bytes | Empty frames |
+| --- | ---: | ---: | ---: |
+| `short_message` | 48 | 3072 | 16 |
+| `message_payload` (0x0424) | 80 | 134144 | 16 |
+
+Submit/deliver lengths 0, 32 and 160 used the short field. Their 4096-byte bodies
+used an empty short field plus one payload TLV. Every data request used one payload
+TLV, including a present zero-length value. These choices fit both profiles:
+3.4 permits at most 254 short-message bytes, 5.0 permits 255, and this run's
+4096-byte payloads fit the 16-bit TLV length. No outgoing request used two payload
+carriers. The observer compared exact opaque binary bytes; it did not infer text,
+radio delivery or downstream recipient results.
+
+The original observer matrix retained 23 passes and one failure of an auxiliary
+control criterion: a client `unbind` (sequence 2) in delivery/5.0/4096 had no
+observed response before both TCP EOFs. All four application deliveries in that
+pair were positively acknowledged. Shutdown completion establishes physical
+retirement within its bound; it does not prove an acknowledged unbind during
+simultaneous peer shutdown. A second independent, literal-body audit of the
+unchanged captures passed all application payload/status/sequence/accounting
+assertions while explicitly retaining that unmatched control observation.
+This evidence does not claim that all 24 pairs completed a graceful control
+exchange, and the original failed matrix was not rewritten.
+
+The executing library SHA-256 was `609e0d4e6150e3704942339a9df621465f662ef86e52241bc696c2adbd5a717f` and simulator JAR SHA-256 was
+`a59d553d3ec84de5d953a927696565f2c498384386a241a74a113426011d1d9e`. Declared source: `387aed9ef523c85fb3cfa0f8f245438759deb6fc+2d63cd99c32ca3b197cbc973a100c9280ef00a05d4c5311b0cb7c011bb823a00`. All installed inputs
+and measured captures matched their before/after hashes. Reports, full application
+frame bytes, original failures and independent audit are retained in
+`build/runs/step19-corrected-payloads`; the final candidate3
+`application-audit.json` has SHA-256 `35c1e8fedfac3217b68acce9a4d7b378e0770ff2289a0518f021b1e4bc1dcdfb`.
+Other load campaigns ran concurrently on the same 12-CPU host. These are
+functional payload observations, not capacity or latency results.
+
+Independent layout references are the [SMPP 3.4 specification](https://smpp.org/SMPP_v3_4_Issue1_2.pdf)
+and [SMPP 5.0 specification](https://smpp.org/SMPP_v5.pdf). The seeded byte oracle
+was checked against the primary [OpenJDK 21 SplittableRandom source](https://github.com/openjdk/jdk21u/blob/master/src/java.base/share/classes/java/util/SplittableRandom.java)
+and [bounded-random support](https://github.com/openjdk/jdk21u/blob/master/src/java.base/share/classes/jdk/internal/util/random/RandomSupport.java),
+then against eight independently executed JDK vectors. The full frame audit
+uses literal mandatory-field layouts and no project encoder output.

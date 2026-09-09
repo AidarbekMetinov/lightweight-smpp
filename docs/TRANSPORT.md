@@ -70,6 +70,15 @@ progress. Consequently, an active slow write can delay control traffic until
 that write's deadline closes the connection. Priority does not guarantee fairness
 under continuously replenished control traffic.
 
+The request window and physical write reservations have separate lifetimes.
+A fast peer can respond while the previous local write is still physically
+retiring. A new request may then enter its request window but encounter a full
+transport bound, especially with a one-request/one-write configuration. That
+new handle settles as `WRITE_FAILED`, `NOT_SENT`, with `TransportFailure.FULL`;
+it is not replayed. A bounded candidate probe confirmed this ordering while
+enquiries and shutdown continued to work. [Measurements](MEASUREMENTS.md)
+retain the resulting failed workload criteria.
+
 The absolute deadline uses the same `System.nanoTime()` origin as request
 tracking. The positive future offset must be less than 2^63 nanoseconds;
 subtraction handles absolute timestamp wraparound. The transport cannot infer

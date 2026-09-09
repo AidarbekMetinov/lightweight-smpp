@@ -5,7 +5,7 @@ runnable client and server simulators for functional and heavy-load testing.
 The [research report](RESEARCH.md) explains the protocol targets and architecture.
 The [simulator plan](SIMULATORS.md) defines workloads and measurement requirements.
 
-Current stage: **research and Steps 1–18 completed; Step 19 verification is in progress**.
+Current stage: **research and Steps 1–19 completed; local release candidate prepared**.
 Java 21, Gradle, JUnit, strict compiler warnings, local caching, formatting, and Git
 are configured. Header values, a binary header codec, bounded framing, behavior
 tests, and meaningful architecture rules are implemented. Automatic review-evidence
@@ -544,10 +544,18 @@ Suggested commit: `Add load test scenarios`.
 
 ## 19. Verify interoperability and prepare a release
 
-Status: **in progress**. External comparisons remain outside the repository.
-Release verification must include the load-discovered liveness regression and
-fresh execution against the corrected candidate, with full-duration soak
-evidence and honest reporting of missed provisional targets.
+Status: **completed as local release preparation**. [Release evidence](RELEASE.md)
+records `0.1.0-rc.1`, 946 freshly executed Java cases, whole-type review coverage
+for 512 current identities, licensed dependency-free library artifacts and
+byte-identical outputs across checkout paths and cold/warm builds. The
+[external 3.4 comparison](INTEROPERABILITY.md) remains outside the repository;
+external 5.0 peer verification stays pending, with independently derived
+fixtures covering the declared inventory. Load-discovered [carrier](reviews/0018-carrier-progress.md)
+and [receiver-drain](reviews/0018-receiver-grace.md) bugs have failing regressions,
+corrections and fresh measurements. [Full-hour soaks](MEASUREMENTS.md), the
+[54-cell scenario matrix](MATRIX_RESULTS.md) and [allocation diagnostics](ALLOCATION.md)
+retain failed provisional targets and precise candidate identities. Publishing
+remains a separate action; the measurements do not establish production capacity.
 
 Test our client against an independent server and our server against an independent
 client. Pin peer versions and configuration. Cloudhopper can cover its actual

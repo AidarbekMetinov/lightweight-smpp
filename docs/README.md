@@ -311,7 +311,11 @@ See [lifecycle APIs and ownership](LIFECYCLE.md),
 [TDD/SOLID evidence](reviews/0016-connection-lifecycle.md),
 [transport/coordinator architecture](reviews/0016-lifecycle-architecture.md), and
 [simulator TLS boundary](reviews/0016-simulator-architecture.md).
-Heavy-load tooling and release/interoperability evidence follow in Steps 18–19.
+
+The integrated Step 17 checks passed 738 library cases, 67 simulator cases and
+60 review-tool cases, with all 447 Java identities covered by current source-hash
+reviews at that snapshot. Binary, source, Javadoc and simulator archives retained
+their exact licensing and artifact boundaries.
 
 ## Step 18 load scenarios
 
@@ -326,9 +330,50 @@ missing, duplicate and mismatched receipts.
 
 See [load commands](LOAD_TESTING.md), [fault commands](FAULT_PEER.md),
 [receipt commands](RECEIPT_SCENARIO.md), and [measurement evidence](MEASUREMENTS.md).
-The integrated simulator suite passed 130 cases with no failures or skips.
-Full release campaigns found a library carrier-starvation defect; Step 19 must
-fix it and repeat the affected measurements before release preparation completes.
+The integrated Step 18 build passed 738 library, 130 simulator and 60 review-tool
+cases, covering all 505 Java identities. Simulator cases executed freshly; the
+matching library/tool results were reused. Full release campaigns exposed a
+library carrier-starvation defect and a simulator receiver-drain defect. Their
+regressions, corrections and fresh measurements are part of Step 19.
+
+## Step 19 interoperability and release preparation
+
+The local candidate is `0.1.0-rc.1`, with Java 21, Apache License 2.0 and no library
+runtime dependencies. Maven publication metadata, licensed binary/source/Javadoc
+archives, simulator distributions and an independent artifact checker are ready
+for inspection. The candidate has not been published.
+
+Actual load failures drove two corrections through behavioral failing tests:
+Java 21 virtual-thread progress across connection locks, and receiver maintenance
+through the simulator's original full drain deadline. Final checks freshly
+executed 749 library, 137 simulator and 60 review-tool cases in an independent
+checkout. All 946 passed; all 512 current Java identities have matching whole-type
+SOLID evidence. The fresh-output build took 128.56 s; a normal cached repetition
+with configuration reuse took 0.67 s. Eleven outputs were byte-identical across
+the two checkout paths and cold/warm task-output conditions.
+
+External SMPP 3.4 comparisons passed 15 cases against the final library. The peer
+and its dependencies remain entirely outside this repository. The final simulator
+passed 56 raw fault pairs, 12 receipt pairs and 24 independent application-payload
+capture audits. The payload observer also retained one unacknowledged unbind after
+successful message traffic and complete resource retirement. External SMPP 5.0
+peer verification remains pending; independently derived fixtures cover the
+declared protocol inventory.
+
+The measurements retain unsuccessful provisional arrival-rate targets, bounded
+small-window rejections and incomplete 1000-connection startup within the tested
+budget. Six final bidirectional fixed-window repeats passed with 10913898
+successful measured requests. Two final full-hour soaks completed with all
+31891984 admitted measurement requests successful and complete cleanup; both
+failed the original arrival-rate criteria because 4108016 arrivals were skipped.
+Release preparation is complete, with all failed measurements retained. The
+measurements do not establish production capacity or leak freedom.
+
+See [release artifacts and checks](RELEASE.md), [interoperability scope](INTEROPERABILITY.md),
+[full measurements](MEASUREMENTS.md), [scenario matrix](MATRIX_RESULTS.md),
+[allocation observations](ALLOCATION.md), [carrier regression](reviews/0018-carrier-progress.md),
+[receiver regression](reviews/0018-receiver-grace.md) and
+[release review](reviews/0018-release-preparation.md).
 
 ## References
 
@@ -336,9 +381,3 @@ fix it and repeat the affected measurements before release preparation completes
 - [Cloudhopper Commons](https://github.com/twitter/cloudhopper-commons): supporting utilities, including message character encoding and request tracking.
 - [SMPP 3.4 specification, issue 1.2](https://smpp.org/SMPP_v3_4_Issue1_2.pdf): protocol definitions and wire format.
 - [SMPP 5.0 specification](https://smpp.org/SMPP_v5.pdf): latest verified public protocol specification.
-
-The integrated Step 17 checks pass 738 library cases, 67 simulator cases and
-60 review-tool cases, with all 447 current Java identities covered by fresh
-source-hash reviews. Binary, source, Javadoc and simulator archives retain their
-exact licensing and artifact boundaries. These are correctness and packaging
-checks; heavy-load measurements and release evidence follow in Steps 18–19.

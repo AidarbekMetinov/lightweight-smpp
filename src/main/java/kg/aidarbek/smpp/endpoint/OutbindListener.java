@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 import kg.aidarbek.smpp.profile.ProtocolProfile;
 import kg.aidarbek.smpp.profile.SmppVersion;
@@ -19,6 +20,7 @@ import kg.aidarbek.smpp.transport.TcpTransportConfig;
 
 /** Explicit ESME listener for bounded authenticated outbind followed by one bind on the accepted socket. */
 public final class OutbindListener implements AutoCloseable {
+    private final ReentrantLock stateLock = new ReentrantLock();
     private final OutbindListenerConfig config;
     private final EndpointOptions options;
     private final ConnectionLifecycle lifecycle;
@@ -68,35 +70,44 @@ public final class OutbindListener implements AutoCloseable {
 
     /** Opens the configured listener once.
      * @return protected resolved bound local address */
-    public synchronized CompletionStage<InetSocketAddress> start() {
-        if (started || closed)
-            return CompletableFuture.<InetSocketAddress>failedFuture(
-                            new IllegalStateException("Outbind listener can start once before closure"))
-                    .minimalCompletionStage();
-        started = true;
+    public CompletionStage<InetSocketAddress> start() {
+        stateLock.lock();
         try {
-            new EndpointPdus(EndpointRole.ESME, options.pduLimits())
-                    .encode(
-                            new Pdu<>(0, 1, config.bind()),
-                            ProtocolProfile.forVersion(
-                                    config.bind().interfaceVersion() == 0x34 ? SmppVersion.V3_4 : SmppVersion.V5_0));
-            TcpListener listener = TcpListener.bind(
-                    config.listenAddress(),
-                    options.maximumConnections(),
-                    new TcpTransportConfig(
-                            options.pduLimits().maximumPduLength(),
-                            options.requestWindow(),
-                            options.maximumPendingBytes(),
-                            8,
-                            65536,
-                            0),
-                    lifecycle.tls().orElse(null),
-                    this::accept);
-            resources.listener(listener::close, listener.termination());
-            return CompletableFuture.completedFuture(listener.localAddress()).minimalCompletionStage();
-        } catch (IOException | RuntimeException failure) {
-            close();
-            return CompletableFuture.<InetSocketAddress>failedFuture(failure).minimalCompletionStage();
+            if (started || closed)
+                return CompletableFuture.<InetSocketAddress>failedFuture(
+                                new IllegalStateException("Outbind listener can start once before closure"))
+                        .minimalCompletionStage();
+            started = true;
+            try {
+                new EndpointPdus(EndpointRole.ESME, options.pduLimits())
+                        .encode(
+                                new Pdu<>(0, 1, config.bind()),
+                                ProtocolProfile.forVersion(
+                                        config.bind().interfaceVersion() == 0x34
+                                                ? SmppVersion.V3_4
+                                                : SmppVersion.V5_0));
+                TcpListener listener = TcpListener.bind(
+                        config.listenAddress(),
+                        options.maximumConnections(),
+                        new TcpTransportConfig(
+                                options.pduLimits().maximumPduLength(),
+                                options.requestWindow(),
+                                options.maximumPendingBytes(),
+                                8,
+                                65536,
+                                0),
+                        lifecycle.tls().orElse(null),
+                        this::accept);
+                resources.listener(listener::close, listener.termination());
+                return CompletableFuture.completedFuture(listener.localAddress())
+                        .minimalCompletionStage();
+            } catch (IOException | RuntimeException failure) {
+                close();
+                return CompletableFuture.<InetSocketAddress>failedFuture(failure)
+                        .minimalCompletionStage();
+            }
+        } finally {
+            stateLock.unlock();
         }
     }
 
@@ -147,10 +158,16 @@ public final class OutbindListener implements AutoCloseable {
     /** Stops acceptance and drains admitted work within one bound.
      * @param grace nonnegative total shutdown duration
      * @return protected physical cleanup snapshot */
-    public synchronized CompletionStage<EndpointTermination> shutdown(Duration grace) {
-        CompletionStage<EndpointTermination> result = resources.shutdown(Objects.requireNonNull(grace, "grace"), false);
-        closed = true;
-        return result;
+    public CompletionStage<EndpointTermination> shutdown(Duration grace) {
+        stateLock.lock();
+        try {
+            CompletionStage<EndpointTermination> result =
+                    resources.shutdown(Objects.requireNonNull(grace, "grace"), false);
+            closed = true;
+            return result;
+        } finally {
+            stateLock.unlock();
+        }
     }
     /** Observes physical endpoint cleanup separately from any binding result.
      * @return protected cleanup stage */
@@ -159,8 +176,13 @@ public final class OutbindListener implements AutoCloseable {
     }
     /** Aborts connections and requests bounded cleanup without waiting on application stages. */
     @Override
-    public synchronized void close() {
-        closed = true;
-        resources.close();
+    public void close() {
+        stateLock.lock();
+        try {
+            closed = true;
+            resources.close();
+        } finally {
+            stateLock.unlock();
+        }
     }
 }

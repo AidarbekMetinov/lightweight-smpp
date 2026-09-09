@@ -9,7 +9,10 @@ import java.util.function.LongFunction;
 import java.util.function.LongSupplier;
 import kg.aidarbek.smpp.request.RequestFailure;
 
-/** Single-owner bounded traffic generation and terminal observation, using an injected monotonic clock. */
+/**
+ * Single-owner bounded traffic generation and terminal observation, using an injected monotonic clock.
+ * Measured drain keeps receiver maintenance active for its full original budget; warmup drains pending calls only.
+ */
 final class TrafficRunner {
     private final LoadPlan plan;
     private final int maximumPending;
@@ -148,11 +151,11 @@ final class TrafficRunner {
         }
         long drain = plan.drain().toNanos();
         try {
-            while (failure == null && !active.isEmpty()) {
+            while (failure == null && (!active.isEmpty() || (measured && clock.getAsLong() - stopped < drain))) {
                 maintenance.run();
                 observe(active, metrics, started + length);
                 long remaining = drain - (clock.getAsLong() - stopped);
-                if (active.isEmpty() || remaining <= 0) break;
+                if ((!measured && active.isEmpty()) || remaining <= 0) break;
                 pause.accept(Math.min(1_000_000, remaining));
             }
         } catch (RuntimeException aborted) {

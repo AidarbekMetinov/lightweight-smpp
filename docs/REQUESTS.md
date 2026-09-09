@@ -71,6 +71,12 @@ its own invocation. Rejected arguments throw `IllegalArgumentException` or
 `NullPointerException`; otherwise rejection uses structured `RequestFailure`
 with sequence zero and `NOT_SENT`.
 
+The window checks the remaining budget again after obtaining notification
+capacity. If contention exhausted it, deadline expiry wins over backlog;
+temporary notification capacity is released and no sequence or pending bytes
+are consumed. The [contention regression](reviews/0018-carrier-progress.md)
+checks both available and full notification capacity with controlled time.
+
 Clocks follow `System.nanoTime()` semantics. Negative ticks and signed wraparound
 are valid. Deadline checks use subtraction, and observed elapsed intervals must
 remain below half the unsigned long range. `RequestHandle.deadlineNanos()` can

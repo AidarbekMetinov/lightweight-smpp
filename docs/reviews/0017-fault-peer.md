@@ -362,3 +362,71 @@ The complete source declaration and copied coordinator source/artifact manifests
 are retained alongside the results. Only these guide/review additions belong
 to the documentation handoff; candidate/root Java and root documentation were
 not edited by this agent.
+
+## Final candidate 3 verification: original functional assertions
+
+This append changes no project-owned Python/Java source or tests, adds no
+reviewed identity and leaves the complete source reviews above current. The raw
+runtime remains SHA-256
+`96bd4be6d122077df1ac9e3de35445bb03e8238f004aa16396f0afe2e9c28e43`;
+the original test remains
+`43c4ba86e6359f387ab19861bbb93b4cd447424f8e7e7e4c1ac3f22f665aabc1`.
+No Gradle build, recompile, cache removal, assertion change, timeout adjustment,
+retry or discarded failure was used for this final replay. The original opt-in
+command ran in `/tmp/lightweight-smpp-step18-fault-peer` with the candidate3
+installed launcher and declared source `387aed9ef523c85fb3cfa0f8f245438759deb6fc+2d63cd99c32ca3b197cbc973a100c9280ef00a05d4c5311b0cb7c011bb823a00`:
+
+```sh
+SMPP_SIMULATOR_LAUNCHER=/tmp/lightweight-smpp-candidate3/simulator/build/install/simulator/bin/simulator \
+SMPP_SIMULATOR_REVISION=387aed9ef523c85fb3cfa0f8f245438759deb6fc+2d63cd99c32ca3b197cbc973a100c9280ef00a05d4c5311b0cb7c011bb823a00 \
+SMPP_FAULT_RESULTS=/home/aidarbek/Documents/Projects/lightweight-smpp/build/runs/step19-final-wire-checks/raw \
+PYTHONPYCACHEPREFIX=/tmp/lightweight-smpp-fault-pycache \
+  python3 -m unittest discover -s simulator/scripts/tests \
+  -p test_fault_peer.py -k SimulatorProcessTests -v
+```
+
+Both methods passed in **113.172 seconds**, expanding into **56 fresh pairs**.
+The independent unit/socket suite was not rerun for this measurement-only task;
+its earlier behavioral TDD evidence remains separate. Every pair retained four
+planned attempts, one deliberate injection and the original startup/read/write/
+drain budgets. All target reports passed their configured expected-fault criteria
+and recorded complete cleanup and zero pending requests. All raw reports closed
+owned sockets with zero held frames/bytes and zero abandoned injection.
+
+| Final installed input | SHA-256 |
+| --- | --- |
+| `bin/simulator` | `03fbbcfad916ff2b1a59b3a0e604b902bdeb9a1b195a6dfbaa66ea8d5c71abf5` |
+| `lib/lightweight-smpp-0.1.0-rc.1.jar` | `609e0d4e6150e3704942339a9df621465f662ef86e52241bc696c2adbd5a717f` |
+| `lib/simulator-0.1.0-rc.1.jar` | `a59d553d3ec84de5d953a927696565f2c498384386a241a74a113426011d1d9e` |
+| `lib/HdrHistogram-2.2.2.jar` | `22d1d4316c4ec13a68b559e98c8256d69071593731da96136640f864fa14fad8` |
+
+| Fault | Pairs | Target success | Target timeout | Admitted local failure | Later local rejection | Completed injections |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| duplicate | 8 | 32 | 0 | 0 | 0 | 8 |
+| late | 8 | 16 | 16 | 0 | 0 | 8 |
+| missing | 8 | 24 | 8 | 0 | 0 | 8 |
+| malformed | 8 | 0 | 0 | 8 | 24 | 8 |
+| fragmented | 8 | 32 | 0 | 0 | 0 | 8 |
+| disconnect | 8 | 0 | 0 | 8 | 24 | 8 |
+| slow-reader | 8 | 16 | 16 | 0 | 0 | 8 |
+
+These are actual observed counts, including the timing-dependent slow-reader
+split; they are not normalized to earlier runs. Ordinary raw retention peaked
+at 3 frames / 57 bytes,
+and reserved control retention at 1 frame /
+32 bytes. The target JVMs used the original
+`JAVA_OPTS=-Xms64m -Xmx192m`, Ubuntu OpenJDK 21.0.12, Linux amd64 on the shared
+12-CPU host. Python 3.12.3 and its bytecode cache were retained. The supervisor
+waited for the old heavy campaigns to end before executing these unchanged
+short startup checks; four final-soak JVMs and one concluding target campaign
+remained. No throughput/backpressure limit is inferred.
+
+`build/runs/step19-final-wire-checks/raw-command.json` records the exact command/environment, UTC bounds and
+exit 0. `raw-matrix.log` retains all 56 original PAIR observations and unittest
+outcome, SHA-256 `3d07074fe9c6fbc99805f0997d8e8e70545d306183ea5f814ab9323c2bc170b2`. The raw subtree
+contains 56 raw reports, 56 target reports, exact executing input hashes and
+process logs. Shared before/after installed-file verification passed;
+`summary.json` SHA-256 `cd48951751a55b297d65715d52904039fe466bf08708a4bfb61e9e44624022cc` reconciles these with the separate receipt matrix.
+All 136 role processes across the matrices were bounded and cleaned up (80 Java,
+56 Python). Only guide/review text is handed off; no candidate/root Java or root
+documentation was edited by this agent.

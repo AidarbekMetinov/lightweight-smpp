@@ -61,7 +61,7 @@ class TrafficRunnerTest {
         assertEquals(List.of("before", "after"), actions);
         assertEquals(1, result.measurement().outcomes().get(CohortMetrics.Outcome.SUCCESS));
         assertEquals(0, result.measurement().successesDuringMeasurement());
-        assertEquals(0, result.drainNanos());
+        assertEquals(5_000_000, result.drainNanos());
     }
 
     @Test

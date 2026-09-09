@@ -94,8 +94,11 @@ to `none`, with RX or TRX binding. Set both operations to `data` for bidirection
 data traffic; configure half the intended combined rate in each process. A
 receive-only process keeps serving through its warmup, measurement and drain
 durations after the required cohort arrives. An originating process also serves
-incoming requests, then closes after its own measured cohort drains. Give the
-receiving peer enough lifetime for the sender's warmup and drain.
+incoming requests and remains available through its full configured measured
+drain, even after its own requests settle. Warmup drains pending originating
+requests only. Each peer still has its own phase clock; give the receiving peer
+enough lifetime for the sender's warmup and drain. The
+[receiver-grace regression](reviews/0018-receiver-grace.md) records this boundary.
 
 Limits are checked before networking: at most 4,096 connections, 65,536 combined
 window slots, 64 rate steps, one billion measurement requests, and an estimated

@@ -158,6 +158,14 @@ unbounded worker threads or an undisclosed notification queue.
 
 ## Resource observations and standalone exercise
 
+Connection, request-window, reconnect and listener coordination use explicit
+reentrant locks on Java 21. Callbacks that share connection state use the same
+guard, allowing a virtual thread waiting on another lock to release its carrier.
+This preserves the existing critical sections and deadline/ownership rules.
+Fresh two-carrier JVM regressions cover responses, request admission, reconnect
+cancellation, and both listener owners' start/shutdown/close paths. See the
+[load-discovered defect and fix](reviews/0018-carrier-progress.md).
+
 `BoundSession.resources()` returns `SessionResources` with pending request
 count/bytes and paired application reply count/retained bytes. Requests include
 controls and all implemented paired operations. Reply reservations include the

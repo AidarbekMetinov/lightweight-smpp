@@ -15,7 +15,7 @@ import kg.aidarbek.smpp.spi.TransportFailure;
 import kg.aidarbek.smpp.spi.WriteHandle;
 import kg.aidarbek.smpp.spi.WriteObserver;
 
-/** Owns local one-way work without any response-window reservation, under the connection monitor. */
+/** Owns local one-way work without any response-window reservation, under the connection state lock. */
 final class NotificationExchange {
     private final EndpointConnection connection;
     private final BoundSession session;
@@ -70,11 +70,14 @@ final class NotificationExchange {
     }
 
     private boolean cancel(Outgoing entry) {
-        synchronized (connection) {
+        connection.coordination.lock();
+        try {
             if (!outgoing.contains(entry) || entry.started) return false;
             finish(entry, new TransportFailure(TransportFailure.Kind.CANCELLED, false, null));
             if (entry.handle != null) entry.handle.cancel();
             return true;
+        } finally {
+            connection.coordination.unlock();
         }
     }
 
@@ -111,13 +114,16 @@ final class NotificationExchange {
     }
 
     private void complete(Incoming entry, Throwable failure) {
-        synchronized (connection) {
+        connection.coordination.lock();
+        try {
             if (!incoming.remove(entry)) return;
             if (clock.getAsLong() - entry.deadline >= 0) {
                 cancel(entry);
                 connection.close();
             } else if (failure != null) connection.close();
             else connection.messageReplyFinished();
+        } finally {
+            connection.coordination.unlock();
         }
     }
 
@@ -188,7 +194,8 @@ final class NotificationExchange {
 
         @Override
         public boolean beforeWrite() {
-            synchronized (connection) {
+            connection.coordination.lock();
+            try {
                 if (!outgoing.contains(this)) return false;
                 if (clock.getAsLong() - deadline >= 0) {
                     finish(this, new TransportFailure(TransportFailure.Kind.WRITE_TIMEOUT, false, null));
@@ -196,21 +203,29 @@ final class NotificationExchange {
                 }
                 started = true;
                 return true;
+            } finally {
+                connection.coordination.unlock();
             }
         }
 
         @Override
         public void written() {
-            synchronized (connection) {
+            connection.coordination.lock();
+            try {
                 finish(this, null);
+            } finally {
+                connection.coordination.unlock();
             }
         }
 
         @Override
         public void failed(TransportFailure failure) {
-            synchronized (connection) {
+            connection.coordination.lock();
+            try {
                 finish(this, failure);
                 if (failure.writeStarted() && started) connection.fail(failure);
+            } finally {
+                connection.coordination.unlock();
             }
         }
     }

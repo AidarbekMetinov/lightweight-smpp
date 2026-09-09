@@ -194,3 +194,25 @@ its `matrix.json` SHA-256 is
 The [review](reviews/0017-receipt-scenario.md) records the complete declared
 source, counts and immutable-input verification. No fixture Java source or
 assertion changed for the replay.
+
+## Final candidate 3 replay
+
+All 12 original receipt profile/fault pairs passed again using separate JVMs
+from the immutable candidate3 installed distribution. Both SMPP 3.4 and 5.0
+verified eight positives/eight correlated early receipts, mixed six-positive/
+two-negative/six-receipt runs, all-negative/zero-receipt runs, and deliberately
+missing/duplicate/mismatched correlation. Fault cases retained their required
+nonzero client exits and distinct server outcomes. Every role completed physical
+cleanup with zero remaining endpoint requests/replies and local reservations.
+
+The executing library SHA-256 was `609e0d4e6150e3704942339a9df621465f662ef86e52241bc696c2adbd5a717f`; simulator JAR SHA-256 was
+`a59d553d3ec84de5d953a927696565f2c498384386a241a74a113426011d1d9e`. Declared source: `387aed9ef523c85fb3cfa0f8f245438759deb6fc+2d63cd99c32ca3b197cbc973a100c9280ef00a05d4c5311b0cb7c011bb823a00`. The fixture source and all 12 receipt
+class entries were unchanged from candidate2; only the TrafficRunner source
+family changed in the enclosing simulator JAR. The replay used the original
+assertions, deadlines, window 3/count 8 and installed entry point, after the 56
+raw-fault pairs finished. No recompile or retry occurred. Fresh outputs are in
+`build/runs/step19-final-wire-checks/receipt`; `matrix.json` SHA-256 is
+`7694a3f41424e2bc3211e3b36eb95add9cc3129f8a99d4b5781d7cabc647e1f2`. Before/after checks verified
+all installed inputs stayed byte-identical. The earlier matrices remain separate
+functional evidence; none of these runs is a capacity benchmark. See the
+[review](reviews/0017-receipt-scenario.md) for the exact role counts.

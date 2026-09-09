@@ -317,13 +317,16 @@ class ExchangeConnectionTest {
             Thread delivery = Thread.ofPlatform()
                     .daemon()
                     .unstarted(() -> transport.receive(hex("00000021000000050000000000000007" + "00".repeat(17))));
-            synchronized (connection) {
+            connection.coordination.lock();
+            try {
                 delivery.start();
                 long bound = System.nanoTime() + TimeUnit.SECONDS.toNanos(2);
-                while (delivery.getState() != Thread.State.BLOCKED && System.nanoTime() - bound < 0)
+                while (!connection.coordination.hasQueuedThread(delivery) && System.nanoTime() - bound < 0)
                     Thread.onSpinWait();
-                assertEquals(Thread.State.BLOCKED, delivery.getState());
+                assertTrue(connection.coordination.hasQueuedThread(delivery));
                 clock.addAndGet(101);
+            } finally {
+                connection.coordination.unlock();
             }
             byte[] expired = transport.writes.poll(2, TimeUnit.SECONDS);
             assertNotNull(expired);

@@ -96,7 +96,8 @@ final class MessageExchange {
     }
 
     private void complete(Entry entry, HandlerResponse<?> response, Throwable failure) {
-        synchronized (connection) {
+        connection.coordination.lock();
+        try {
             if (!pending.contains(entry) || entry.frame != null) return;
             if (clock.getAsLong() - entry.deadline >= 0) {
                 cancel(entry);
@@ -117,6 +118,8 @@ final class MessageExchange {
             }
             entry.fallback = null;
             flush();
+        } finally {
+            connection.coordination.unlock();
         }
     }
 
@@ -212,17 +215,23 @@ final class MessageExchange {
 
         @Override
         public boolean beforeWrite() {
-            synchronized (connection) {
+            connection.coordination.lock();
+            try {
                 return pending.contains(entry);
+            } finally {
+                connection.coordination.unlock();
             }
         }
 
         @Override
         public void written() {
-            synchronized (connection) {
+            connection.coordination.lock();
+            try {
                 if (pending.remove(entry)) retainedBytes -= entry.bytes;
                 flush();
                 connection.messageReplyFinished();
+            } finally {
+                connection.coordination.unlock();
             }
         }
 

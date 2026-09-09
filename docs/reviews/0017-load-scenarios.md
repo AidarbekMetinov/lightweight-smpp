@@ -1230,3 +1230,58 @@ I: pass | Implements exactly poll/certainty/cancel without transport or future m
 D: pass | Uses the tool observation interface and immutable result values only.
 findings: none
 ```
+
+## Final installed payload audit
+
+No project-owned Java/Python source or test changed for this evidence and no
+Gradle invocation was made. External standard-library harnesses remained under
+ignored run outputs. The final executing inputs and source declaration are
+recorded in the [load guide](../LOAD_TESTING.md) and the copied candidate artifact/source
+manifests. Library hash `609e0d4e6150e3704942339a9df621465f662ef86e52241bc696c2adbd5a717f` and simulator hash `a59d553d3ec84de5d953a927696565f2c498384386a241a74a113426011d1d9e` were
+independently checked in each of the 48 executing role reports and against every
+installed file before and after execution.
+
+`payload_matrix.py` SHA-256
+`bc88d5fca8fc5bc5b4998dbdc8cb8802eb474c3e1ca8b3bede00f5156b098eb0`
+ran the actual 24 pairs with a single bounded observer and at most two extra JVMs
+at a time. Its original matrix exited 1: 23 pairs passed and one delivery/5.0/4096
+pair failed only the blanket no-unanswered-controls criterion. The captured
+client unbind sequence 2 remains recorded as lacking an observed response.
+Both target processes in that pair exited 0 after four exact positively
+acknowledged deliveries and full physical cleanup. Inspection of the final
+`EndpointTermination` contract, shutdown documentation and five-second endpoint
+shutdown call established the distinction between bounded physical retirement
+and a proven graceful control exchange.
+
+The subsequent independent `audit_application_captures.py` (SHA-256
+`ce957bd4eba8361eafa6c2a57c0003c2c24512851cba22398f235b4872a4fee7`)
+exited 0. It rebuilt full mandatory bodies from separate literal field layouts,
+computed expected opaque bytes using source-verified JDK 21 seeded arithmetic,
+checked exact header/status/sequence pairing, retained the unanswered unbind,
+and reconciled all application counters and cleanup fields. It verified that
+neither the captures nor installed files changed. Eight independently executed
+JDK vectors and a deliberately corrupted byte verify the arithmetic/oracle
+boundary; no product encoder output is used as the expected body. The measured
+result is 128 application requests and 128 positive replies carrying 137216
+exact bytes, not a reclassification of the original observer's failed criterion.
+Audit output SHA-256: `35c1e8fedfac3217b68acce9a4d7b378e0770ff2289a0518f021b1e4bc1dcdfb`.
+
+Earlier outcomes are preserved separately. Candidate2's first payload attempt
+passed 7/24 and had 17 external three-second accept-budget failures before any
+SMPP frame; a diagnostic trace established cold JVM startup. Its second attempt
+with finite ten-second startup allowance retained 23 overbroad
+`observedSessions == 0` checker failures and one real bidirectional-data local
+rejection (three client successes plus one local rejection). The latter is not
+classified as a checker defect. Candidate3 contains the independently tested
+receiver-drain correction. A preliminary remote-JShell oracle invocation timed
+out before the matrix; the retained local-execution JDK oracle then completed
+all eight vectors. These setup/checker observations are not invented TDD reds.
+
+Manual review of both external harnesses covers all declared types/functions
+in `harness-review.md` under the final candidate3 evidence. Their scope remains
+finite protocol observation; they expose no project API, introduce no runtime
+dependency and do not modify the Java type inventory. Fixed bounds include one
+connection pair, 8192-byte frames, 65536 queued bytes per direction, at most 64
+recorded frames and 16 pending correlations, with finite startup/connect/proxy/
+process waits and explicit owned cleanup. Peak observed queue/input/record values
+were 4170 bytes, 4141 bytes and 20 frames. No throughput interpretation is made.

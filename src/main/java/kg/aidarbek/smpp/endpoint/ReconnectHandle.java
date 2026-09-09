@@ -5,6 +5,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 import java.util.function.LongSupplier;
 import java.util.function.Supplier;
@@ -12,6 +13,7 @@ import kg.aidarbek.smpp.request.BoundedNotifications;
 
 /** Explicit ownership of a bounded sequence of fresh connections, with no request or message replay. */
 public final class ReconnectHandle implements AutoCloseable {
+    private final ReentrantLock stateLock = new ReentrantLock();
     private final EndpointResources resources;
     private final ReconnectPolicy policy;
     private final Supplier<ConnectionAttempt> factory;
@@ -59,7 +61,8 @@ public final class ReconnectHandle implements AutoCloseable {
     void tick(long now) {
         ConnectionAttempt candidate;
         ConnectionAttempt created = null;
-        synchronized (this) {
+        stateLock.lock();
+        try {
             if (reason != null) {
                 finishIfStopped();
                 return;
@@ -81,6 +84,8 @@ public final class ReconnectHandle implements AutoCloseable {
                 current = created;
             }
             candidate = current;
+        } finally {
+            stateLock.unlock();
         }
         if (created != null) {
             ConnectionAttempt tracked = created;
@@ -90,7 +95,8 @@ public final class ReconnectHandle implements AutoCloseable {
         Optional<BoundSession> ready = candidate.connection().boundSession();
         if (ready.isEmpty()) return;
         boolean full;
-        synchronized (this) {
+        stateLock.lock();
+        try {
             if (current != candidate || reason != null || offered) return;
             Optional<BoundedNotifications.Reservation> callback = resources.notifications.tryReserve();
             full = callback.isEmpty();
@@ -101,6 +107,8 @@ public final class ReconnectHandle implements AutoCloseable {
                 BoundSession session = ready.orElseThrow();
                 callback.orElseThrow().dispatch(() -> notifySession(session));
             }
+        } finally {
+            stateLock.unlock();
         }
         if (full)
             stop(
@@ -119,9 +127,12 @@ public final class ReconnectHandle implements AutoCloseable {
         } catch (RuntimeException | Error failure) {
             stop(ReconnectResult.Reason.CALLBACK_FAILED, asRuntime(failure), true);
         } finally {
-            synchronized (this) {
+            stateLock.lock();
+            try {
                 callbackInFlight = false;
                 finishIfStopped();
+            } finally {
+                stateLock.unlock();
             }
         }
     }
@@ -130,7 +141,8 @@ public final class ReconnectHandle implements AutoCloseable {
         RuntimeException failure = expected.connection() == null
                 ? expected.rejection()
                 : expected.connection().closeReason().orElse(null);
-        synchronized (this) {
+        stateLock.lock();
+        try {
             if (current != expected) return;
             if (failure != null) lastFailure = failure;
             current = null;
@@ -141,13 +153,16 @@ public final class ReconnectHandle implements AutoCloseable {
             } else if (reason == null && attempts >= policy.maximumAttempts())
                 reason = ReconnectResult.Reason.ATTEMPTS_EXHAUSTED;
             finishIfStopped();
+        } finally {
+            stateLock.unlock();
         }
     }
 
     private boolean stop(ReconnectResult.Reason selected, RuntimeException failure, boolean closeConnection) {
         EndpointConnection connection;
         boolean won;
-        synchronized (this) {
+        stateLock.lock();
+        try {
             won = reason == null;
             if (won) {
                 reason = selected;
@@ -155,6 +170,8 @@ public final class ReconnectHandle implements AutoCloseable {
             }
             connection = current == null ? null : current.connection();
             finishIfStopped();
+        } finally {
+            stateLock.unlock();
         }
         if (won && closeConnection && connection != null) connection.close();
         return won;
@@ -182,15 +199,23 @@ public final class ReconnectHandle implements AutoCloseable {
      * @return current ready session or empty */
     public Optional<BoundSession> currentSession() {
         EndpointConnection connection;
-        synchronized (this) {
+        stateLock.lock();
+        try {
             connection = current == null ? null : current.connection();
+        } finally {
+            stateLock.unlock();
         }
         return connection == null ? Optional.empty() : connection.boundSession();
     }
     /** Returns the number of lifetime attempts already started.
      * @return initiated attempts */
-    public synchronized int attempts() {
-        return attempts;
+    public int attempts() {
+        stateLock.lock();
+        try {
+            return attempts;
+        } finally {
+            stateLock.unlock();
+        }
     }
     /** Stops future attempts and aborts current connecting or bound ownership.
      * @return true only if caller cancellation selected the terminal policy */

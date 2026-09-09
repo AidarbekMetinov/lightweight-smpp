@@ -240,3 +240,30 @@ SHA-256 `321e3d037f51ae0e60ac0ca813f27193a025b463c7da80dd978692fd3496d366`.
 The [review](reviews/0017-fault-peer.md) records actual target outcomes, including
 17 successes / 15 timeouts for this run's slow-reader cases. These finite
 observations establish fault behavior, not a throughput or backpressure limit.
+
+## Final candidate 3 replay
+
+All 56 raw-fault process pairs passed the original assertions again against
+`/tmp/lightweight-smpp-candidate3`: seven faults × two profiles × submit/delivery
+and data in both directions. The two original opt-in unittest methods completed
+in 113.172 seconds with zero failures/skips; runtime source, test source,
+assertions and timeout settings were unchanged. All 56 selected injections were
+attempted/completed once, none were abandoned, and every raw/target cleanup
+check passed with zero final held/pending work.
+
+| Final installed input | SHA-256 |
+| --- | --- |
+| `bin/simulator` | `03fbbcfad916ff2b1a59b3a0e604b902bdeb9a1b195a6dfbaa66ea8d5c71abf5` |
+| `lib/lightweight-smpp-0.1.0-rc.1.jar` | `609e0d4e6150e3704942339a9df621465f662ef86e52241bc696c2adbd5a717f` |
+| `lib/simulator-0.1.0-rc.1.jar` | `a59d553d3ec84de5d953a927696565f2c498384386a241a74a113426011d1d9e` |
+| `lib/HdrHistogram-2.2.2.jar` | `22d1d4316c4ec13a68b559e98c8256d69071593731da96136640f864fa14fad8` |
+
+Declared source: `387aed9ef523c85fb3cfa0f8f245438759deb6fc+2d63cd99c32ca3b197cbc973a100c9280ef00a05d4c5311b0cb7c011bb823a00`. The replay was held until the older heavy campaigns
+finished, then ran sequentially before the receipt matrix while four final soak
+JVMs and a remaining target campaign shared the host. It is a functional check,
+not an isolated capacity/latency measurement. All installed files remained
+byte-identical before and after both matrices. Original reports, exact commands,
+artifact/source manifests and reconciliation are retained in `build/runs/step19-final-wire-checks`;
+`summary.json` SHA-256 is `cd48951751a55b297d65715d52904039fe466bf08708a4bfb61e9e44624022cc`. The preceding candidate2 evidence remains
+unchanged and distinct. See the [review](reviews/0017-fault-peer.md) for actual
+fault outcome counts and retention peaks.

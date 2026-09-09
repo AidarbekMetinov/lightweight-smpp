@@ -13,6 +13,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 import java.util.function.LongSupplier;
 import java.util.stream.Collectors;
@@ -55,17 +56,26 @@ import kg.aidarbek.smpp.spi.WriteObserver;
 
 /** Serializes one connection's protocol lifecycle over the frame transport port. */
 final class EndpointConnection implements FrameListener, AutoCloseable {
-    synchronized boolean canSendAlert() {
-        return !closed
-                && !draining
-                && machine.requestPermission(PduDirection.OUTBOUND, 0x102, SendRequirements.COMMON)
-                        == SessionDecision.ACCEPTED;
+    // One reentrant state guard is shared by exchange callbacks; contended virtual callers may unmount.
+    final ReentrantLock coordination = new ReentrantLock();
+
+    boolean canSendAlert() {
+        coordination.lock();
+        try {
+            return !closed
+                    && !draining
+                    && machine.requestPermission(PduDirection.OUTBOUND, 0x102, SendRequirements.COMMON)
+                            == SessionDecision.ACCEPTED;
+        } finally {
+            coordination.unlock();
+        }
     }
 
     NotificationSend sendAlert(
             AlertNotification command, RequestOptions requestedOptions, SendRequirements requirements) {
         long started = nanoClock.getAsLong();
-        synchronized (this) {
+        coordination.lock();
+        try {
             Objects.requireNonNull(command, "command");
             Objects.requireNonNull(requirements, "requirements");
             if (!canSendAlert()) throw new IllegalStateException("Alert is unavailable in the current lifecycle");
@@ -80,6 +90,8 @@ final class EndpointConnection implements FrameListener, AutoCloseable {
             long deadline = started
                     + (requestedOptions == null ? options.requestTimeout() : requestedOptions.timeout()).toNanos();
             return notifications.send(command, frame, deadline);
+        } finally {
+            coordination.unlock();
         }
     }
 
@@ -362,20 +374,30 @@ final class EndpointConnection implements FrameListener, AutoCloseable {
         return connection;
     }
 
-    synchronized boolean bindTimeRemaining() {
-        return !closed && nanoClock.getAsLong() - bindDeadline < 0;
+    boolean bindTimeRemaining() {
+        coordination.lock();
+        try {
+            return !closed && nanoClock.getAsLong() - bindDeadline < 0;
+        } finally {
+            coordination.unlock();
+        }
     }
 
-    synchronized void outbindAuthenticated(boolean accepted, Throwable failure) {
-        if (closed) return;
-        if (!accepted || failure != null || !bindTimeRemaining()) {
-            fail(failure(EndpointException.Reason.BIND_REJECTED));
-            return;
-        }
+    void outbindAuthenticated(boolean accepted, Throwable failure) {
+        coordination.lock();
         try {
-            beginClientBind();
-        } catch (RuntimeException admissionFailure) {
-            fail(admissionFailure);
+            if (closed) return;
+            if (!accepted || failure != null || !bindTimeRemaining()) {
+                fail(failure(EndpointException.Reason.BIND_REJECTED));
+                return;
+            }
+            try {
+                beginClientBind();
+            } catch (RuntimeException admissionFailure) {
+                fail(admissionFailure);
+            }
+        } finally {
+            coordination.unlock();
         }
     }
 
@@ -391,8 +413,13 @@ final class EndpointConnection implements FrameListener, AutoCloseable {
 
     private final CongestionMonitor congestion = new CongestionMonitor();
 
-    synchronized Optional<CongestionObservation> congestion() {
-        return congestion.snapshot();
+    Optional<CongestionObservation> congestion() {
+        coordination.lock();
+        try {
+            return congestion.snapshot();
+        } finally {
+            coordination.unlock();
+        }
     }
 
     UUID id() {
@@ -403,31 +430,52 @@ final class EndpointConnection implements FrameListener, AutoCloseable {
         return peer;
     }
 
-    synchronized SessionState state() {
-        return machine.state();
+    SessionState state() {
+        coordination.lock();
+        try {
+            return machine.state();
+        } finally {
+            coordination.unlock();
+        }
     }
 
-    synchronized BindMode bindMode() {
-        return mode;
+    BindMode bindMode() {
+        coordination.lock();
+        try {
+            return mode;
+        } finally {
+            coordination.unlock();
+        }
     }
 
-    synchronized VersionNegotiation negotiation() {
-        return machine.negotiation().orElseThrow();
+    VersionNegotiation negotiation() {
+        coordination.lock();
+        try {
+            return machine.negotiation().orElseThrow();
+        } finally {
+            coordination.unlock();
+        }
     }
 
-    synchronized boolean canSend(Operation<?, ?> operation) {
-        Objects.requireNonNull(operation, "operation");
-        return !closed
-                && !draining
-                && OperationCatalog.all().contains(operation)
-                && machine.requestPermission(PduDirection.OUTBOUND, operation.commandId(), SendRequirements.COMMON)
-                        == SessionDecision.ACCEPTED;
+    boolean canSend(Operation<?, ?> operation) {
+        coordination.lock();
+        try {
+            Objects.requireNonNull(operation, "operation");
+            return !closed
+                    && !draining
+                    && OperationCatalog.all().contains(operation)
+                    && machine.requestPermission(PduDirection.OUTBOUND, operation.commandId(), SendRequirements.COMMON)
+                            == SessionDecision.ACCEPTED;
+        } finally {
+            coordination.unlock();
+        }
     }
 
     <Q extends Command, R extends Command> RequestHandle<R> send(
             Operation<Q, R> operation, Q command, RequestOptions requestedOptions, SendRequirements requirements) {
         long started = nanoClock.getAsLong();
-        synchronized (this) {
+        coordination.lock();
+        try {
             Objects.requireNonNull(command, "command");
             Objects.requireNonNull(requirements, "requirements");
             discardFinishedMessageContexts();
@@ -457,14 +505,19 @@ final class EndpointConnection implements FrameListener, AutoCloseable {
             writeRequest(pdus.encode(request, profile()), handle);
             discardFinishedMessageContexts();
             return handle;
+        } finally {
+            coordination.unlock();
         }
     }
 
     RequestHandle<ControlCommand> control(ControlCommand.Type type, RequestOptions requestedOptions) {
         long started = nanoClock.getAsLong();
-        synchronized (this) {
+        coordination.lock();
+        try {
             if (draining) throw new IllegalStateException("Endpoint shutdown has stopped request admission");
             return sendControl(type, requestedOptions, started);
+        } finally {
+            coordination.unlock();
         }
     }
 
@@ -495,13 +548,23 @@ final class EndpointConnection implements FrameListener, AutoCloseable {
         return handle;
     }
 
-    synchronized Optional<RuntimeException> closeReason() {
-        return closed ? Optional.ofNullable(closeReason) : Optional.empty();
+    Optional<RuntimeException> closeReason() {
+        coordination.lock();
+        try {
+            return closed ? Optional.ofNullable(closeReason) : Optional.empty();
+        } finally {
+            coordination.unlock();
+        }
     }
 
-    synchronized SessionResources resources() {
-        return new SessionResources(
-                window.pendingCount(), window.pendingBytes(), messages.pendingCount(), messages.retainedBytes());
+    SessionResources resources() {
+        coordination.lock();
+        try {
+            return new SessionResources(
+                    window.pendingCount(), window.pendingBytes(), messages.pendingCount(), messages.retainedBytes());
+        } finally {
+            coordination.unlock();
+        }
     }
 
     CompletionStage<Void> termination() {
@@ -516,33 +579,53 @@ final class EndpointConnection implements FrameListener, AutoCloseable {
         return boundResult;
     }
 
-    synchronized boolean cancelBind() {
-        if (!boundResultExpected || closed || notified) return false;
-        boolean won = binding == null || binding.cancel();
-        closeReason = binding == null
-                ? failure(EndpointException.Reason.CANCELLED)
-                : binding.terminalOutcome()
-                        .orElseThrow()
-                        .failure()
-                        .orElseGet(() -> failure(EndpointException.Reason.CLOSED));
-        close();
-        return won;
+    boolean cancelBind() {
+        coordination.lock();
+        try {
+            if (!boundResultExpected || closed || notified) return false;
+            boolean won = binding == null || binding.cancel();
+            closeReason = binding == null
+                    ? failure(EndpointException.Reason.CANCELLED)
+                    : binding.terminalOutcome()
+                            .orElseThrow()
+                            .failure()
+                            .orElseGet(() -> failure(EndpointException.Reason.CLOSED));
+            close();
+            return won;
+        } finally {
+            coordination.unlock();
+        }
     }
 
-    synchronized void fail(RuntimeException failure) {
-        if (!closed) closeReason = failure;
-        close();
+    void fail(RuntimeException failure) {
+        coordination.lock();
+        try {
+            if (!closed) closeReason = failure;
+            close();
+        } finally {
+            coordination.unlock();
+        }
     }
 
-    synchronized Optional<BoundSession> boundSession() {
-        return boundState() && notified ? Optional.of(facade) : Optional.empty();
+    Optional<BoundSession> boundSession() {
+        coordination.lock();
+        try {
+            return boundState() && notified ? Optional.of(facade) : Optional.empty();
+        } finally {
+            coordination.unlock();
+        }
     }
 
-    synchronized void beginShutdown(long deadline) {
-        draining = true;
-        drainDeadline = deadline;
-        if (boundState()) advanceShutdown();
-        else if (machine.state() != SessionState.UNBINDING) close();
+    void beginShutdown(long deadline) {
+        coordination.lock();
+        try {
+            draining = true;
+            drainDeadline = deadline;
+            if (boundState()) advanceShutdown();
+            else if (machine.state() != SessionState.UNBINDING) close();
+        } finally {
+            coordination.unlock();
+        }
     }
 
     private void advanceShutdown() {
@@ -572,34 +655,40 @@ final class EndpointConnection implements FrameListener, AutoCloseable {
         }
     }
 
-    synchronized void tick(long now) {
-        if (closed) return;
-        if (machine.state() == SessionState.CONNECTING && now - connectDeadline >= 0) {
-            closeReason =
-                    failure(outgoingTcp ? EndpointException.Reason.TRANSPORT : EndpointException.Reason.BIND_TIMEOUT);
-            close();
-            return;
-        }
-        window.expire();
-        discardFinishedMessageContexts();
-        messages.expire(now);
-        notifications.expire(now);
-        for (RequestHandle<?> handle : new RequestHandle<?>[] {binding, unbind}) {
-            if (handle != null
-                    && handle.isDone()
-                    && handle.terminalOutcome().orElseThrow().failure().isPresent()) {
-                closeReason = handle.terminalOutcome().orElseThrow().failure().orElseThrow();
+    void tick(long now) {
+        coordination.lock();
+        try {
+            if (closed) return;
+            if (machine.state() == SessionState.CONNECTING && now - connectDeadline >= 0) {
+                closeReason = failure(
+                        outgoingTcp ? EndpointException.Reason.TRANSPORT : EndpointException.Reason.BIND_TIMEOUT);
                 close();
                 return;
             }
+            window.expire();
+            discardFinishedMessageContexts();
+            messages.expire(now);
+            notifications.expire(now);
+            for (RequestHandle<?> handle : new RequestHandle<?>[] {binding, unbind}) {
+                if (handle != null
+                        && handle.isDone()
+                        && handle.terminalOutcome().orElseThrow().failure().isPresent()) {
+                    closeReason =
+                            handle.terminalOutcome().orElseThrow().failure().orElseThrow();
+                    close();
+                    return;
+                }
+            }
+            if (machine.state() != SessionState.CONNECTING && !notified && now - bindDeadline >= 0) {
+                closeReason = failure(EndpointException.Reason.BIND_TIMEOUT);
+                close();
+                return;
+            }
+            maintainKeepalive(now);
+            advanceShutdown();
+        } finally {
+            coordination.unlock();
         }
-        if (machine.state() != SessionState.CONNECTING && !notified && now - bindDeadline >= 0) {
-            closeReason = failure(EndpointException.Reason.BIND_TIMEOUT);
-            close();
-            return;
-        }
-        maintainKeepalive(now);
-        advanceShutdown();
     }
 
     private void maintainKeepalive(long now) {
@@ -631,77 +720,103 @@ final class EndpointConnection implements FrameListener, AutoCloseable {
         }
     }
 
-    synchronized void configureKeepalive(KeepalivePolicy policy) {
-        if (startInvoked) throw new IllegalStateException("Keepalive policy must be fixed before starting");
-        keepalive = policy;
+    void configureKeepalive(KeepalivePolicy policy) {
+        coordination.lock();
+        try {
+            if (startInvoked) throw new IllegalStateException("Keepalive policy must be fixed before starting");
+            keepalive = policy;
+        } finally {
+            coordination.unlock();
+        }
     }
 
-    synchronized void configureStartup(long timeoutNanos, boolean outgoing) {
-        if (startInvoked || timeoutNanos <= 0)
-            throw new IllegalStateException("Startup policy must be fixed before starting");
-        outgoingTcp = outgoing;
-        connectDeadline = createdAt + timeoutNanos;
+    void configureStartup(long timeoutNanos, boolean outgoing) {
+        coordination.lock();
+        try {
+            if (startInvoked || timeoutNanos <= 0)
+                throw new IllegalStateException("Startup policy must be fixed before starting");
+            outgoingTcp = outgoing;
+            connectDeadline = createdAt + timeoutNanos;
+        } finally {
+            coordination.unlock();
+        }
     }
 
     void start() {
-        synchronized (this) {
+        coordination.lock();
+        try {
             if (startInvoked) throw new IllegalStateException("Connection already started");
             startInvoked = true;
+        } finally {
+            coordination.unlock();
         }
         transport.start(this);
     }
 
     @Override
-    public synchronized void connected() {
-        if (closed) return;
+    public void connected() {
+        coordination.lock();
         try {
-            machine.connected();
-            if (outgoingTcp)
-                bindDeadline = nanoClock.getAsLong() + EndpointOptions.durationNanos(options.bindTimeout());
-            if (client != null || outbindFlow != null) {
-                if (outbindFlow == null) beginClientBind();
-                else outbindFlow.connected();
+            if (closed) return;
+            try {
+                machine.connected();
+                if (outgoingTcp)
+                    bindDeadline = nanoClock.getAsLong() + EndpointOptions.durationNanos(options.bindTimeout());
+                if (client != null || outbindFlow != null) {
+                    if (outbindFlow == null) beginClientBind();
+                    else outbindFlow.connected();
+                }
+            } catch (RuntimeException failure) {
+                fail(failure);
             }
-        } catch (RuntimeException failure) {
-            fail(failure);
+        } finally {
+            coordination.unlock();
         }
     }
 
     /** Starts the ESME bind using the already selected total bind deadline. */
-    synchronized void beginClientBind() {
-        if (closed
-                || client == null
-                || (machine.state() != SessionState.OPEN && machine.state() != SessionState.OUTBOUND)
-                || binding != null) throw new IllegalStateException("Connection is not ready for an ESME bind");
-        long started = nanoClock.getAsLong();
-        long remaining = bindDeadline - started;
-        if (remaining <= 0) {
-            fail(failure(EndpointException.Reason.BIND_TIMEOUT));
-            return;
+    void beginClientBind() {
+        coordination.lock();
+        try {
+            if (closed
+                    || client == null
+                    || (machine.state() != SessionState.OPEN && machine.state() != SessionState.OUTBOUND)
+                    || binding != null) throw new IllegalStateException("Connection is not ready for an ESME bind");
+            long started = nanoClock.getAsLong();
+            long remaining = bindDeadline - started;
+            if (remaining <= 0) {
+                fail(failure(EndpointException.Reason.BIND_TIMEOUT));
+                return;
+            }
+            BindRequest command = client.bind();
+            mode = command.mode();
+            byte[] checked = pdus.encode(new Pdu<>(0, 1, command), profile());
+            binding = window.admit(
+                    command.commandId(),
+                    mode.responseCommandId(),
+                    BindResponse.class,
+                    checked.length,
+                    RequestOptions.timeout(Duration.ofNanos(remaining)),
+                    started);
+            machine.bindRequest(
+                    PduDirection.OUTBOUND,
+                    mode,
+                    command.interfaceVersion(),
+                    binding.identity().sequenceNumber());
+            writeRequest(pdus.encode(new Pdu<>(0, binding.identity().sequenceNumber(), command), profile()), binding);
+        } finally {
+            coordination.unlock();
         }
-        BindRequest command = client.bind();
-        mode = command.mode();
-        byte[] checked = pdus.encode(new Pdu<>(0, 1, command), profile());
-        binding = window.admit(
-                command.commandId(),
-                mode.responseCommandId(),
-                BindResponse.class,
-                checked.length,
-                RequestOptions.timeout(Duration.ofNanos(remaining)),
-                started);
-        machine.bindRequest(
-                PduDirection.OUTBOUND,
-                mode,
-                command.interfaceVersion(),
-                binding.identity().sequenceNumber());
-        writeRequest(pdus.encode(new Pdu<>(0, binding.identity().sequenceNumber(), command), profile()), binding);
     }
 
     @Override
     public void frame(byte[] frame) {
         long arrived = nanoClock.getAsLong();
-        synchronized (this) {
+        coordination.lock();
+        try {
             receiveFrame(frame, arrived);
+        } finally {
+            coordination.unlock();
         }
     }
 
@@ -922,35 +1037,45 @@ final class EndpointConnection implements FrameListener, AutoCloseable {
                 .orElseGet(() -> failure(EndpointException.Reason.CLOSED)));
     }
 
-    private synchronized void authenticate(long sequence, BindDecision decision, Throwable error) {
-        if (closed || machine.state() != SessionState.BINDING) return;
-        long status = error == null ? decision.commandStatus() : 8;
-        OptionalParameters parameters = status == 0
-                ? new OptionalParameters(List.of(new Tlv(
-                        0x0210, new byte[] {(byte) server.advertisedVersion().interfaceVersion()})))
-                : EndpointPdus.NO_PARAMETERS;
-        Pdu<BindResponse> response = new Pdu<>(
-                status,
-                sequence,
-                new BindResponse(mode, status == 0 ? Optional.of(server.systemId()) : Optional.empty(), parameters));
-        SessionDecision result = machine.bindResponse(
-                PduDirection.OUTBOUND,
-                EndpointPdus.header(response),
-                status == 0 ? OptionalInt.of(server.advertisedVersion().interfaceVersion()) : OptionalInt.empty());
-        if (result != SessionDecision.ACCEPTED && result != SessionDecision.BIND_REJECTED) {
-            close();
-            return;
+    private void authenticate(long sequence, BindDecision decision, Throwable error) {
+        coordination.lock();
+        try {
+            if (closed || machine.state() != SessionState.BINDING) return;
+            long status = error == null ? decision.commandStatus() : 8;
+            OptionalParameters parameters = status == 0
+                    ? new OptionalParameters(List.of(new Tlv(
+                            0x0210,
+                            new byte[] {(byte) server.advertisedVersion().interfaceVersion()})))
+                    : EndpointPdus.NO_PARAMETERS;
+            Pdu<BindResponse> response = new Pdu<>(
+                    status,
+                    sequence,
+                    new BindResponse(
+                            mode, status == 0 ? Optional.of(server.systemId()) : Optional.empty(), parameters));
+            SessionDecision result = machine.bindResponse(
+                    PduDirection.OUTBOUND,
+                    EndpointPdus.header(response),
+                    status == 0 ? OptionalInt.of(server.advertisedVersion().interfaceVersion()) : OptionalInt.empty());
+            if (result != SessionDecision.ACCEPTED && result != SessionDecision.BIND_REJECTED) {
+                close();
+                return;
+            }
+            if (status != 0 && boundResultExpected)
+                closeReason = new EndpointException(EndpointException.Reason.BIND_REJECTED, id, status, -1);
+            writeReply(pdus.encode(response, profile()), status != 0, this::notifyBound);
+        } finally {
+            coordination.unlock();
         }
-        if (status != 0 && boundResultExpected)
-            closeReason = new EndpointException(EndpointException.Reason.BIND_REJECTED, id, status, -1);
-        writeReply(pdus.encode(response, profile()), status != 0, this::notifyBound);
     }
 
     private void notifyBound() {
-        synchronized (this) {
+        coordination.lock();
+        try {
             if (closed || notified) return;
             notified = true;
             lastInbound = nanoClock.getAsLong();
+        } finally {
+            coordination.unlock();
         }
         boundNotification.dispatch(() -> {
             if (boundResultExpected) bound.complete(facade);
@@ -1015,11 +1140,16 @@ final class EndpointConnection implements FrameListener, AutoCloseable {
         advanceShutdown();
     }
 
-    private synchronized ProtocolProfile profile() {
-        return machine.negotiation()
-                .flatMap(VersionNegotiation::effectiveProfile)
-                .orElseGet(() -> ProtocolProfile.forVersion(
-                        client == null ? server.advertisedVersion() : client.requestedVersion()));
+    private ProtocolProfile profile() {
+        coordination.lock();
+        try {
+            return machine.negotiation()
+                    .flatMap(VersionNegotiation::effectiveProfile)
+                    .orElseGet(() -> ProtocolProfile.forVersion(
+                            client == null ? server.advertisedVersion() : client.requestedVersion()));
+        } finally {
+            coordination.unlock();
+        }
     }
 
     private static OptionalInt advertisement(BindResponse response) {
@@ -1040,18 +1170,24 @@ final class EndpointConnection implements FrameListener, AutoCloseable {
     }
 
     @Override
-    public synchronized void closed(TransportFailure failure) {
-        if (closed) return;
-        window.disconnect(failure);
-        closeReason = binding != null && !notified
-                ? binding.terminalOutcome().orElseThrow().failure().orElse(failure)
-                : failure;
-        close();
+    public void closed(TransportFailure failure) {
+        coordination.lock();
+        try {
+            if (closed) return;
+            window.disconnect(failure);
+            closeReason = binding != null && !notified
+                    ? binding.terminalOutcome().orElseThrow().failure().orElse(failure)
+                    : failure;
+            close();
+        } finally {
+            coordination.unlock();
+        }
     }
 
     @Override
     public void close() {
-        synchronized (this) {
+        coordination.lock();
+        try {
             if (closed) return;
             closed = true;
             machine.close();
@@ -1070,6 +1206,8 @@ final class EndpointConnection implements FrameListener, AutoCloseable {
                     boundNotification.dispatch(() -> bound.completeExceptionally(failure));
                 }
             }
+        } finally {
+            coordination.unlock();
         }
         transport.close();
     }
@@ -1078,10 +1216,13 @@ final class EndpointConnection implements FrameListener, AutoCloseable {
     private final class OutbindWrite implements WriteObserver {
         @Override
         public boolean beforeWrite() {
-            synchronized (EndpointConnection.this) {
+            coordination.lock();
+            try {
                 if (!bindTimeRemaining()) return false;
                 outbindFlow.sending = true;
                 return true;
+            } finally {
+                coordination.unlock();
             }
         }
 
@@ -1106,17 +1247,23 @@ final class EndpointConnection implements FrameListener, AutoCloseable {
 
         @Override
         public boolean beforeWrite() {
-            synchronized (EndpointConnection.this) {
+            coordination.lock();
+            try {
                 return !closed;
+            } finally {
+                coordination.unlock();
             }
         }
 
         @Override
         public void written() {
-            synchronized (EndpointConnection.this) {
+            coordination.lock();
+            try {
                 pendingReplies--;
                 if (closeAfter || closeWhenFlushed) finishAfterReplies();
                 else afterWrite.run();
+            } finally {
+                coordination.unlock();
             }
         }
 

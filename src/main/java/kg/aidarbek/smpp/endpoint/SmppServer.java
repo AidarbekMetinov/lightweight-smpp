@@ -9,6 +9,7 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 import kg.aidarbek.smpp.spi.FrameTransport;
 import kg.aidarbek.smpp.transport.TcpListener;
@@ -16,6 +17,7 @@ import kg.aidarbek.smpp.transport.TcpTransportConfig;
 
 /** A message-center TCP listener composing binding, control and optional typed application message services. */
 public final class SmppServer implements AutoCloseable {
+    private final ReentrantLock stateLock = new ReentrantLock();
     private final ServerConfig config;
     private final EndpointOptions options;
     private final ConnectionLifecycle lifecycle;
@@ -116,30 +118,37 @@ public final class SmppServer implements AutoCloseable {
 
     /** Binds once to the configured address.
      * @return protected bound-address result */
-    public synchronized CompletionStage<InetSocketAddress> start() {
-        if (closed || started)
-            return CompletableFuture.<InetSocketAddress>failedFuture(
-                            new IllegalStateException("Server can be started once before closure"))
-                    .minimalCompletionStage();
-        started = true;
+    public CompletionStage<InetSocketAddress> start() {
+        stateLock.lock();
         try {
-            listener = TcpListener.bind(
-                    config.listenAddress(),
-                    options.maximumConnections(),
-                    new TcpTransportConfig(
-                            options.pduLimits().maximumPduLength(),
-                            options.requestWindow(),
-                            options.maximumPendingBytes(),
-                            8,
-                            65536,
-                            0),
-                    lifecycle.tls().orElse(null),
-                    this::accept);
-            resources.listener(listener::close, listener.termination());
-            return CompletableFuture.completedFuture(listener.localAddress()).minimalCompletionStage();
-        } catch (IOException | RuntimeException failure) {
-            close();
-            return CompletableFuture.<InetSocketAddress>failedFuture(failure).minimalCompletionStage();
+            if (closed || started)
+                return CompletableFuture.<InetSocketAddress>failedFuture(
+                                new IllegalStateException("Server can be started once before closure"))
+                        .minimalCompletionStage();
+            started = true;
+            try {
+                listener = TcpListener.bind(
+                        config.listenAddress(),
+                        options.maximumConnections(),
+                        new TcpTransportConfig(
+                                options.pduLimits().maximumPduLength(),
+                                options.requestWindow(),
+                                options.maximumPendingBytes(),
+                                8,
+                                65536,
+                                0),
+                        lifecycle.tls().orElse(null),
+                        this::accept);
+                resources.listener(listener::close, listener.termination());
+                return CompletableFuture.completedFuture(listener.localAddress())
+                        .minimalCompletionStage();
+            } catch (IOException | RuntimeException failure) {
+                close();
+                return CompletableFuture.<InetSocketAddress>failedFuture(failure)
+                        .minimalCompletionStage();
+            }
+        } finally {
+            stateLock.unlock();
         }
     }
 
@@ -190,10 +199,16 @@ public final class SmppServer implements AutoCloseable {
     /** Stops acceptance and attempts unbinding within one total shutdown bound.
      * @param grace nonnegative total bound
      * @return termination snapshot */
-    public synchronized CompletionStage<EndpointTermination> shutdown(Duration grace) {
-        CompletionStage<EndpointTermination> result = resources.shutdown(Objects.requireNonNull(grace, "grace"), false);
-        closed = true;
-        return result;
+    public CompletionStage<EndpointTermination> shutdown(Duration grace) {
+        stateLock.lock();
+        try {
+            CompletionStage<EndpointTermination> result =
+                    resources.shutdown(Objects.requireNonNull(grace, "grace"), false);
+            closed = true;
+            return result;
+        } finally {
+            stateLock.unlock();
+        }
     }
     /** Observes the separate bounded shutdown result.
      * @return protected termination result */
@@ -202,8 +217,13 @@ public final class SmppServer implements AutoCloseable {
     }
     /** Aborts listener/sessions idempotently and requests owned worker shutdown without blocking. */
     @Override
-    public synchronized void close() {
-        closed = true;
-        resources.close();
+    public void close() {
+        stateLock.lock();
+        try {
+            closed = true;
+            resources.close();
+        } finally {
+            stateLock.unlock();
+        }
     }
 }

@@ -371,3 +371,63 @@ SHA-256 `321e3d037f51ae0e60ac0ca813f27193a025b463c7da80dd978692fd3496d366` and i
 136 fresh role processes (80 Java, 56 Python) across the two matrices.
 No Java/build changes or extra type reviews arise from this measurement-only
 documentation append; the 17 whole-type source hashes above remain current.
+
+## Final candidate 3 verification: installed receipt matrix
+
+All **12 pairs / 24 fresh JVMs** passed the unchanged installed fixture assertions
+against `/tmp/lightweight-smpp-candidate3`, declared `387aed9ef523c85fb3cfa0f8f245438759deb6fc+2d63cd99c32ca3b197cbc973a100c9280ef00a05d4c5311b0cb7c011bb823a00`. There was no
+Java/build change, no assertion/deadline adjustment and no retry; the 17 existing
+whole-type reviews and hashes remain current. The exact external script
+`build/runs/step19-final-wire-checks/scripts/receipt-candidate3.py` differs from the prior script only in
+candidate path and fresh output path. It launches the public separate entry
+point `kg.aidarbek.simulator.ReceiptScenario` from installed JARs, not from a
+locally recompiled class directory.
+
+| Final installed input | SHA-256 |
+| --- | --- |
+| `bin/simulator` | `03fbbcfad916ff2b1a59b3a0e604b902bdeb9a1b195a6dfbaa66ea8d5c71abf5` |
+| `lib/lightweight-smpp-0.1.0-rc.1.jar` | `609e0d4e6150e3704942339a9df621465f662ef86e52241bc696c2adbd5a717f` |
+| `lib/simulator-0.1.0-rc.1.jar` | `a59d553d3ec84de5d953a927696565f2c498384386a241a74a113426011d1d9e` |
+| `lib/HdrHistogram-2.2.2.jar` | `22d1d4316c4ec13a68b559e98c8256d69071593731da96136640f864fa14fad8` |
+
+The original count 8/window 3, request timeout 2s, client duration 10s, server
+12s and drain 1s are retained, with `-Xms32m -Xmx128m`. Every role reports the
+actual Java 21 environment and final artifact hashes. Each selected fault
+executes exactly once; every local reservation and endpoint request/reply
+count returns to zero, with active/early/decision peaks bounded at three.
+
+| Profile | Fault / reject-every | Submission + / − | Receipt requests | Correlated | Receipt responses + / − | Missing / duplicate / unmatched | Client / server exit |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 3.4 | none / 0 | 8 / 0 | 8 | 8 | 8 / 0 | 0 / 0 / 0 | 0 / 0 |
+| 3.4 | none / 3 | 6 / 2 | 6 | 6 | 6 / 0 | 0 / 0 / 0 | 0 / 0 |
+| 3.4 | none / 1 | 0 / 8 | 0 | 0 | 0 / 0 | 0 / 0 / 0 | 0 / 0 |
+| 3.4 | missing / 0 | 8 / 0 | 7 | 7 | 7 / 0 | 1 / 0 / 0 | 1 / 1 |
+| 3.4 | duplicate / 0 | 8 / 0 | 9 | 8 | 8 / 1 | 0 / 1 / 0 | 1 / 1 |
+| 3.4 | mismatch / 0 | 8 / 0 | 8 | 7 | 8 / 0 | 1 / 0 / 1 | 1 / 0 |
+| 5.0 | none / 0 | 8 / 0 | 8 | 8 | 8 / 0 | 0 / 0 / 0 | 0 / 0 |
+| 5.0 | none / 3 | 6 / 2 | 6 | 6 | 6 / 0 | 0 / 0 / 0 | 0 / 0 |
+| 5.0 | none / 1 | 0 / 8 | 0 | 0 | 0 / 0 | 0 / 0 / 0 | 0 / 0 |
+| 5.0 | missing / 0 | 8 / 0 | 7 | 7 | 7 / 0 | 1 / 0 / 0 | 1 / 1 |
+| 5.0 | duplicate / 0 | 8 / 0 | 9 | 8 | 8 / 1 | 0 / 1 / 0 | 1 / 1 |
+| 5.0 | mismatch / 0 | 8 / 0 | 8 | 7 | 8 / 0 | 1 / 0 / 1 | 1 / 0 |
+
+Every healthy positive receipt arrived early and was safely matched when its
+actual opaque submission ID became available. The mismatch server's exit 0
+remains distinct from the client's correlation failure. Positive submission,
+receipt request and observed receipt response counts remain separate; no
+handset delivery/replay/persistence is inferred. All original assertions passed
+without retries or dropped observations.
+
+Fresh role reports, process logs, exact commands and source/artifact hashes are
+retained in `build/runs/step19-final-wire-checks/receipt`. Its matrix SHA-256 is
+`7694a3f41424e2bc3211e3b36eb95add9cc3129f8a99d4b5781d7cabc647e1f2` and supervisor log SHA-256 is
+`a7416da22f28a48ad73b72b41137ab7a6b4bc860a190b877a46e119c405798d6`. Shared reconciliation
+`summary.json` SHA-256 `cd48951751a55b297d65715d52904039fe466bf08708a4bfb61e9e44624022cc` verifies all final installed inputs before/after
+both functional matrices. An independent enclosing-JAR class comparison found
+only TrafficRunner and its four nested compiled entries changed from candidate2;
+all 12 ReceiptScenario class entries were byte-identical. The initial auxiliary
+comparison expected only the outer class to differ and was corrected to include
+its nested class entries; that bookkeeping observation is retained and is not
+product/TDD evidence. These finite checks ran on the shared host after the old
+heavy campaigns ended, with final soak activity still present. They provide
+functional assertions rather than a throughput estimate.

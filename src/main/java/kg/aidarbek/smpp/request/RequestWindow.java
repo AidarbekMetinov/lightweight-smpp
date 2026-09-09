@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.LongSupplier;
 import kg.aidarbek.smpp.protocol.Command;
 import kg.aidarbek.smpp.protocol.ControlCommand;
@@ -33,6 +34,7 @@ import kg.aidarbek.smpp.protocol.Pdu;
  * {@link #awaitNotifications(Duration)}. Invalid arguments fail before reserving capacity.
  */
 public final class RequestWindow implements AutoCloseable {
+    private final ReentrantLock stateLock = new ReentrantLock();
     private final UUID generation;
     private final int maxPending;
     private final long maxBytes;
@@ -160,56 +162,69 @@ public final class RequestWindow implements AutoCloseable {
      * @throws IllegalArgumentException if command identities or frame size are invalid
      * @throws RequestFailure for closed admission, an elapsed deadline, sequence exhaustion or a full bound
      */
-    public synchronized <R extends Command> RequestHandle<R> admit(
+    public <R extends Command> RequestHandle<R> admit(
             long requestCommandId,
             long expectedResponseCommandId,
             Class<R> responseType,
             long frameBytes,
             RequestOptions options,
             long invocationStartNanos) {
-        Objects.requireNonNull(responseType, "responseType");
-        Objects.requireNonNull(options, "options");
-        if (requestCommandId < 1
-                || requestCommandId > 0x7fffffffL
-                || expectedResponseCommandId != (requestCommandId | 0x80000000L)) {
-            throw new IllegalArgumentException("Expected the exact response ID for a nonzero request command");
+        stateLock.lock();
+        try {
+            Objects.requireNonNull(responseType, "responseType");
+            Objects.requireNonNull(options, "options");
+            if (requestCommandId < 1
+                    || requestCommandId > 0x7fffffffL
+                    || expectedResponseCommandId != (requestCommandId | 0x80000000L)) {
+                throw new IllegalArgumentException("Expected the exact response ID for a nonzero request command");
+            }
+            if (frameBytes < 16 || frameBytes > 0xffffffffL) {
+                throw new IllegalArgumentException("Encoded request size must be in 16..0xffffffff bytes");
+            }
+            if (closed) {
+                throw admissionFailure(RequestFailure.Reason.CLOSED, requestCommandId);
+            }
+            long deadline = invocationStartNanos + options.timeout().toNanos();
+            if (nanoClock.getAsLong() - deadline >= 0) {
+                throw admissionFailure(RequestFailure.Reason.DEADLINE_EXPIRED, requestCommandId);
+            }
+            if (nextSequence > 0x7fffffffL) {
+                throw admissionFailure(RequestFailure.Reason.SEQUENCE_EXHAUSTED, requestCommandId);
+            }
+            if (pending.size() == maxPending) {
+                throw admissionFailure(RequestFailure.Reason.WINDOW_FULL, requestCommandId);
+            }
+            if (frameBytes > maxBytes - pendingBytes) {
+                throw admissionFailure(RequestFailure.Reason.BYTE_LIMIT, requestCommandId);
+            }
+            var capacity = notifications.tryReserve();
+            try {
+                if (nanoClock.getAsLong() - deadline >= 0) {
+                    throw admissionFailure(RequestFailure.Reason.DEADLINE_EXPIRED, requestCommandId);
+                }
+            } catch (RuntimeException | Error failure) {
+                capacity.ifPresent(BoundedNotifications.Reservation::release);
+                throw failure;
+            }
+            var reserved = capacity.orElseThrow(
+                    () -> admissionFailure(RequestFailure.Reason.NOTIFICATION_BACKLOG, requestCommandId));
+            var identity = new RequestIdentity(generation, nextSequence);
+            var handle = new RequestHandle<>(
+                    this,
+                    identity,
+                    requestCommandId,
+                    expectedResponseCommandId,
+                    responseType,
+                    frameBytes,
+                    deadline,
+                    reserved);
+            pending.put(identity.sequenceNumber(), handle);
+            pendingBytes += frameBytes;
+            nextSequence++;
+            return handle;
+        } finally {
+            stateLock.unlock();
         }
-        if (frameBytes < 16 || frameBytes > 0xffffffffL) {
-            throw new IllegalArgumentException("Encoded request size must be in 16..0xffffffff bytes");
-        }
-        if (closed) {
-            throw admissionFailure(RequestFailure.Reason.CLOSED, requestCommandId);
-        }
-        long deadline = invocationStartNanos + options.timeout().toNanos();
-        if (nanoClock.getAsLong() - deadline >= 0) {
-            throw admissionFailure(RequestFailure.Reason.DEADLINE_EXPIRED, requestCommandId);
-        }
-        if (nextSequence > 0x7fffffffL) {
-            throw admissionFailure(RequestFailure.Reason.SEQUENCE_EXHAUSTED, requestCommandId);
-        }
-        if (pending.size() == maxPending) {
-            throw admissionFailure(RequestFailure.Reason.WINDOW_FULL, requestCommandId);
-        }
-        if (frameBytes > maxBytes - pendingBytes) {
-            throw admissionFailure(RequestFailure.Reason.BYTE_LIMIT, requestCommandId);
-        }
-        var reserved = notifications
-                .tryReserve()
-                .orElseThrow(() -> admissionFailure(RequestFailure.Reason.NOTIFICATION_BACKLOG, requestCommandId));
-        var identity = new RequestIdentity(generation, nextSequence);
-        var handle = new RequestHandle<>(
-                this,
-                identity,
-                requestCommandId,
-                expectedResponseCommandId,
-                responseType,
-                frameBytes,
-                deadline,
-                reserved);
-        pending.put(identity.sequenceNumber(), handle);
-        pendingBytes += frameBytes;
-        nextSequence++;
-        return handle;
     }
 
     private RequestFailure admissionFailure(RequestFailure.Reason reason, long requestCommandId) {
@@ -228,12 +243,17 @@ public final class RequestWindow implements AutoCloseable {
      * @throws IllegalArgumentException if the command is paired, unknown or outside the supported one-way set
      * @throws RequestFailure if admission is closed or this connection has exhausted its sequence stream
      */
-    public synchronized long allocateNotificationSequence(long commandId) {
-        if (commandId != 0x0b && commandId != 0x102)
-            throw new IllegalArgumentException("Expected a supported one-way command");
-        if (closed) throw admissionFailure(RequestFailure.Reason.CLOSED, commandId);
-        if (nextSequence > 0x7fffffffL) throw admissionFailure(RequestFailure.Reason.SEQUENCE_EXHAUSTED, commandId);
-        return nextSequence++;
+    public long allocateNotificationSequence(long commandId) {
+        stateLock.lock();
+        try {
+            if (commandId != 0x0b && commandId != 0x102)
+                throw new IllegalArgumentException("Expected a supported one-way command");
+            if (closed) throw admissionFailure(RequestFailure.Reason.CLOSED, commandId);
+            if (nextSequence > 0x7fffffffL) throw admissionFailure(RequestFailure.Reason.SEQUENCE_EXHAUSTED, commandId);
+            return nextSequence++;
+        } finally {
+            stateLock.unlock();
+        }
     }
     /**
      * Returns pending metadata for a local sequence. The snapshot is not proof of a later successful
@@ -241,8 +261,13 @@ public final class RequestWindow implements AutoCloseable {
      * @param sequenceNumber local sequence
      * @return pending handle
      */
-    public synchronized Optional<RequestHandle<?>> pending(long sequenceNumber) {
-        return Optional.ofNullable(pending.get(sequenceNumber));
+    public Optional<RequestHandle<?>> pending(long sequenceNumber) {
+        stateLock.lock();
+        try {
+            return Optional.ofNullable(pending.get(sequenceNumber));
+        } finally {
+            stateLock.unlock();
+        }
     }
     /**
      * Returns the connection generation.
@@ -255,15 +280,25 @@ public final class RequestWindow implements AutoCloseable {
      * Returns occupied pending slots.
      * @return count
      */
-    public synchronized int pendingCount() {
-        return pending.size();
+    public int pendingCount() {
+        stateLock.lock();
+        try {
+            return pending.size();
+        } finally {
+            stateLock.unlock();
+        }
     }
     /**
      * Returns occupied request bytes.
      * @return bytes
      */
-    public synchronized long pendingBytes() {
-        return pendingBytes;
+    public long pendingBytes() {
+        stateLock.lock();
+        try {
+            return pendingBytes;
+        } finally {
+            stateLock.unlock();
+        }
     }
     /**
      * Returns globally reserved notifications on this window's dispatcher.
@@ -297,7 +332,8 @@ public final class RequestWindow implements AutoCloseable {
         Objects.requireNonNull(response, "response");
         RequestHandle<?> handle;
         boolean expired;
-        synchronized (this) {
+        stateLock.lock();
+        try {
             handle = pending.get(response.sequenceNumber());
             boolean nack = response.command() instanceof ControlCommand control
                     && control.type() == ControlCommand.Type.GENERIC_NACK
@@ -323,6 +359,8 @@ public final class RequestWindow implements AutoCloseable {
             } else {
                 settleResponse(handle, response);
             }
+        } finally {
+            stateLock.unlock();
         }
         handle.dispatchCompletion();
         return !expired;
@@ -353,7 +391,8 @@ public final class RequestWindow implements AutoCloseable {
      * @throws IllegalArgumentException if handle belongs to another window
      */
     public boolean beginWrite(RequestHandle<?> handle) {
-        synchronized (this) {
+        stateLock.lock();
+        try {
             requireOwned(handle);
             if (handle.isDone()) {
                 return false;
@@ -367,6 +406,8 @@ public final class RequestWindow implements AutoCloseable {
                 handle.transmission = TransmissionCertainty.MAY_HAVE_BEEN_SENT;
                 return true;
             }
+        } finally {
+            stateLock.unlock();
         }
         handle.dispatchCompletion();
         return false;
@@ -391,13 +432,16 @@ public final class RequestWindow implements AutoCloseable {
 
     private boolean fail(RequestHandle<?> handle, RequestFailure.Reason reason, Throwable cause) {
         boolean expired;
-        synchronized (this) {
+        stateLock.lock();
+        try {
             requireOwned(handle);
             if (handle.isDone()) {
                 return false;
             }
             expired = isExpired(handle, nanoClock.getAsLong());
             settleFailure(handle, expired ? RequestFailure.Reason.DEADLINE_EXPIRED : reason, expired ? null : cause);
+        } finally {
+            stateLock.unlock();
         }
         handle.dispatchCompletion();
         return !expired;
@@ -427,7 +471,8 @@ public final class RequestWindow implements AutoCloseable {
      */
     public int expire() {
         ArrayList<RequestHandle<?>> expired = new ArrayList<>();
-        synchronized (this) {
+        stateLock.lock();
+        try {
             long now = nanoClock.getAsLong();
             for (RequestHandle<?> handle : pending.values()) {
                 if (isExpired(handle, now)) {
@@ -435,6 +480,8 @@ public final class RequestWindow implements AutoCloseable {
                 }
             }
             expired.forEach(handle -> settleFailure(handle, RequestFailure.Reason.DEADLINE_EXPIRED, null));
+        } finally {
+            stateLock.unlock();
         }
         expired.forEach(RequestHandle::dispatchCompletion);
         return expired.size();
@@ -450,7 +497,8 @@ public final class RequestWindow implements AutoCloseable {
      */
     public int disconnect(Throwable cause) {
         ArrayList<RequestHandle<?>> disconnected;
-        synchronized (this) {
+        stateLock.lock();
+        try {
             closed = true;
             disconnected = new ArrayList<>(pending.values());
             long now = nanoClock.getAsLong();
@@ -461,6 +509,8 @@ public final class RequestWindow implements AutoCloseable {
                         expired ? RequestFailure.Reason.DEADLINE_EXPIRED : RequestFailure.Reason.DISCONNECTED,
                         expired ? null : cause);
             });
+        } finally {
+            stateLock.unlock();
         }
         disconnected.forEach(RequestHandle::dispatchCompletion);
         return disconnected.size();

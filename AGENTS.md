@@ -38,10 +38,14 @@ artifact. Follow [the simulator plan](docs/SIMULATORS.md); use TDD and SOLID rev
 for simulator code as well as library code. Actual load measurements must execute
 freshly, even though compilation and deterministic tests can use build caches.
 
-Research and Steps 1–18 are complete. Step 19, interoperability and release
-verification, is in progress. The first sustained candidate exposed Java 21
-carrier starvation; its regression, fix and fresh measurements are required
-before Step 19 is complete. Preserve failed measurements and their provenance.
+Research and Steps 1–19 are complete. The local release candidate is `0.1.0-rc.1`;
+it has not been published. Sustained measurements exposed Java 21 carrier
+starvation and an early simulator receiver shutdown; behavioral regressions,
+corrections, current whole-type reviews and fresh full-duration measurements
+are recorded in [release evidence](docs/RELEASE.md). All 946 Java cases pass and
+512 current Java identities have matching reviews. Provisional arrival-rate
+targets and external SMPP 5.0 peer verification remain unestablished; preserve
+these limits, failed measurements and their source/binary provenance.
 Bounded fields, raw TLVs, explicit profiles, bind/control
 and message codecs, deterministic session/version policies, and bounded request
 ownership are implemented. See [field contracts](docs/FIELDS.md), [command contracts](docs/COMMANDS.md),
