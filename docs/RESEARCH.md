@@ -1,5 +1,10 @@
 # Java SMPP library research and design
 
+This is the historical design research from the start of the project. Its
+planning-stage statements and proposed names remain context for those decisions.
+Use [the roadmap](ROADMAP.md), [release evidence](RELEASE.md) and
+[publication guide](PUBLISHING.md) for the implemented scope and current status.
+
 ## Recommended direction
 
 Build a Java library that supports both SMPP clients and servers, with explicit

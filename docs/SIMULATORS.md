@@ -76,7 +76,7 @@ the executable always performs a fresh run.
 | `--version=3.4` or `5.0`; `--bind=tx`, `rx`, `trx` | Requested/advertised profile and bind role. Incompatible originating operations fail before endpoint allocation. |
 | `--operation=submit`, `deliver`, `data`, `query`, `cancel`, `replace`, `multi`, `broadcast`, `query-broadcast`, `cancel-broadcast`, `none` | Client submission/management/multiple-submission, server delivery, profile-permitted data in either direction, or receive-only. Broadcast variants require a 5.0 client in TX/TRX mode with raw content. Both peers register the applicable typed handlers. |
 | `--connections=1`; `--window=32` | Fixed slot cohort and per-session request window. Explicit churn/reconnect options can replace sessions; requests are never replayed. |
-| `--connect-interval=PT0S` | Spacing between explicit client connection attempts. Configure the same value on the server when waiting for a slowly arriving cohort. |
+| `--connect-interval=PT0S` | Delay after each completed initial client bind before the next connection attempt. Configure the same value on the server when waiting for a slowly arriving cohort. |
 | `--model=arrival`; `--rates=10,100,10` | Aggregate independent arrivals across the cohort, in equal-duration rate steps. The last step includes any duration remainder. |
 | `--model=concurrency` | Refill only the finite originating window. Omit `--rates`; no independent offered rate is claimed. |
 | `--count=100`; `--duration=PT10S` | Measurement count cap and scheduling interval. Warmup uses a separate cohort, the first arrival rate, and its own drain. |
@@ -87,7 +87,7 @@ the executable always performs a fresh run.
 | `--delay-duration=PT0.2S`; `--reject-status=0x58` | Delay duration and numeric nonzero rejection status. |
 | `--disconnect-after=100` | Close each receiving connection on that application-observed request count. Zero disables it. |
 | `--expect-failures=true` | Permit unsuccessful but accounted outcomes. It never excuses aborted/unfinished work, content errors or incomplete cleanup; it does not verify a statistical fault mix. |
-| `--minimum-rate-ratio=0.99`; `--p99-ms=100` | Optional successful measurement-completion ratio and schedule-to-observation p99 gates. Defaults of zero disable these performance gates. |
+| `--minimum-rate-ratio=0.99`; `--p99-ms=100` | Optional actual successful completions/s relative to configured offered arrivals/s, and schedule-to-observation p99 gates. The rate gate applies only to originating arrival plans. Defaults of zero disable these performance gates. |
 
 For delivery-only traffic, set the server operation to `deliver` and the client
 to `none`, with RX or TRX binding. Set both operations to `data` for bidirectional
@@ -209,10 +209,13 @@ Receiver counts describe application-observed handler requests before receiver
 closure, including peer warmup/drain. They exclude frames rejected by decoding
 or endpoint capacity before the handler runs. Raw content validation checks the
 configured shape/length, not handset delivery or a retained history of message
-identities. Full duplicate/receipt correlation, malformed-wire adapters, churn,
-slow readers, distributed coordination and sustained heavy-load studies remain
-later work. Two endpoints using this library are functional/performance test
-peers; independent interoperability remains Step 19.
+identities. The separate receipt fixture supplies finite opaque-ID correlation;
+the raw fault peer, churn and slow-consumer workloads supply their documented
+bounded scenarios. Persistent cross-run correlation and distributed coordination
+remain outside the implemented tooling. Two endpoints using this library are
+functional/performance test peers. Completed sustained runs and independent
+interoperability checks, including their failed targets and remaining limits,
+are recorded in [release evidence](RELEASE.md).
 
 ## Packaging and responsibilities
 

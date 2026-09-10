@@ -10,12 +10,12 @@ runs used Python 3.12.3 on Linux.
 
 | Raw peer mode | Project simulator mode | Selected operation | Bind behavior |
 | --- | --- | --- | --- |
-| `server` | `client` | `submit` or `data` | Accepts one configured, finite cohort of TX/TRX binds; RX cannot submit |
+| `server` | `client` | `submit` or `data` | Accepts one configured, finite bind cohort; submit and 5.0 data require TX/TRX, while 3.4 data also permits RX |
 | `client` | `server` | `deliver` or `data` | Opens the configured number of connections and sends TRX bind once per connection |
 
-Both modes support `--version=3.4` and `--version=5.0`. The raw server also accepts
-an RX bind for control-only observation, but the selected message workload cannot
-complete on that role. The raw client requires a successful bind response that
+Both modes support `--version=3.4` and `--version=5.0`. The raw server accepts RX
+binds for controls and SMPP 3.4 `data_sm`; RX cannot originate `submit_sm` or
+SMPP 5.0 `data_sm`. The raw client requires a successful bind response that
 advertises exactly the requested `sc_interface_version`; this is an explicit
 fixture requirement, including for 3.4, where that TLV is optional in the protocol.
 

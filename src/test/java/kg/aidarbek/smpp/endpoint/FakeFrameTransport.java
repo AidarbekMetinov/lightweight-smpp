@@ -27,7 +27,9 @@ final class FakeFrameTransport implements FrameTransport {
     private Throwable callbackCleanupFailure;
     private volatile FrameListener listener;
     private volatile boolean closed;
+    private TransportFailure closure;
     private int activeWrites;
+    private int listenerInvocations;
     private int ordinaryWrites;
     private int controlWrites;
     private final Set<PendingWrite> owned = new LinkedHashSet<>();
@@ -51,12 +53,32 @@ final class FakeFrameTransport implements FrameTransport {
         synchronized (this) {
             if (listener != null || closed) throw new IllegalStateException("Cannot start transport");
             listener = Objects.requireNonNull(installed, "listener");
+            listenerInvocations++;
         }
-        installed.connected();
+        invokeListener(installed::connected);
     }
 
     void receive(byte[] frame) {
-        if (listener != null && !closed) listener.frame(frame.clone());
+        FrameListener receiver;
+        synchronized (this) {
+            if (listener == null || closed) return;
+            receiver = listener;
+            listenerInvocations++;
+        }
+        invokeListener(() -> receiver.frame(frame.clone()));
+    }
+
+    private void invokeListener(Runnable callback) {
+        try {
+            callback.run();
+        } catch (RuntimeException | Error failure) {
+            abort(new TransportFailure(TransportFailure.Kind.OBSERVER_FAILED, false, failure));
+        } finally {
+            synchronized (this) {
+                listenerInvocations--;
+            }
+            publishTermination();
+        }
     }
 
     @Override
@@ -129,14 +151,22 @@ final class FakeFrameTransport implements FrameTransport {
                     rejected = new TransportFailure(TransportFailure.Kind.REJECTED, false, null);
                 if (rejected == null) {
                     writeStarted = true;
-                    rejected = writeFailure;
+                    synchronized (FakeFrameTransport.this) {
+                        if (closed) rejected = new TransportFailure(closure.kind(), true, closure.getCause());
+                        else if (System.nanoTime() - deadline >= 0)
+                            rejected = new TransportFailure(TransportFailure.Kind.WRITE_TIMEOUT, true, null);
+                        else rejected = writeFailure;
+                        if (rejected == null) {
+                            if (!discardWrittenFrames) writes.add(frame);
+                            writtenFrames.incrementAndGet();
+                        }
+                    }
                 }
                 if (rejected != null) {
                     terminalStarted = true;
                     observer.failed(rejected);
+                    if (writeStarted && rejected.kind() == TransportFailure.Kind.WRITE_TIMEOUT) abort(rejected);
                 } else {
-                    if (!discardWrittenFrames) writes.add(frame);
-                    writtenFrames.incrementAndGet();
                     beforeWritten.run();
                     terminalStarted = true;
                     observer.written();
@@ -181,6 +211,7 @@ final class FakeFrameTransport implements FrameTransport {
         synchronized (this) {
             if (closed) return;
             closed = true;
+            closure = reason;
             abandoned = List.copyOf(owned);
         }
         try {
@@ -188,7 +219,8 @@ final class FakeFrameTransport implements FrameTransport {
         } catch (Throwable failure) {
             recordCallbackFailure(failure);
         } finally {
-            for (PendingWrite pending : abandoned) pending.cancel();
+            for (PendingWrite pending : abandoned)
+                pending.settle(new TransportFailure(reason.kind(), false, reason.getCause()));
             synchronized (this) {
                 closeCallbackFinished = true;
             }
@@ -204,7 +236,11 @@ final class FakeFrameTransport implements FrameTransport {
     private void publishTermination() {
         Throwable failure;
         synchronized (this) {
-            if (!closed || !closeCallbackFinished || activeWrites != 0 || publishingTermination) return;
+            if (!closed
+                    || !closeCallbackFinished
+                    || activeWrites != 0
+                    || listenerInvocations != 0
+                    || publishingTermination) return;
             publishingTermination = true;
             failure = terminationFailure == null ? callbackCleanupFailure : terminationFailure;
         }

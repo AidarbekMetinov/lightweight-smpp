@@ -6,6 +6,10 @@ The [research report](RESEARCH.md) explains the protocol targets and architectur
 The [simulator plan](SIMULATORS.md) defines workloads and measurement requirements.
 
 Current stage: **research and Steps 1–19 completed; local release candidate prepared**.
+The subsequent [publication audit](reviews/0019-maven-readiness.md) rechecks all
+tracked files and the Maven workflow. [Publishing instructions](PUBLISHING.md)
+keep local verification separate from the remaining Central account, namespace,
+signing-key and server-validation steps. The candidate has not been published.
 Java 21, Gradle, JUnit, strict compiler warnings, local caching, formatting, and Git
 are configured. Header values, a binary header codec, bounded framing, behavior
 tests, and meaningful architecture rules are implemented. Automatic review-evidence

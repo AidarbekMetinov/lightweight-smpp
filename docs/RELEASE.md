@@ -6,6 +6,13 @@ publication remains a separate action. Production throughput and latency
 requirements remain open. This document distinguishes the implemented protocol
 inventory, independently observed interoperability and measured workload limits.
 
+The subsequent [Maven publication audit](reviews/0019-maven-readiness.md) rechecks
+the repository and supplies complete Central metadata, explicit GPG signing,
+authenticated wrapper files and verified local bundles. Follow [the publishing
+guide](PUBLISHING.md) for current commands and the remaining namespace/signing-key
+setup. The Step 19 measurements below retain their original source identities;
+they are historical evidence, not new measurements from the publication audit.
+
 ## Rebuilding and inspecting the candidate
 
 Run these commands sequentially from the project root:
@@ -18,8 +25,9 @@ python3 -m unittest discover -s tools/tests
 python3 tools/check_release.py --version=0.1.0-rc.1 --output=build/reports/release/artifacts.json
 ```
 
-The release checker uses Python 3.11 or later and only its standard library; Python is needed for
-this explicit release audit, not for building or using the Java library. It
+The release checker uses Python 3.11 or later and only its standard library;
+the bundle tests additionally use GnuPG with disposable keys. These tools are
+needed for the explicit release audit, not for building or using the Java library. It
 verifies current production class/source bytes, licensing in all three library
 archives, the simulator's exact runtime JAR set, Maven coordinates, an empty
 library dependency declaration and Gradle artifact hashes. The JSON report
@@ -184,7 +192,7 @@ per originating JVM against the configured 2500/s. Scheduled p99 was
 5.283–5.499 ms and sampled peak RSS reached 304.883 MiB. These are observations
 from the shared-host workload, without an isolated capacity claim.
 
-Release preparation is complete. The local candidate, full verification and
+Step 19 local preparation is complete. The local candidate, full verification and
 source-specific measurements are reviewable; failed targets and earlier
 defects remain in the evidence record. The [release review](reviews/0018-release-preparation.md)
 and regression reviews record TDD and whole-type SOLID verification.

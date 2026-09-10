@@ -16,10 +16,17 @@ public final class SamplingProgressProbe {
     public static void main(String[] arguments) throws Exception {
         if (arguments.length != 2) throw new IllegalArgumentException("scenario and fresh report directory required");
         String scenario = arguments[0];
-        if (!scenario.equals("resource") && !scenario.equals("pressure"))
+        if (!scenario.equals("resource")
+                && !scenario.equals("pressure")
+                && !scenario.equals("resource-baseline")
+                && !scenario.equals("pressure-baseline"))
             throw new IllegalArgumentException("Unknown sampling scenario");
         Thread warmup = Thread.ofVirtual().start(() -> {});
         require(warmup.join(Duration.ofSeconds(2)), "The virtual scheduler did not start");
+        if (scenario.endsWith("-baseline")) {
+            baseline(scenario, Path.of(arguments[1]));
+            return;
+        }
         Gate gate = new Gate();
         try (ReportWriter writer = new ReportWriter(Path.of(arguments[1]))) {
             Runnable sample;
@@ -67,6 +74,61 @@ public final class SamplingProgressProbe {
             } finally {
                 gate.release.countDown();
                 require(loop.stop(Duration.ofSeconds(2)), "Probe cleanup could not retire its sampling worker");
+                if (releaser != null) require(releaser.join(Duration.ofSeconds(2)), "Probe releaser was not reaped");
+            }
+        }
+    }
+
+    private static void baseline(String scenario, Path directory) throws Exception {
+        Gate gate = new Gate();
+        try (ReportWriter writer = new ReportWriter(directory)) {
+            Runnable baseline;
+            if (scenario.equals("resource-baseline")) {
+                RunEnvironment.Snapshot observation = RunEnvironment.sample();
+                ResourceSampler sampler =
+                        new ResourceSampler(writer, () -> gate.observe(observation), System::nanoTime);
+                baseline = sampler::baseline;
+            } else {
+                PressureSampler.Observation observation = new PressureSampler.Observation(0, 0, 0, 0, 0, 0, 0, 0);
+                PressureSampler sampler =
+                        new PressureSampler(writer, () -> gate.observe(observation), System::nanoTime);
+                baseline = sampler::baseline;
+            }
+            CompletableFuture<Void> completed = new CompletableFuture<>();
+            Thread owner = SimulatorTestOwner.start(() -> {
+                try {
+                    baseline.run();
+                    completed.complete(null);
+                } catch (RuntimeException failure) {
+                    completed.completeExceptionally(failure);
+                }
+            });
+            Thread releaser = null;
+            try {
+                require(gate.entered.await(2, TimeUnit.SECONDS), "The synchronous baseline did not block");
+                CompletableFuture<Void> released = new CompletableFuture<>();
+                releaser = Thread.ofVirtual().name("baseline-probe-releaser").start(() -> {
+                    gate.release.countDown();
+                    released.complete(null);
+                });
+                try {
+                    released.get(2, TimeUnit.SECONDS);
+                } catch (java.util.concurrent.TimeoutException failure) {
+                    throw new AssertionError(
+                            "The virtual releaser could not progress through a synchronous baseline", failure);
+                }
+                completed.get(2, TimeUnit.SECONDS);
+                require(owner.join(Duration.ofSeconds(2)), "The synchronous baseline owner did not retire");
+                require(!owner.isVirtual(), "The complete simulator test must use the launcher platform owner kind");
+                require(gate.calls.get() == 2, "The synchronous baseline performed unexpected observations");
+                require(gate.platformWorkerVisible, "The baseline owner was absent from platform-thread accounting");
+                require(
+                        ManagementFactory.getThreadMXBean().getThreadInfo(owner.threadId()) == null,
+                        "The retired baseline owner remains in platform-thread accounting");
+                System.out.println(scenario + " virtual releaser progressed; one platform baseline owner retired");
+            } finally {
+                gate.release.countDown();
+                require(owner.join(Duration.ofSeconds(2)), "Probe cleanup could not retire its baseline owner");
                 if (releaser != null) require(releaser.join(Duration.ofSeconds(2)), "Probe releaser was not reaped");
             }
         }

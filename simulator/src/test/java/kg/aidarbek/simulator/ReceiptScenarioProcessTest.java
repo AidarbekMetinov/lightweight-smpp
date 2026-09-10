@@ -168,8 +168,7 @@ class ReceiptScenarioProcessTest {
                     Files.readString(clientLog),
                     Files.readString(serverLog));
         } finally {
-            stop(client);
-            stop(server);
+            stopBoth(client, server);
         }
     }
 
@@ -222,6 +221,14 @@ class ReceiptScenarioProcessTest {
         if (!process.waitFor(2, TimeUnit.SECONDS)) {
             process.destroyForcibly();
             assertTrue(process.waitFor(2, TimeUnit.SECONDS));
+        }
+    }
+
+    static void stopBoth(Process client, Process server) throws Exception {
+        try {
+            stop(client);
+        } finally {
+            stop(server);
         }
     }
 

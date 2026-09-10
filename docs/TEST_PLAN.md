@@ -1,6 +1,9 @@
 # First behavior scenarios and verification evidence
 
-Step 1 test-design baseline, updated after Step 12. Header/framing scenarios
+Step 1 test-design baseline with evidence added through the later implementation
+steps. The chronological sections preserve each step's original scope; current
+release and publication verification are in [RELEASE.md](RELEASE.md) and
+[PUBLISHING.md](PUBLISHING.md). Header/framing scenarios
 `FRAME-01` through `FRAME-08` now have executed evidence in
 [the framing review](reviews/0002-pdu-framing.md). Generic field/TLV primitives,
 initial typed interpretation, and profile occurrence scenarios have
@@ -15,8 +18,10 @@ real socket and listener contracts have [Step 10 evidence](reviews/0009-tcp-tran
 Binding/control endpoints, authentication, explicit connection cancellation and
 bounded shutdown have [Step 11 evidence](reviews/0010-client-server-binding.md).
 Message application services and bounded handler/reply ownership have
-[Step 12 evidence](reviews/0011-message-exchange.md). Remaining operations and
-simulators stay **planned**. Write only the next scenario needed by
+[Step 12 evidence](reviews/0011-message-exchange.md). Steps 13–19 subsequently
+completed simulators, common/broadcast operations, helpers, lifecycle features
+and release preparation; their current evidence is linked from the
+[roadmap](ROADMAP.md). Write only the next scenario needed by
 the active roadmap step, observe its relevant failure, implement the smallest
 passing behavior, then refactor and review every affected type. Follow
 [TDD.md](TDD.md) and [SOLID.md](SOLID.md).

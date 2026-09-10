@@ -287,6 +287,16 @@ def read_raw(sock):
     return command, status, sequence, body
 
 
+def read_malformed_header(sock):
+    header = b""
+    while len(header) < 16:
+        part = sock.recv(16 - len(header))
+        if not part:
+            raise EOFError("Peer closed before the complete malformed header")
+        header += part
+    return header
+
+
 def stop_process(process, stream):
     if process.poll() is None:
         process.terminate()
@@ -363,6 +373,36 @@ class ProcessHarness:
 
 
 class SocketProcessTests(ProcessHarness, unittest.TestCase):
+    def test_truncated_malformed_header_reports_eof_without_spinning(self):
+        program = (
+            "import socket\n"
+            "from test_fault_peer import read_malformed_header\n"
+            "reader, writer = socket.socketpair()\n"
+            "with reader, writer:\n"
+            "    reader.settimeout(.2)\n"
+            "    writer.sendall(b'\\0\\0\\0\\x0f')\n"
+            "    writer.shutdown(socket.SHUT_WR)\n"
+            "    try:\n"
+            "        read_malformed_header(reader)\n"
+            "    except EOFError:\n"
+            "        print('expected bounded EOF')\n"
+            "    else:\n"
+            "        raise AssertionError('Truncated header was accepted')\n"
+        )
+        try:
+            result = subprocess.run(
+                [sys.executable, "-c", program],
+                cwd=Path(__file__).parent,
+                capture_output=True,
+                text=True,
+                timeout=2,
+                check=False,
+            )
+        except subprocess.TimeoutExpired:
+            self.fail("An early EOF left the malformed-header fixture spinning")
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertIn("expected bounded EOF", result.stdout)
+
     def test_profile_rejection_has_header_only_reply_and_a_local_close_reason(self):
         for version, requested in (("3.4", 0x50), ("5.0", 0x34)):
             with self.subTest(version=version):
@@ -574,9 +614,7 @@ class SocketProcessTests(ProcessHarness, unittest.TestCase):
                     if fault == "disconnect":
                         self.assertEqual(b"", sock.recv(1))
                     else:
-                        header = b""
-                        while len(header) < 16:
-                            header += sock.recv(16 - len(header))
+                        header = read_malformed_header(sock)
                         self.assertEqual(
                             bytes.fromhex("0000000f800000040000000000000003"), header
                         )

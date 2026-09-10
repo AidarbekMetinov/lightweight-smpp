@@ -24,6 +24,11 @@
 - `.gitattributes` keeps text line endings consistent across platforms and uses
   CRLF for Windows batch scripts.
 
+The wrapper JAR is authenticated against Gradle's published checksum and the
+distribution SHA-256 is pinned in `gradle-wrapper.properties`. Keep both current
+when intentionally updating Gradle. See [the publication audit](reviews/0019-maven-readiness.md)
+and [Gradle's wrapper verification guidance](https://docs.gradle.org/current/userguide/gradle_wrapper.html).
+
 ## Java coding conventions
 
 Apply the mandatory [SOLID review policy](SOLID.md) to every created or updated
@@ -132,7 +137,7 @@ run through `reviewTest`. Both are dependencies of `check`. Run
 current type inventory and hashes. Follow [the evidence format](REVIEW_FORMAT.md)
 and complete the semantic SOLID review; the tool checks coverage and freshness.
 [The tool review](reviews/0003-review-coverage.md) records executed tests and
-source/report/policy invalidation plus matching-output restoration from cache. Simulators will have
+source/report/policy invalidation plus matching-output restoration from cache. Simulators have
 deterministic behavior tests and separate explicit load-run commands; see
 [the simulator design](SIMULATORS.md).
 
@@ -149,7 +154,7 @@ Project settings live in `gradle.properties`.
 | Up-to-date checks | Automatic Gradle behavior | Skips tasks whose inputs and outputs have not changed. |
 | Gradle daemon | `org.gradle.daemon=true` | Reuses a warmed JVM between builds. |
 | File-system watching | `org.gradle.vfs.watch=true` | Retains file-system state between builds on supported file systems. |
-| Parallel project execution | `org.gradle.parallel=true` | Allows independent projects to run together if this single-module build grows. |
+| Parallel project execution | `org.gradle.parallel=true` | Allows independent library and simulator tasks to run together. |
 
 These settings follow Gradle's documentation for the
 [build cache](https://docs.gradle.org/current/userguide/build_cache.html),
@@ -199,6 +204,12 @@ Use short, plain commit messages describing the change, for example:
 
 Keep each commit focused on a coherent change and run the relevant checks first.
 Generated builds, Gradle caches, and local IDE settings are ignored by Git.
+
+## Publication
+
+Use [the Maven publishing guide](PUBLISHING.md) for release checks, explicit GPG
+signing, local staging, bundle verification and Central account prerequisites.
+Ordinary builds retain all caches and do not require signing credentials.
 
 ## Simulator development
 

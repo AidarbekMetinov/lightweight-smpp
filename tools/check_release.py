@@ -42,9 +42,29 @@ def inspect_archive(path, licensing, expected=None, suffix=None):
                     f"Invalid Javadoc archive: {path.name}")
 
 
-def check(root, version):
+def inspect_pom(path, version, group):
+    document = ElementTree.parse(path).getroot()
+    for tag, expected in (("modelVersion", "4.0.0"), ("groupId", group),
+                          ("artifactId", "lightweight-smpp"), ("version", version)):
+        require(document.findtext("{*}" + tag) == expected, f"Incorrect POM {tag}")
+    require(not document.findall(".//{*}dependency"), "Library POM declares dependencies")
+    for field in ("name", "description", "url", "developers/developer/name", "developers/developer/email",
+                  "scm/connection", "scm/developerConnection", "scm/url", "licenses/license/url"):
+        text = document.findtext("/".join("{*}" + part for part in field.split("/")))
+        require(text is not None and text.strip(), f"Missing POM {field}")
+    require(document.findtext("{*}licenses/{*}license/{*}name") == "Apache License, Version 2.0",
+            "Missing Apache POM license")
+
+
+def validate_coordinates(version, group):
+    require(re.fullmatch(r"[0-9][A-Za-z0-9.+-]*", version) is not None and not version.endswith("-SNAPSHOT"),
+            "Invalid release version")
+    require(re.fullmatch(r"[A-Za-z0-9_]+(?:[.-][A-Za-z0-9_]+)*", group) is not None, "Invalid publication group")
+
+
+def check(root, version, group="kg.aidarbek"):
     root = Path(root).resolve()
-    require(re.fullmatch(r"[0-9][A-Za-z0-9.+-]*", version) is not None, "Invalid release version")
+    validate_coordinates(version, group)
     licensing = {"META-INF/" + name: (root / name).read_bytes() for name in ("LICENSE", "NOTICE")}
     libraries = root / "build/libs"
     binary = libraries / f"lightweight-smpp-{version}.jar"
@@ -66,16 +86,12 @@ def check(root, version):
     with ZipFile(histogram) as archive:
         require("META-INF/LICENSE.txt" in archive.namelist(), "Missing HdrHistogram license")
     pom = root / "build/publications/mavenJava/pom-default.xml"
-    document = ElementTree.parse(pom).getroot()
-    for tag, expected in (("groupId", "kg.aidarbek"), ("artifactId", "lightweight-smpp"), ("version", version)):
-        require(document.findtext("{*}" + tag) == expected, f"Incorrect POM {tag}")
-    require(not document.findall(".//{*}dependency"), "Library POM declares dependencies")
-    require(document.findtext("{*}licenses/{*}license/{*}name") == "Apache License, Version 2.0", "Missing Apache POM license")
+    inspect_pom(pom, version, group)
     metadata = pom.with_name("module.json")
     module = json.loads(metadata.read_text(encoding="utf-8"))
     component = module.get("component", {})
     require(all(component.get(key) == value for key, value in
-                (("group", "kg.aidarbek"), ("module", "lightweight-smpp"), ("version", version))),
+                (("group", group), ("module", "lightweight-smpp"), ("version", version))),
             "Incorrect Gradle publication identity")
     variants = module.get("variants", [])
     require(variants and all(not item.get("dependencies") and not item.get("dependencyConstraints") for item in variants),
@@ -92,7 +108,7 @@ def check(root, version):
             published_names.add(path.name)
     require(published_names == set(candidates), "Incomplete Gradle publication artifact set")
     artifacts = (binary, source, javadoc, simulator, histogram, pom, metadata)
-    return {"version": version, "libraryRuntimeDependencies": [],
+    return {"group": group, "version": version, "libraryRuntimeDependencies": [],
             "simulatorRuntimeDependencies": [f"lightweight-smpp:{version}", "org.hdrhistogram:HdrHistogram:2.2.2"],
             "artifacts": {path.relative_to(root).as_posix(): {"bytes": path.stat().st_size, "sha256": digest(path)}
                           for path in artifacts}}
@@ -102,10 +118,13 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, default=Path(__file__).resolve().parents[1])
     parser.add_argument("--version", required=True)
+    parser.add_argument("--group", default="kg.aidarbek")
     parser.add_argument("--output", type=Path)
     arguments = parser.parse_args()
     try:
-        report = check(arguments.root, arguments.version)
+        if arguments.output:
+            arguments.output.unlink(missing_ok=True)
+        report = check(arguments.root, arguments.version, arguments.group)
     except (ValueError, OSError, BadZipFile, ElementTree.ParseError) as failure:
         parser.exit(1, f"Release verification failed: {failure}\n")
     encoded = json.dumps(report, indent=2, sort_keys=True) + "\n"

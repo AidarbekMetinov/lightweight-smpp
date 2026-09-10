@@ -42,8 +42,15 @@ Research and Steps 1–19 are complete. The local release candidate is `0.1.0-rc
 it has not been published. Sustained measurements exposed Java 21 carrier
 starvation and an early simulator receiver shutdown; behavioral regressions,
 corrections, current whole-type reviews and fresh full-duration measurements
-are recorded in [release evidence](docs/RELEASE.md). All 946 Java cases pass and
-512 current Java identities have matching reviews. Provisional arrival-rate
+are recorded in [release evidence](docs/RELEASE.md). The subsequent
+[publication audit](docs/reviews/0019-maven-readiness.md) freshly passes all 967 Java
+cases and covers 525 current Java identities. It corrects test-fixture contracts,
+documentation and publishing checks while preserving production source and measured
+binaries. Follow [Maven publishing](docs/PUBLISHING.md) for complete POM metadata,
+explicit GPG primary-key signing, local staging and checked bundles. Namespace
+ownership and the actual release key remain unverified; no publication occurred.
+The existing group remains the default, with `-PmavenGroup` for a verified alternative.
+Provisional arrival-rate
 targets and external SMPP 5.0 peer verification remain unestablished; preserve
 these limits, failed measurements and their source/binary provenance.
 Bounded fields, raw TLVs, explicit profiles, bind/control

@@ -27,6 +27,16 @@ class SamplingProgressTest {
         check("pressure");
     }
 
+    @Test
+    void synchronousResourceBaselineUsesTheLauncherOwnerKind() throws Exception {
+        check("resource-baseline");
+    }
+
+    @Test
+    void synchronousPressureBaselineUsesTheLauncherOwnerKind() throws Exception {
+        check("pressure-baseline");
+    }
+
     private void check(String scenario) throws Exception {
         String classpath = String.join(
                 File.pathSeparator,
@@ -53,7 +63,10 @@ class SamplingProgressTest {
             assertTrue(process.waitFor(15, TimeUnit.SECONDS), "Sampler probe did not finish within its bound");
             String transcript = Files.readString(output);
             assertEquals(0, process.exitValue(), transcript);
-            assertTrue(transcript.contains("virtual releaser progressed; one platform sampler retired"), transcript);
+            String marker = scenario.endsWith("-baseline") ? "baseline owner" : "sampler";
+            assertTrue(
+                    transcript.contains("virtual releaser progressed; one platform " + marker + " retired"),
+                    transcript);
         } finally {
             process.destroyForcibly();
             assertTrue(process.waitFor(5, TimeUnit.SECONDS), "Sampler probe process was not reaped");

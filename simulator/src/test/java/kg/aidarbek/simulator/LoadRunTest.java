@@ -39,7 +39,7 @@ class LoadRunTest {
                 "--report=" + directory.resolve("server"));
         var ready = new CompletableFuture<Integer>();
         var finished = new CompletableFuture<Integer>();
-        Thread server = Thread.startVirtualThread(() -> {
+        Thread server = SimulatorTestOwner.start(() -> {
             try {
                 finished.complete(SimulatorRun.execute(serverConfig, "sim", "sim", event -> {
                     if (event.startsWith("READY port=")) ready.complete(Integer.parseInt(event.substring(11)));

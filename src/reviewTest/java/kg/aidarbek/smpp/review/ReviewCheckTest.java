@@ -66,6 +66,20 @@ final class ReviewCheckTest {
                 .contains("Missing review for src/custom/java/build/NewType.java :: build.NewType"));
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {"build/generated", "simulator/build/generated"})
+    void excludesGeneratedSourcesFromEveryConfiguredBuildDirectory(String directory) throws Exception {
+        createProject();
+        Path generated = Files.createDirectories(root.resolve(directory)).resolve("Generated.java");
+        Files.writeString(generated, "package generated; class Generated {}\n");
+        Path output = root.resolve("build/coverage.txt");
+
+        ReviewCheck.run(root, output);
+
+        assertTrue(Files.readString(output).contains("\texample.Value\t"));
+        assertFalse(Files.readString(output).contains("generated.Generated"));
+    }
+
     @Test
     void onlyInventoriesUnreviewedSourcesWhenExplicitlyRequested() throws Exception {
         createProject();

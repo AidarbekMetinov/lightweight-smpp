@@ -32,9 +32,7 @@ class AlertWriteContractTest {
                     kg.aidarbek.smpp.spi.WriteClass.ORDINARY,
                     System.nanoTime() + TimeUnit.SECONDS.toNanos(2),
                     throwing));
-            assertThrows(
-                    ExecutionException.class,
-                    () -> fixture.transport.termination().toCompletableFuture().get(2, TimeUnit.SECONDS));
+            fixture.transport.termination().toCompletableFuture().get(2, TimeUnit.SECONDS);
             assertEquals(1, throwing.failures);
             assertEquals(0, throwing.writes);
         }

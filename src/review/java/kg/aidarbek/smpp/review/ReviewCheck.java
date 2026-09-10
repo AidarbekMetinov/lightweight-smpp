@@ -115,7 +115,7 @@ public final class ReviewCheck {
     }
 
     private static boolean included(Path relative) {
-        if (relative.startsWith("build")) {
+        if (relative.startsWith("build") || relative.startsWith(Path.of("simulator", "build"))) {
             return false;
         }
         for (Path component : relative) {

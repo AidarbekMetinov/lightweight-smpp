@@ -6,6 +6,9 @@ import tempfile
 import unittest
 import json
 import warnings
+import subprocess
+import sys
+from xml.etree import ElementTree
 from zipfile import ZipFile
 
 SPEC = importlib.util.spec_from_file_location("check_release", Path(__file__).parents[1] / "check_release.py")
@@ -43,6 +46,12 @@ class ReleaseCheckTest(unittest.TestCase):
         self.pom.parent.mkdir(parents=True)
         self.pom.write_text(f'''<project xmlns="http://maven.apache.org/POM/4.0.0"><modelVersion>4.0.0</modelVersion>
 <groupId>kg.aidarbek</groupId><artifactId>lightweight-smpp</artifactId><version>{VERSION}</version>
+<name>Lightweight SMPP</name><description>A lightweight Java SMPP library</description>
+<url>https://github.com/AidarbekMetinov/lightweight-smpp</url>
+<developers><developer><id>AidarbekMetinov</id><name>Aidarbek Metinov</name><email>aidar.financier@gmail.com</email></developer></developers>
+<scm><connection>scm:git:https://github.com/AidarbekMetinov/lightweight-smpp.git</connection>
+<developerConnection>scm:git:ssh://git@github.com/AidarbekMetinov/lightweight-smpp.git</developerConnection>
+<url>https://github.com/AidarbekMetinov/lightweight-smpp</url></scm>
 <licenses><license><name>Apache License, Version 2.0</name><url>https://www.apache.org/licenses/LICENSE-2.0.txt</url></license></licenses></project>''')
         self.metadata = self.pom.with_name("module.json")
         published = sorted(self.library.parent.glob("*.jar"))
@@ -97,6 +106,56 @@ class ReleaseCheckTest(unittest.TestCase):
         self.pom.write_text(self.pom.read_text().replace("</project>", "<dependencies><dependency><groupId>external</groupId></dependency></dependencies></project>"))
         with self.assertRaisesRegex(ValueError, "dependenc"):
             CHECKER.check(self.root, VERSION)
+
+    def test_rejects_missing_required_central_metadata(self):
+        original = self.pom.read_text()
+        for tag in ("name", "description", "url", "developers", "scm"):
+            with self.subTest(field=tag):
+                document = ElementTree.fromstring(original)
+                document.remove(document.find("{*}" + tag))
+                self.pom.write_bytes(ElementTree.tostring(document))
+                with self.assertRaisesRegex(ValueError, "POM"):
+                    CHECKER.check(self.root, VERSION)
+
+    def test_rejects_incomplete_developer_scm_and_license_metadata(self):
+        original = self.pom.read_text()
+        for path in ("developers/developer/name", "developers/developer/email", "scm/connection",
+                     "scm/developerConnection", "scm/url", "licenses/license/url"):
+            with self.subTest(field=path):
+                document = ElementTree.fromstring(original)
+                document.find("/".join("{*}" + part for part in path.split("/"))).text = "   "
+                self.pom.write_bytes(ElementTree.tostring(document))
+                with self.assertRaisesRegex(ValueError, "POM"):
+                    CHECKER.check(self.root, VERSION)
+
+    def test_rejects_snapshot_as_a_release_version(self):
+        snapshot = "0.1.0-SNAPSHOT"
+        for path in list(self.root.rglob("*")):
+            if path.is_file() and VERSION in path.name:
+                path.rename(path.with_name(path.name.replace(VERSION, snapshot)))
+        for path in (self.pom, self.metadata):
+            path.write_text(path.read_text().replace(VERSION, snapshot))
+        with self.assertRaisesRegex(ValueError, "release version"):
+            CHECKER.check(self.root, snapshot)
+
+    def test_accepts_explicit_alternative_publication_group(self):
+        group = "io.github.aidarbekmetinov"
+        self.pom.write_text(self.pom.read_text().replace("kg.aidarbek", group))
+        self.metadata.write_text(self.metadata.read_text().replace("kg.aidarbek", group))
+        self.assertEqual(group, CHECKER.check(self.root, VERSION, group)["group"])
+
+    def test_failed_cli_check_removes_an_earlier_success_report(self):
+        report = self.root / "artifacts.json"
+        command = [sys.executable, str(SPEC.origin), "--root", str(self.root), "--version", VERSION,
+                   "--output", str(report)]
+        subprocess.run(command, check=True, capture_output=True, timeout=30)
+        self.assertTrue(report.exists())
+        self.archive(self.library, {"kg/aidarbek/smpp/Demo.class": b"compiled library"}, False)
+
+        result = subprocess.run(command, capture_output=True, timeout=30)
+
+        self.assertNotEqual(0, result.returncode)
+        self.assertFalse(report.exists(), "A failed artifact check must not leave stale success evidence")
 
     def test_rejects_unexpected_simulator_dependency(self):
         self.archive(self.distribution / "lib/unexpected.jar", {}, False)

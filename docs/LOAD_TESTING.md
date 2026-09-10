@@ -104,7 +104,7 @@ that this machine or either endpoint sustains them. The principal schedules are:
 | W-RAMP | 100 sessions; 1k, 5k, 10k, 20k/s for 60 seconds each, then 1k/s for 60 seconds |
 | W-WINDOW | 100 sessions, window 32, fixed concurrency for 120 seconds |
 | W-BURST | 100 sessions; baseline 1k/s, three 10-second 20k/s bursts starting at 30, 60 and 90 seconds; 180 seconds total |
-| W-CONNECTIONS | 1,000 sessions opened 40ms apart, then 1,000/s for 300 seconds |
+| W-CONNECTIONS | 1,000 sessions with a 40ms delay after each completed initial bind, then 1,000/s for 300 seconds |
 | W-CHURN | 100 slots, 1,000/s for 300 seconds; at most 3,000 replacement events at 10/s |
 | W-FAULT | 100 sessions, 1,000/s for 300 seconds; selected mix 5% reject, 10% delay, 1% stall |
 | W-SLOW-CONSUMER | 100 sessions, 1,000/s for 300 seconds; all ordinary decisions delayed 200ms |
@@ -206,10 +206,12 @@ keeps its original round-robin schedule; actual library refusals are counted
 once and are never retried on another connection. See the
 [asymmetric-completion regression](reviews/0018-concurrency-selection.md).
 
-Resource observations run on one owned daemon platform thread with no sample
-backlog. Filesystem and management observations therefore do not occupy a Java
-21 virtual-thread carrier. A slow sample skips observation periods and cannot
-directly park the generation owner. The thread is included in the measured
+Periodic resource observations run on one owned daemon platform thread with no
+sample backlog. Initial, baseline and final observations run synchronously on
+the CLI's platform owner. Filesystem and management observations therefore do
+not occupy a Java 21 virtual-thread carrier. A slow periodic sample skips
+observation periods and cannot directly park the generation owner; synchronous
+phase-boundary observations can delay their owner. The periodic worker is included in the measured
 platform-thread count; its termination is part of cleanup.
 Reports retain the initial, post-warmup, final and peak observations plus sample
 and skipped-sample counts. Linux-only readings use `-1` when unavailable.

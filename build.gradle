@@ -1,10 +1,11 @@
 plugins {
     id 'java-library'
     id 'maven-publish'
+    id 'signing'
     id 'com.diffplug.spotless' version '8.10.2'
 }
 
-group = 'kg.aidarbek'
+group = providers.gradleProperty('mavenGroup').orElse('kg.aidarbek').get()
 version = '0.1.0-rc.1'
 description = 'A lightweight Java SMPP library'
 
@@ -27,6 +28,7 @@ publishing {
             pom {
                 name = 'Lightweight SMPP'
                 description = project.description
+                url = 'https://github.com/AidarbekMetinov/lightweight-smpp'
                 licenses {
                     license {
                         name = 'Apache License, Version 2.0'
@@ -34,8 +36,39 @@ publishing {
                         distribution = 'repo'
                     }
                 }
+                developers {
+                    developer {
+                        id = 'AidarbekMetinov'
+                        name = 'Aidarbek Metinov'
+                        email = 'aidar.financier@gmail.com'
+                    }
+                }
+                scm {
+                    connection = 'scm:git:https://github.com/AidarbekMetinov/lightweight-smpp.git'
+                    developerConnection = 'scm:git:ssh://git@github.com/AidarbekMetinov/lightweight-smpp.git'
+                    url = 'https://github.com/AidarbekMetinov/lightweight-smpp'
+                }
             }
         }
+    }
+    repositories {
+        maven {
+            name = 'centralStaging'
+            url = layout.buildDirectory.dir('maven-staging')
+        }
+    }
+}
+
+// GPG keeps private keys and passphrases out of Gradle's configuration cache.
+// Ordinary development tasks do not select or invoke a signing key.
+if (providers.gradleProperty('releaseSigning').orElse('false').get() == 'true') {
+    def signingKey = providers.gradleProperty('signing.gnupg.keyName').orElse('').get()
+    if (!(signingKey ==~ /(?i)([0-9a-f]{40}|[0-9a-f]{64})!?/)) {
+        throw new GradleException('Release signing requires a full signing.gnupg.keyName fingerprint')
+    }
+    signing {
+        useGpgCmd()
+        sign publishing.publications.mavenJava
     }
 }
 

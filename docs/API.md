@@ -191,8 +191,10 @@ asynchronous processing to overlap. Its response scheduler preserves peer-reques
 order, with bounded reply counts/bytes through active write settlement and handler
 deadlines. Logical timeout or close retains physical capacity until invocation
 and returned stage finish. A full transport queue retains the same head reply
-and write budget for a later scan. Control replies use separate capacity so one slow message
-cannot prevent an `enquire_link` response. Correlation accepts out-of-order peer
+and write budget for a later scan. Control replies use separate bounded capacity,
+so a delayed message handler does not consume their queue reserve. They cannot
+preempt an active physical write; its deadline bounds an unresponsive peer.
+Correlation accepts out-of-order peer
 responses even though our default emission policy is ordered.
 
 Applications must use an appropriate executor for expensive dependent future

@@ -129,7 +129,11 @@ classpath. It does not depend on Git state. The development-only `review` and
 That check can enforce evidence coverage and freshness. The reviewer still has to
 evaluate the substance of the design; a recorded verdict is not a machine proof.
 
-## Current status
+## Recorded evidence through Step 15
+
+The entries below retain their step-specific inventory counts. Later steps and
+the fresh publication audit are linked from [the roadmap](ROADMAP.md) and
+[release evidence](RELEASE.md); current coverage is checked against current hashes.
 
 Step 3's three production types and four test classes have a complete
 [framing review](reviews/0002-pdu-framing.md), with final source hashes and

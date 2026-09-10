@@ -153,14 +153,7 @@ class SimulatorProcessTest {
                                 .size()
                         > 1);
             } finally {
-                if (client != null && client.isAlive()) {
-                    client.destroyForcibly();
-                    client.waitFor(5, TimeUnit.SECONDS);
-                }
-                if (server.isAlive()) {
-                    server.destroyForcibly();
-                    server.waitFor(5, TimeUnit.SECONDS);
-                }
+                stopBoth(client, server);
             }
         }
     }
@@ -216,14 +209,22 @@ class SimulatorProcessTest {
                     Files.readString(clientReport.resolve("report.json")),
                     Files.readString(serverReport.resolve("report.json")));
         } finally {
-            if (client != null && client.isAlive()) {
-                client.destroyForcibly();
-                client.waitFor(5, TimeUnit.SECONDS);
-            }
-            if (server.isAlive()) {
-                server.destroyForcibly();
-                server.waitFor(5, TimeUnit.SECONDS);
-            }
+            stopBoth(client, server);
+        }
+    }
+
+    static void stopBoth(Process client, Process server) throws Exception {
+        try {
+            stop(client);
+        } finally {
+            stop(server);
+        }
+    }
+
+    private static void stop(Process process) throws Exception {
+        if (process != null && process.isAlive()) {
+            process.destroyForcibly();
+            assertTrue(process.waitFor(5, TimeUnit.SECONDS), "Simulator child was not reaped");
         }
     }
 

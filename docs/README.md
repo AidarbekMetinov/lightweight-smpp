@@ -3,6 +3,10 @@
 A personal Java library for the Short Message Peer-to-Peer (SMPP) protocol, focused
 on a small implementation and a simple API.
 
+The unpublished Java 21 candidate is `0.1.0-rc.1`. See [release evidence](RELEASE.md)
+for implemented behavior and measured limits, and [Maven publishing](PUBLISHING.md)
+for verified local artifacts and the remaining Central prerequisites.
+
 ## License
 
 Copyright 2026 Aidarbek Metinov. This project is licensed under the

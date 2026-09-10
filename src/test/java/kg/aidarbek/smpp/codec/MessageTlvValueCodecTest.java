@@ -89,11 +89,10 @@ class MessageTlvValueCodecTest {
                 if (!ProtocolProfile.forVersion(version).definesTag(f.tag())) continue;
                 MessageTlvValueCodec codec = new MessageTlvValueCodec(version, f.tag());
                 byte[] bytes = HexFormat.of().parseHex(f.hex());
-                OctetString value = codec.decode(bytes).orElseThrow();
+                byte[] input = bytes.clone();
+                OctetString value = codec.decode(input).orElseThrow();
                 assertArrayEquals(bytes, value.value());
                 assertArrayEquals(bytes, codec.encode(value));
-                byte[] input = bytes.clone();
-                codec.decode(input);
                 Arrays.fill(input, (byte) 7);
                 assertArrayEquals(bytes, value.value());
                 int minimum = f.minimum();

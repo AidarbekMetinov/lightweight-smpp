@@ -176,8 +176,10 @@ successful binding, supports cancellation before binding completes, and exposes
 rejected follow-up bind status. DNS resolution belongs to the caller. Both owners
 preflight outgoing wire configuration before opening/admitting the relevant
 socket. They expose sessions, current connection reservations, bounded shutdown
-and independent endpoint termination. Neither owner schedules retries or
-reconnection loops. A matched negative `generic_nack` for the still-pending
+and independent endpoint termination. A `connectAttempt` performs one connection
+without retries. The optional `OutbindConnector.reconnect` method explicitly
+owns a bounded sequence of fresh attempts under [the lifecycle policy](LIFECYCLE.md),
+without replaying messages. A matched negative `generic_nack` for the still-pending
 outbind flow closes that attempt without creating a response-window entry.
 
 SMPP 3.4 §§2.2.1 and 4.1.7 explicitly describe a receiver bind after outbind; both

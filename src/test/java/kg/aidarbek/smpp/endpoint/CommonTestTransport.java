@@ -21,6 +21,7 @@ final class CommonTestTransport implements FrameTransport {
     boolean deferred;
     Runnable cancellationReady = () -> {};
     private boolean closed;
+    private TransportFailure closure;
     private boolean cleaned;
     private int invoking;
     private Throwable cleanupFailure;
@@ -35,8 +36,7 @@ final class CommonTestTransport implements FrameTransport {
         try {
             receiver.connected();
         } catch (RuntimeException | Error failure) {
-            recordFailure(failure);
-            close();
+            abort(new TransportFailure(TransportFailure.Kind.OBSERVER_FAILED, false, failure));
         } finally {
             finishedInvocation();
         }
@@ -52,8 +52,7 @@ final class CommonTestTransport implements FrameTransport {
         try {
             receiver.frame(frame.clone());
         } catch (RuntimeException | Error failure) {
-            recordFailure(failure);
-            close();
+            abort(new TransportFailure(TransportFailure.Kind.OBSERVER_FAILED, false, failure));
         } finally {
             finishedInvocation();
         }
@@ -82,7 +81,7 @@ final class CommonTestTransport implements FrameTransport {
                                             .filter(value -> value.writeClass == writeClass)
                                             .mapToLong(value -> value.frame.length)
                                             .sum()) throw failure(TransportFailure.Kind.FULL, false);
-            entry = new Pending(frame.clone(), observer, writeClass);
+            entry = new Pending(frame.clone(), observer, writeClass, deadline);
             pending.add(entry);
         }
         if (!deferred) {
@@ -101,18 +100,26 @@ final class CommonTestTransport implements FrameTransport {
     }
 
     private boolean claim(Pending entry) {
+        boolean expired;
         synchronized (this) {
             if (!pending.contains(entry)) return false;
-            entry.claimed = true;
-            invoking++;
+            expired = System.nanoTime() - entry.deadline >= 0;
+            if (!expired) {
+                entry.claimed = true;
+                invoking++;
+            }
+        }
+        if (expired) {
+            settle(entry, failure(TransportFailure.Kind.WRITE_TIMEOUT, false));
+            return false;
         }
         boolean allowed;
         try {
             allowed = entry.observer.beforeWrite();
         } catch (RuntimeException | Error failure) {
-            recordFailure(failure);
-            settle(entry, new TransportFailure(TransportFailure.Kind.OBSERVER_FAILED, false, failure));
-            close();
+            TransportFailure reason = new TransportFailure(TransportFailure.Kind.OBSERVER_FAILED, false, failure);
+            settle(entry, reason);
+            abort(reason);
             return false;
         } finally {
             synchronized (this) {
@@ -121,6 +128,10 @@ final class CommonTestTransport implements FrameTransport {
             }
         }
         if (!allowed) settle(entry, failure(TransportFailure.Kind.REJECTED, false));
+        else if (System.nanoTime() - entry.deadline >= 0) {
+            settle(entry, failure(TransportFailure.Kind.WRITE_TIMEOUT, true));
+            return false;
+        }
         return allowed;
     }
 
@@ -144,15 +155,20 @@ final class CommonTestTransport implements FrameTransport {
         synchronized (this) {
             if (failure != null && failure.kind() == TransportFailure.Kind.CANCELLED && entry.claimed) return false;
             if (!pending.remove(entry)) return false;
+            if (failure == null && closed)
+                failure = new TransportFailure(closure.kind(), entry.claimed, closure.getCause());
+            if (failure == null && System.nanoTime() - entry.deadline >= 0)
+                failure = failure(TransportFailure.Kind.WRITE_TIMEOUT, entry.claimed);
             invoking++;
             if (failure == null) written.add(entry.frame.clone());
         }
+        if (failure != null && failure.kind() == TransportFailure.Kind.WRITE_TIMEOUT && entry.claimed) abort(failure);
         try {
             if (failure == null) entry.observer.written();
             else entry.observer.failed(failure);
         } catch (RuntimeException | Error callbackFailure) {
             recordFailure(callbackFailure);
-            close();
+            abort(new TransportFailure(TransportFailure.Kind.OBSERVER_FAILED, entry.claimed, callbackFailure));
         } finally {
             synchronized (this) {
                 invoking--;
@@ -169,17 +185,23 @@ final class CommonTestTransport implements FrameTransport {
 
     @Override
     public void close() {
+        abort(failure(TransportFailure.Kind.CLOSED, false));
+    }
+
+    private void abort(TransportFailure reason) {
         List<Pending> entries;
         FrameListener receiver;
         synchronized (this) {
             if (closed) return;
             closed = true;
+            closure = reason;
             entries = List.copyOf(pending);
             receiver = listener;
         }
         try {
-            for (Pending entry : entries) settle(entry, failure(TransportFailure.Kind.CLOSED, entry.claimed));
-            if (receiver != null) receiver.closed(failure(TransportFailure.Kind.CLOSED, false));
+            for (Pending entry : entries)
+                settle(entry, new TransportFailure(reason.kind(), entry.claimed, reason.getCause()));
+            if (receiver != null) receiver.closed(reason);
         } catch (RuntimeException | Error callbackFailure) {
             recordFailure(callbackFailure);
         } finally {
@@ -229,12 +251,14 @@ final class CommonTestTransport implements FrameTransport {
         final byte[] frame;
         final WriteObserver observer;
         final WriteClass writeClass;
+        final long deadline;
         boolean claimed;
 
-        Pending(byte[] frame, WriteObserver observer, WriteClass writeClass) {
+        Pending(byte[] frame, WriteObserver observer, WriteClass writeClass, long deadline) {
             this.frame = frame;
             this.observer = observer;
             this.writeClass = writeClass;
+            this.deadline = deadline;
         }
     }
 }
