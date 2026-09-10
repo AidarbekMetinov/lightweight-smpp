@@ -502,7 +502,7 @@ final class EndpointConnection implements FrameListener, AutoCloseable {
             }
             Pdu<Q> request = new Pdu<>(0, handle.identity().sequenceNumber(), command);
             messageRequests.put(handle.identity().sequenceNumber(), request);
-            writeRequest(pdus.encode(request, profile()), handle);
+            writeRequest(EndpointPdus.assignSequence(checked, handle.identity().sequenceNumber()), handle);
             discardFinishedMessageContexts();
             return handle;
         } finally {
@@ -544,7 +544,7 @@ final class EndpointConnection implements FrameListener, AutoCloseable {
             throw new IllegalStateException("Control admission lost its lifecycle permission");
         }
         if (type == ControlCommand.Type.UNBIND) unbind = handle;
-        writeRequest(pdus.encode(new Pdu<>(0, handle.identity().sequenceNumber(), command), profile()), handle);
+        writeRequest(EndpointPdus.assignSequence(checked, handle.identity().sequenceNumber()), handle);
         return handle;
     }
 
@@ -803,7 +803,7 @@ final class EndpointConnection implements FrameListener, AutoCloseable {
                     mode,
                     command.interfaceVersion(),
                     binding.identity().sequenceNumber());
-            writeRequest(pdus.encode(new Pdu<>(0, binding.identity().sequenceNumber(), command), profile()), binding);
+            writeRequest(EndpointPdus.assignSequence(checked, binding.identity().sequenceNumber()), binding);
         } finally {
             coordination.unlock();
         }

@@ -84,6 +84,267 @@ def profile(name):
     }
 
 
+def assess_planned_success(report):
+    """Assess the named healthy arrival policy without changing the legacy verdict."""
+    result = {"applicable": True, "passed": False, "threshold": 0.99, "scope": "originating-report",
+              "diagnostic": False, "failures": [],
+              "policy": "Measurement cohort: eventual SUCCESS/planned and observed in-phase successful throughput/configured offered throughput must each reach 99%; only skipped arrivals may consume the 1% budget, with healthy phase, outcome, cleanup, latency and resource guards"}
+    failures = result["failures"]
+    try:
+        configuration, criteria = report["configuration"], report["criteria"]
+        operation = configuration["operation"]
+        if not isinstance(operation, str) or not 1 <= len(operation) <= 64:
+            raise ValueError("operation must be an explicit bounded name")
+        scenario = configuration["loadSettings"]["scenario"]
+        if not isinstance(scenario, str) or not 1 <= len(scenario) <= 128:
+            raise ValueError("scenario must be a bounded name")
+        if type(criteria["expectFailures"]) is not bool:
+            raise ValueError("expectFailures must be explicitly boolean")
+        result["diagnostic"] = scenario.endswith("-diagnostic")
+        profile_name = scenario.removesuffix("-diagnostic")
+        reason = None
+        if operation == "none":
+            reason = "receive-only"
+        elif criteria["expectFailures"]:
+            reason = "expected-fault-role"
+        elif profile_name not in ("W-BASE", "W-TARGET", "W-SOAK"):
+            reason = "outside-healthy-profiles"
+        elif configuration["model"] == "FIXED_CONCURRENCY":
+            reason = "no-independent-arrival-plan"
+        elif configuration["model"] != "ARRIVAL_RATE":
+            raise ValueError("unknown traffic model")
+        if reason:
+            result.update({"applicable": False, "passed": None, "reason": reason})
+            return result
+        traffic = report["traffic"]
+        measured = traffic["measurement"]
+        validate_cohort(measured)
+        planned = measured["planned"]
+        configured = bounded_int(configuration["measurementNanos"], 86_400_000_000_000,
+                                 "configured measurement duration")
+        elapsed = bounded_int(traffic["measurementNanos"], 86_400_000_000_000,
+                              "observed measurement duration")
+        if not planned or not configured or not elapsed:
+            raise ValueError("measurement requires positive planned, configured and observed populations")
+        eventual = measured["outcomes"].get("SUCCESS", 0)
+        in_phase = measured["successesDuringMeasurement"]
+        result.update({"planned": planned, "eventualSuccesses": eventual,
+                       "inMeasurementSuccesses": in_phase,
+                       "configuredMeasurementNanos": configured, "observedMeasurementNanos": elapsed,
+                       "eventualSuccessPerPlanned": eventual / planned,
+                       "inMeasurementSuccessPerPlanned": in_phase / planned,
+                       "inMeasurementConfiguredRateRatio": in_phase * configured / (planned * elapsed)})
+        if traffic["measurementStarted"] is not True or elapsed < configured:
+            failures.append("measurement-not-fully-observed")
+        # Integer comparisons retain the exact 99% boundary, including elapsed-time normalization.
+        if eventual * 100 < planned * 99:
+            failures.append("eventual-success-per-planned-below-99-percent")
+        if in_phase * configured * 100 < planned * elapsed * 99:
+            failures.append("in-measurement-configured-rate-below-99-percent")
+        failures.extend(healthy_phase_failures(report))
+        failures.extend(healthy_completion_failures(report))
+        result["measurementSkippedArrivals"] = measured["skipped"]
+        result["warmupSkippedArrivals"] = traffic["warmup"]["skipped"]
+        limits = {key: configuration["loadSettings"][key] for key in
+                  ("maximumRssBytes", "maximumHeapBytes", "maximumDescriptorGrowth", "maximumThreadGrowth")}
+        limits["maximumScheduledP99Millis"] = criteria["maximumScheduledP99Millis"]
+        failures.extend(healthy_observation_failures(report, limits))
+        result["guardThresholds"] = limits
+        result["passed"] = not failures
+    except (KeyError, TypeError, ValueError) as error:
+        failures.append("invalid-evidence: " + str(error))
+    return result
+
+
+def healthy_phase_failures(report):
+    """Verify original phase lengths and ceiling-rounded, count-capped arrival populations."""
+    configuration, traffic = report["configuration"], report["traffic"]
+    rates, holds = configuration["rates"], configuration["rateHoldNanos"]
+    if (not isinstance(rates, list) or not isinstance(holds, list)
+            or not 1 <= len(rates) <= 64 or len(rates) != len(holds)):
+        raise ValueError("arrival plan requires 1..64 matching rates and holds")
+    expected = 0
+    limit = bounded_int(configuration["count"], 1_000_000_000, "arrival count cap")
+    if not limit:
+        raise ValueError("arrival count cap must be positive")
+    for rate, hold in zip(rates, holds):
+        if (not bounded_int(rate, 1_000_000, "configured rate")
+                or bounded_int(hold, 86_400_000_000_000, "configured hold") < 1_000_000):
+            raise ValueError("rates must be positive and holds at least one millisecond")
+        expected += min(limit - expected, (rate * hold + 999_999_999) // 1_000_000_000)
+    if sum(holds) != configuration["measurementNanos"]:
+        raise ValueError("configured holds must equal the declared measurement duration")
+    failures = []
+    if traffic["measurement"]["planned"] != expected:
+        failures.append("measurement-planned-does-not-match-declared-arrivals")
+    warmup = bounded_int(configuration["warmupNanos"], 86_400_000_000_000, "configured warmup")
+    if 0 < warmup < 1_000_000:
+        raise ValueError("nonzero arrival warmup must be at least one millisecond")
+    expected_warmup = min(1_000_000_000, (rates[0] * warmup + 999_999_999) // 1_000_000_000)
+    if traffic["warmup"]["planned"] != expected_warmup:
+        failures.append("warmup-planned-does-not-match-declared-arrivals")
+    if bounded_int(traffic["warmupNanos"], 86_400_000_000_000, "observed warmup") < warmup:
+        failures.append("warmup-not-fully-observed")
+    drain = bounded_int(configuration["drainNanos"], 3_600_000_000_000, "configured drain")
+    if bounded_int(traffic["drainNanos"], 86_400_000_000_000, "observed drain") < drain:
+        failures.append("receiver-drain-not-fully-observed")
+    return failures
+
+
+def healthy_completion_failures(report):
+    """Require direct outcome and ownership evidence; legacy text is only an extra guard."""
+    failures = []
+    if type(report["schema"]) is not int or report["schema"] != 2 or type(report["passed"]) is not bool:
+        raise ValueError("schema 2 and an explicit legacy verdict are required")
+    for location, messages in (("report", report["failures"]), ("traffic", report["traffic"]["failures"])):
+        if (not isinstance(messages, list) or len(messages) > 128
+                or any(not isinstance(message, str) or not 1 <= len(message) <= 256 for message in messages)):
+            raise ValueError(location + " failures must be a bounded list of names")
+        for message in messages:
+            if location == "traffic" or message not in ("unsuccessful-work", "successful-rate-below-threshold"):
+                failures.append(location + "-failure:" + message)
+    if report["passed"] != (not report["failures"]):
+        failures.append("legacy-verdict-does-not-reconcile")
+    for phase in ("warmup", "measurement"):
+        cohort = report["traffic"][phase]
+        validate_cohort(cohort)
+        if cohort["rejected"] or any(cohort["rejections"].values()):
+            failures.append(phase + "-local-rejections")
+        if cohort["pending"] or any(count for outcome, count in cohort["outcomes"].items() if outcome != "SUCCESS"):
+            failures.append(phase + "-non-success-outcomes")
+        if (cohort["statuses"].get("0", 0) != cohort["outcomes"].get("SUCCESS", 0)
+                or any(count for status, count in cohort["statuses"].items() if status != "0")
+                or cohort["excessStatuses"]):
+            failures.append(phase + "-success-statuses-do-not-reconcile")
+    for field in ("cleanupComplete", "samplingTerminated"):
+        if report[field] is not True:
+            failures.append(field + "-not-established")
+    configuration = report["configuration"]
+    for field in ("rejectPercent", "delayPercent", "stallPercent", "disconnectAfter"):
+        if bounded_int(configuration["faults"][field], 1_000_000_000, field):
+            failures.append("configured-fault:" + field)
+    for field in ("churnRate", "churnCount", "consumerDelayNanos"):
+        if bounded_int(configuration["loadSettings"][field], 86_400_000_000_000, field):
+            failures.append("configured-disruption:" + field)
+    receiver = report["receiver"]
+    for field in ("rejected", "delayed", "stalled", "disconnected", "invalidContent", "capacityRejected",
+                  "pendingDecisions", "retainedStreams", "incompleteAssemblies", "cancelledBeforeDecision",
+                  "streamCapacityRejected"):
+        if bounded_int(receiver[field], 2**63 - 1, "receiver " + field):
+            failures.append("receiver-" + field)
+    if (bounded_int(receiver["received"], 2**63 - 1, "received")
+            != bounded_int(receiver["accepted"], 2**63 - 1, "accepted")):
+        failures.append("receiver-accepted-does-not-reconcile")
+    connections = report["connections"]
+    count = bounded_int(configuration["connections"], 4096, "configured connections")
+    if not count or bounded_int(connections["initialBound"], 4096, "initial bound") != count:
+        failures.append("full-bound-cohort-not-established")
+    if bounded_int(connections["peakConnections"], 4096, "peak connections") > count:
+        failures.append("connection-count-bound-exceeded")
+    for field in ("replacementStarted", "replacementBound", "replacementFailures", "replacementAborted",
+                  "currentConnections"):
+        if bounded_int(connections[field], 1_000_000_000, field):
+            failures.append("connection-" + field)
+    if report["churn"] is not None:
+        failures.append("healthy-profile-has-churn")
+    reconnect = report["reconnect"]
+    if bounded_int(reconnect["unfinishedLoops"], 4096, "unfinished reconnect loops"):
+        failures.append("unfinished-reconnect-loops")
+    reasons = reconnect["terminalReasons"]
+    if not isinstance(reasons, dict) or len(reasons) > 16:
+        raise ValueError("reconnect reasons require bounded categories")
+    for reason, count in reasons.items():
+        if not isinstance(reason, str) or not 1 <= len(reason) <= 128:
+            raise ValueError("invalid reconnect reason")
+        total = bounded_int(count, 4096, "reconnect reason count")
+        if reason != "CANCELLED" and total:
+            failures.append("unexpected-reconnect-termination")
+    return failures
+
+
+def healthy_observation_failures(report, limits):
+    """Reevaluate enabled latency/process guards and bounded sampled ownership evidence."""
+    failures = []
+    for key, maximum in (("minimumSuccessfulRateRatio", 1), ("maximumScheduledP99Millis", 3_600_000)):
+        value = report["criteria"][key]
+        if type(value) not in (int, float) or not 0 <= value <= maximum or not math.isfinite(value):
+            raise ValueError(key + " must be an explicit finite threshold")
+    traffic, configuration = report["traffic"], report["configuration"]
+    unsuccessful = any(cohort["skipped"] or cohort["rejected"]
+                       or any(count for outcome, count in cohort["outcomes"].items() if outcome != "SUCCESS")
+                       for cohort in (traffic["warmup"], traffic["measurement"]))
+    if ("unsuccessful-work" in report["failures"]) != bool(unsuccessful):
+        failures.append("legacy-work-failure-does-not-reconcile")
+    measured = traffic["measurement"]
+    # Preserve the legacy double-operation order when checking its diagnostic label.
+    legacy_ratio = (measured["successesDuringMeasurement"] / measured["planned"]
+                    * configuration["measurementNanos"] / traffic["measurementNanos"])
+    rate_unmet = report["criteria"]["minimumSuccessfulRateRatio"] > 0 and (
+        traffic["measurementStarted"] is not True
+        or traffic["measurementNanos"] < configuration["measurementNanos"]
+        or legacy_ratio < report["criteria"]["minimumSuccessfulRateRatio"])
+    if ("successful-rate-below-threshold" in report["failures"]) != rate_unmet:
+        failures.append("legacy-rate-failure-does-not-reconcile")
+    histogram = merge_histograms([report["traffic"]["measurement"]["scheduledLatency"]])
+    if limits["maximumScheduledP99Millis"] > 0:
+        if not histogram["count"] or histogram["overflow"]:
+            failures.append("scheduled-latency-population-unavailable")
+        if histogram["p99Micros"] > limits["maximumScheduledP99Millis"] * 1000:
+            failures.append("scheduled-p99-above-declared-threshold")
+    resources = resource_summary(report["resources"])
+    if resources["baselineRecorded"] is not True or resources["samples"] < 2:
+        failures.append("resource-observations-not-established")
+    snapshots = [resources["baseline"], resources["latest"]]
+    if "initial" in resources:
+        snapshots.insert(0, resources["initial"])
+    for limit, observation, field in (("maximumRssBytes", "sampledPeakRssBytes", "rssBytes"),
+                                      ("maximumHeapBytes", "sampledPeakHeapBytes", "heapBytes")):
+        maximum = bounded_int(limits[limit], 2**63 - 1, limit)
+        observed = max(snapshot[field] for snapshot in snapshots)
+        if observed > resources[observation]:
+            failures.append(observation + "-does-not-cover-observations")
+        value = max(resources[observation], observed)
+        if observation == "sampledPeakRssBytes":
+            value = max(value, max(snapshot["peakRssBytes"] for snapshot in snapshots))
+        if maximum and (value < 0 or value > maximum):
+            failures.append(limit + "-unavailable-or-exceeded")
+    for limit, observation in (("maximumDescriptorGrowth", "fileDescriptors"),
+                               ("maximumThreadGrowth", "platformThreads")):
+        maximum = limits[limit]
+        if type(maximum) is not int or not -1 <= maximum <= 1_000_000:
+            raise ValueError(limit + " must be a finite threshold or explicitly -1")
+        before, after = resources["baseline"][observation], resources["latest"][observation]
+        if maximum >= 0 and (before < 0 or after < 0 or after - before > maximum):
+            failures.append(limit + "-unavailable-or-exceeded")
+    count = bounded_int(configuration["connections"], 4096, "connections")
+    window = bounded_int(configuration["window"], 65536, "window")
+    payload = bounded_int(configuration["payloadBytes"], 65535, "payload bytes")
+    if not window or count * window > 65536:
+        raise ValueError("invalid combined request window")
+    retained_bytes = count * max(1_048_576, window * (payload + 1024))
+    bounds = {"physicalConnections": count, "observedSessions": count, "pendingRequests": count * window,
+              "pendingRequestBytes": retained_bytes, "pendingReplies": count * (window + 8),
+              "retainedReplyBytes": retained_bytes, "pendingDecisions": count * window, "retainedStreams": count}
+    pressure = report["pressure"]
+    if (pressure["baselineRecorded"] is not True
+            or bounded_int(pressure["samples"], 2**63 - 1, "pressure samples") < 2):
+        failures.append("pressure-observations-not-established")
+    for field, maximum in bounds.items():
+        peak = bounded_int(pressure["sampledPeaks"][field], 2**63 - 1, "peak " + field)
+        before = bounded_int(pressure["baseline"][field], 2**63 - 1, "baseline " + field)
+        after = bounded_int(pressure["latest"][field], 2**63 - 1, "final " + field)
+        if max(before, after) > peak or peak > maximum:
+            failures.append("pressure-" + field + "-bound-or-peak-invalid")
+        if field != "observedSessions" and after:
+            failures.append("pressure-" + field + "-remains-after-cleanup")
+    for phase in ("warmup", "measurement"):
+        cohort = report["traffic"][phase]
+        if (cohort["peakPending"] > min(count * window, cohort["admitted"])
+                or cohort["mayHaveBeenSent"] > cohort["admitted"]):
+            failures.append(phase + "-request-observations-exceed-population")
+    return failures
+
+
 def assess_intervals(report):
     """Characterize original scheduled cohorts and an exact first 30-second recovery cohort."""
     configuration, traffic = report["configuration"], report["traffic"]
@@ -237,6 +498,7 @@ def aggregate_reports(paths):
         runs.append({"path": str(path), "runId": run_id,
                      "passed": report["passed"] is True and assessment["recovery"]["passed"] is not False,
                      "intervalAssessment": assessment,
+                     "healthyPlannedSuccess": assess_planned_success(report),
                      "cleanupComplete": report["cleanupComplete"] is True,
                      "measurementStarted": traffic["measurementStarted"] is True,
                      "measurementNanos": duration,
@@ -595,6 +857,7 @@ def run_campaign(args):
                 result["reports"][role] = {"path": str(path),
                                           "passed": report["passed"] is True and assessment["recovery"]["passed"] is not False,
                                           "intervalAssessment": assessment,
+                                          "healthyPlannedSuccess": assess_planned_success(report),
                                           "cleanupComplete": report["cleanupComplete"] is True,
                                           "executableSha256": report.get("environment", {}).get("executableSha256", {})}
                 paths[role].append(path)

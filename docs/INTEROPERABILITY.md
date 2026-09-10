@@ -92,3 +92,21 @@ outside the repository and is not required for ordinary project builds.
 Final candidate source identities, fresh comparison counts and measurement
 limitations belong in [the release evidence](RELEASE.md). A copied report from a
 previous candidate is not fresh interoperability evidence.
+
+The [efficiency follow-up](reviews/0020-load-efficiency.md) freshly reran all 15
+comparison cases on 2026-09-10 against library JAR SHA-256
+`8426f15563a44efe4951c3ec61267cb1eccd431b632eed0e54a1bbbcaacb6879`.
+All passed without skips, including the explicitly expected failed-bind
+incompatibility above. The separate work area was
+`/tmp/lightweight-smpp-efficiency-interop-20260910`; all seven peer/controller
+Java sources were unchanged, and only the library file input was selected anew.
+Fresh test execution used the project's wrapper with `--project-dir` for that
+external directory and `test --rerun --no-daemon --console=plain`. Compilation
+caches remained enabled. The pinned peer JAR hash was verified again.
+
+`build/runs/efficiency-20260910/external-interop-result.json` retains the exact
+command, source hashes, selected library/peer identities and fresh test counts;
+the sibling log and `external-interop-results/` retain execution and XML reports.
+Peer source, dependencies and compiled classes remain outside the repository.
+These cases establish the listed 3.4 fixture subset, not external 5.0 support
+or provider load capacity.

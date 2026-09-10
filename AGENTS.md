@@ -38,21 +38,38 @@ artifact. Follow [the simulator plan](docs/SIMULATORS.md); use TDD and SOLID rev
 for simulator code as well as library code. Actual load measurements must execute
 freshly, even though compilation and deterministic tests can use build caches.
 
+Healthy originating load runs must reach at least 99% success over all planned
+measurement requests, including generator skips in the denominator. Successful
+in-phase throughput must also reach 99% of the configured offered rate. Require
+each originating role to pass individually, along with healthy outcomes,
+complete phases and cleanup, and resource/latency bounds. Keep the existing
+strict zero-skip verdict visible beside the separate `healthyPlannedSuccess`
+assessment. Follow [the performance qualification](docs/PERFORMANCE.md) and
+[report interpretation](docs/LOAD_TESTING.md); preserve every failed attempt and
+its source/executable identity.
+
 Research and Steps 1–19 are complete. The local release candidate is `0.1.0-rc.1`;
 it has not been published. Sustained measurements exposed Java 21 carrier
 starvation and an early simulator receiver shutdown; behavioral regressions,
 corrections, current whole-type reviews and fresh full-duration measurements
 are recorded in [release evidence](docs/RELEASE.md). The subsequent
-[publication audit](docs/reviews/0019-maven-readiness.md) freshly passes all 967 Java
-cases and covers 525 current Java identities. It corrects test-fixture contracts,
+[publication audit](docs/reviews/0019-maven-readiness.md) freshly passed all 967 Java
+cases and covered 525 Java identities at that snapshot. It corrected test-fixture contracts,
 documentation and publishing checks while preserving production source and measured
 binaries. Follow [Maven publishing](docs/PUBLISHING.md) for complete POM metadata,
 explicit GPG primary-key signing, local staging and checked bundles. Namespace
 ownership and the actual release key remain unverified; no publication occurred.
 The existing group remains the default, with `-PmavenGroup` for a verified alternative.
-Provisional arrival-rate
-targets and external SMPP 5.0 peer verification remain unestablished; preserve
-these limits, failed measurements and their source/binary provenance.
+The subsequent [efficiency work](docs/reviews/0020-load-efficiency.md) changes
+the production binary, freshly passes 972 Java and 84 Python tests, and covers
+530 current Java identities. All six full 10,000/s targets, the 20,000/s
+bidirectional diagnostic and both full 1000-session checks meet the required
+99% planned-success floor. Both concurrent full-hour soaks also pass, with
+35,927,263 successes from 36,000,000 planned requests and a lowest role success
+of 99.7887%; follow [current performance evidence](docs/PERFORMANCE.md). The original
+zero-skip verdicts remain visible and failed for those originating runs.
+Production capacity and external SMPP 5.0 peer verification remain unestablished;
+preserve these limits, failed measurements and their source/binary provenance.
 Bounded fields, raw TLVs, explicit profiles, bind/control
 and message codecs, deterministic session/version policies, and bounded request
 ownership are implemented. See [field contracts](docs/FIELDS.md), [command contracts](docs/COMMANDS.md),

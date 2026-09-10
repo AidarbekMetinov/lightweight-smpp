@@ -89,8 +89,11 @@ affected class contracts.
 For a focused cycle, once the test class exists:
 
 ```sh
-./gradlew test --tests 'kg.aidarbek.smpp.SomeTest' --console=plain
+./gradlew :test --tests 'kg.aidarbek.smpp.SomeTest' --console=plain
 ```
+
+The leading colon selects the library task. Use `:simulator:test` for a simulator
+class; unqualified `test` also selects subproject test tasks.
 
 Use `./gradlew check --console=plain` before completing a class-changing step.
 Record the actual scope of that command: only configured checks can run. The

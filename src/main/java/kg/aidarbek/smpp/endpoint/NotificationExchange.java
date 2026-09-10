@@ -53,8 +53,7 @@ final class NotificationExchange {
         Outgoing entry;
         try {
             long sequence = connection.notificationSequence(command.commandId());
-            byte[] frame = connection.encodeNotification(command, sequence);
-            if (frame.length != checked.length) throw new IllegalStateException("Unstable notification encoding");
+            byte[] frame = EndpointPdus.assignSequence(checked, sequence);
             entry = new Outgoing(sequence, deadline, callback);
             outgoing.add(entry);
             try {

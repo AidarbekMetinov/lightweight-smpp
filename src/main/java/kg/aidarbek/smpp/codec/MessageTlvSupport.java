@@ -128,17 +128,21 @@ final class MessageTlvSupport {
     }
 
     static int count(OptionalParameters parameters, int tag) {
-        return (int) parameters.entries().stream()
-                .filter(entry -> entry.tag() == tag)
-                .count();
+        List<Tlv> entries = parameters.entries();
+        int count = 0;
+        for (int index = 0; index < entries.size(); index++) {
+            if (entries.get(index).tag() == tag) count++;
+        }
+        return count;
     }
 
     static int octet(OptionalParameters parameters, int tag) {
-        return parameters.entries().stream()
-                .filter(entry -> entry.tag() == tag)
-                .findFirst()
-                .map(entry -> entry.value()[0] & 255)
-                .orElse(-1);
+        List<Tlv> entries = parameters.entries();
+        for (int index = 0; index < entries.size(); index++) {
+            Tlv entry = entries.get(index);
+            if (entry.tag() == tag) return entry.value()[0] & 255;
+        }
+        return -1;
     }
 
     static MessageDirection direction(long commandId, MessageDirection dataDirection) {

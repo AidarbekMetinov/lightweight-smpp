@@ -379,6 +379,23 @@ See [release artifacts and checks](RELEASE.md), [interoperability scope](INTEROP
 [receiver regression](reviews/0018-receiver-grace.md) and
 [release review](reviews/0018-release-preparation.md).
 
+## Performance follow-up
+
+The user requires at least 99% success over all planned measurement requests,
+including generator skips. The [performance qualification](PERFORMANCE.md)
+records the optimized runtime, allocation evidence, per-role success and
+in-phase throughput, and original strict zero-skip verdicts. All six full
+10,000/s targets, the full five-minute 20,000/s bidirectional diagnostic and
+both full 1000-session connection profiles meet that floor. Both concurrent
+full-hour soaks also pass: 35,927,263 of 36,000,000 planned requests succeeded,
+with every originating role above 99.78% and complete cleanup.
+
+The integration freshly passed 972 Java and 84 Python tests, including 56
+installed client/server raw-peer fault pairs, and has current SOLID evidence
+for all 530 Java identities. The library remains about 375 KiB with no runtime
+dependencies. See [the change review](reviews/0020-load-efficiency.md) for TDD,
+whole-type review, source/artifact hashes and complete validation.
+
 ## References
 
 - [Cloudhopper SMPP](https://github.com/fizzed/cloudhopper-smpp): protocol and session implementation reference.

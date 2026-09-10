@@ -13,6 +13,17 @@ guide](PUBLISHING.md) for current commands and the remaining namespace/signing-k
 setup. The Step 19 measurements below retain their original source identities;
 they are historical evidence, not new measurements from the publication audit.
 
+The later [efficiency follow-up](reviews/0020-load-efficiency.md) changes the
+private production implementation and library JAR identity. Its fresh integration
+passed 972 Java and 84 Python tests, covers 530 current Java identities, and passed
+the current artifact inspector. [Performance qualification](PERFORMANCE.md)
+records the new source/binary hashes, passing full target and connection results,
+and both passing full-hour endurance runs. The external SMPP 3.4 comparison
+also freshly passed all 15 cases against that optimized JAR, with the documented
+peer incompatibility still explicitly expected. Its exact command, source hashes
+and fresh reports are in `build/runs/efficiency-20260910/external-interop-result.json`
+and sibling evidence files. The candidate remains unpublished.
+
 ## Rebuilding and inspecting the candidate
 
 Run these commands sequentially from the project root:
@@ -197,8 +208,10 @@ source-specific measurements are reviewable; failed targets and earlier
 defects remain in the evidence record. The [release review](reviews/0018-release-preparation.md)
 and regression reviews record TDD and whole-type SOLID verification.
 
-The available evidence does not establish production capacity, leak freedom,
-1000-connection startup within the configured budget, an external SMPP 5.0 peer
+These Step 19 measurements did not establish 1000-connection startup within the
+configured budget; the later [performance qualification](PERFORMANCE.md) records
+successful full profiles for the optimized runtime. The available evidence does
+not establish production capacity, leak freedom, an external SMPP 5.0 peer
 matrix, or acknowledged unbind in every simultaneous shutdown. Application duties
 and provider-specific compatibility still apply. The local candidate has not
 been published.

@@ -578,6 +578,19 @@ Release preparation produces reviewable artifacts; publishing is a separate acti
 
 Suggested commit: `Prepare first release`.
 
+## Follow-up: 99% planned success and efficiency
+
+Status: **complete, including full-hour endurance qualification**.
+The [efficiency review](reviews/0020-load-efficiency.md) records behavior-preserving
+codec/frame/catalogue refactors, the deterministic TLS test fixture, real
+red/green success-assessment regressions, 972 fresh Java cases, 84 fresh Python
+tests and 530 current type reviews. The [performance record](PERFORMANCE.md)
+retains full five-minute 10,000/s and 20,000/s successes, both full
+1000-session checks, and both concurrent full-hour soaks with every originating
+role above 99.78%. Each originating role must meet the 99% floor over all
+planned requests and the in-phase rate floor, with healthy outcomes and cleanup.
+The existing stricter zero-skip verdict remains separate and visible.
+
 ## Completion criteria for every implementation step
 
 - The selected behavior is covered for its applicable versions and endpoint roles.

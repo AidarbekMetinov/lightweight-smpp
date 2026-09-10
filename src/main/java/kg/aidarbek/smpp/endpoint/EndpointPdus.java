@@ -28,23 +28,25 @@ import kg.aidarbek.smpp.session.EndpointRole;
 /** Composes bounded wire codecs and the endpoint's explicit negative-response shapes. */
 final class EndpointPdus {
     static final OptionalParameters NO_PARAMETERS = new OptionalParameters(List.of());
+    private static final List<CommandCodec<?>> SUBMISSION_CODECS = codecs(MessageDirection.SUBMISSION);
+    private static final List<CommandCodec<?>> DELIVERY_CODECS = codecs(MessageDirection.DELIVERY);
     private final EndpointRole localRole;
     private final PduCodec submission;
     private final PduCodec delivery;
 
     EndpointPdus(EndpointRole localRole, PduLimits limits) {
         this.localRole = localRole;
-        submission = codec(MessageDirection.SUBMISSION, limits);
-        delivery = codec(MessageDirection.DELIVERY, limits);
+        submission = new PduCodec(SUBMISSION_CODECS, limits);
+        delivery = new PduCodec(DELIVERY_CODECS, limits);
     }
 
-    private static PduCodec codec(MessageDirection direction, PduLimits limits) {
+    private static List<CommandCodec<?>> codecs(MessageDirection direction) {
         List<CommandCodec<?>> codecs = new ArrayList<>(ControlCommandCodecs.all());
         OperationCatalog.all().forEach(operation -> codecs.addAll(operation.codecs(direction)));
         CommonCommandCodecs.all().stream()
                 .filter(codec -> codec.commandId() == 0x0b || codec.commandId() == 0x102)
                 .forEach(codecs::add);
-        return new PduCodec(codecs, limits);
+        return List.copyOf(codecs);
     }
 
     byte[] negative(PduHeader offending, long status, ProtocolProfile profile) {
@@ -78,6 +80,15 @@ final class EndpointPdus {
 
     byte[] encode(Pdu<? extends Command> pdu, ProtocolProfile profile) {
         return select(pdu.command().commandId(), true).encode(pdu, profile);
+    }
+
+    /** Assigns a reserved request sequence in a fresh endpoint-owned, already validated frame. */
+    static byte[] assignSequence(byte[] ownedFrame, long sequence) {
+        if (sequence < 1 || sequence > 0x7fff_ffffL)
+            throw new IllegalArgumentException("Request sequence is outside the usable range");
+        // Both profiles put sequence_number in the final four header octets, in network byte order.
+        ByteBuffer.wrap(ownedFrame).putInt(PduHeader.LENGTH - Integer.BYTES, (int) sequence);
+        return ownedFrame;
     }
 
     static PduHeader header(byte[] frame) {

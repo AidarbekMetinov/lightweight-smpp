@@ -102,6 +102,28 @@ to investigate. Do not weaken correctness checks or claim the target was achieve
 The production release performance requirement remains open until its workload
 and hardware are established.
 
+### Required 99% planned-success floor
+
+The user additionally requires at least 99% success. For a healthy originating
+`W-BASE`, `W-TARGET` or `W-SOAK` report, both of these must hold:
+
+- Eventual measurement-cohort `SUCCESS` outcomes / all planned measurement
+  requests is at least 0.99. Skips and rejections stay in the denominator.
+- Successful completions within the measurement interval / its observed duration
+  reaches at least 99% of the configured offered rate.
+
+Only skipped arrivals may consume the 1% budget. Unexpected rejected or admitted
+failures, incomplete phases, unfinished requests, invalid accounting, incomplete
+cleanup, and violated resource or latency bounds still fail the assessment.
+Warmup has its own complete accounting. A receiving-only role has no originating
+success denominator and must still pass the pair's receive/cleanup checks.
+
+The helper records this policy as `healthyPlannedSuccess`, separately from the
+existing strict zero-skip verdict and exit code. Shortened or rate-overridden
+runs keep their diagnostic label. See [report interpretation](LOAD_TESTING.md)
+and [the implementation review](reviews/0020-load-efficiency.md) for the exact
+scope, test evidence and current qualification record.
+
 ## Fault and overload criteria
 
 For the first `W-FAULT` mix, assign mutually exclusive outcomes by deterministic

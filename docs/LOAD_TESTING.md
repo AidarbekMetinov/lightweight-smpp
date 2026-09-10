@@ -245,6 +245,30 @@ and recipient deliveries remain unknown.
 
 ## Repeat aggregation
 
+Healthy arrival campaigns now also retain `healthyPlannedSuccess` in each
+`campaign.json` run's client/server report entry and each aggregate's
+`individualRuns` entry. This evaluates the [99% planned-success floor](WORKLOADS.md)
+for originating `W-BASE`, `W-TARGET` and `W-SOAK` reports. The existing Java
+`passed` field, strict zero-skip criteria and process/helper exit codes remain
+unchanged; a generator skip can therefore fail the original verdict while the
+separate 99% assessment passes.
+
+Inspect both `applicable` and `passed`. Receiving-only, expected-fault,
+fixed-concurrency and other-profile reports have `passed: null`; that is not a
+successful originating load test. Each applicable originating role must pass
+individually, and both processes must complete their receive and cleanup checks.
+An aggregate percentage cannot hide a failing repeat or role.
+
+The assessment includes the planned count, eventual and in-phase success counts,
+durations, ratios, skips, configured guard thresholds and precise failures. It
+uses integer cross-products at the 99% boundary, validates report counters and
+histograms, and checks phase completion, healthy outcomes, connection lifecycle,
+ownership bounds, latency and every recorded initial/final/peak memory observation.
+It rejects inconsistent or unavailable required evidence. This is post-run
+analysis and adds no work to the Java traffic loop. The
+[assessment review](reviews/0020-success-assessment.md) records its red/green
+regressions and independent counterexample review.
+
 The runner writes separate client and server aggregate reports. Manual merging
 accepts 1–128 distinct reports from compatible sequential runs:
 

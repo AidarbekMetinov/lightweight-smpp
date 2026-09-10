@@ -1,5 +1,11 @@
 # Step 18–19 measurement record
 
+This historical record retains its original source identities and strict
+zero-skip criteria. The later [performance qualification](PERFORMANCE.md)
+measures an optimized binary against the additional user-required 99% floor,
+with complete local target and connection results and separately identified
+endurance runs. Its results do not overwrite any failure below.
+
 These are fresh development measurements on one shared workstation. The
 throughput goals in [WORKLOADS.md](WORKLOADS.md) remain provisional. A missed
 arrival invalidates a target-capacity comparison even when every admitted

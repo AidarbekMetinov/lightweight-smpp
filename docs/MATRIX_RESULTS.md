@@ -1,5 +1,10 @@
 # Candidate workload matrix evidence
 
+The later [performance qualification](PERFORMANCE.md) uses a different, explicitly
+identified runtime and reports the user's additional 99% planned-success floor.
+Its full target and connection results are separate from this historical matrix;
+the original criteria, verdicts and failed attempts below remain unchanged.
+
 The completed carrier-corrected campaign finished all 54 first-attempt pairs: 16
 passed and 38 failed their unchanged criteria. Forty-eight pairs completed their
 full measurement phases; six failed during connection establishment. All 108

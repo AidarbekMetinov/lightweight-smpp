@@ -1,5 +1,12 @@
 # Allocation diagnostics
 
+This is the historical JFR record. Later bounded before/after
+[codec](reviews/0020-codec-efficiency.md) and
+[endpoint](reviews/0020-endpoint-efficiency.md) probes measure the subsequent
+allocation refactors. Their counters, fixtures and denominators differ from
+JFR sampling and cannot be combined with these estimates. Current end-to-end
+workloads are recorded in [performance qualification](PERFORMANCE.md).
+
 Two fresh, short JFR diagnostics of the corrected candidate completed on 2026-09-09. Their whole-recording allocation-weight estimates were **3.24–7.85 MiB/s per JVM**. Both workload campaigns failed the unchanged healthy-work criteria under substantial shared-host contention; these recordings establish neither capacity nor latency acceptance. All four endpoint owners, sampling workers and child JVMs finished cleanup.
 
 ## Scope and provenance

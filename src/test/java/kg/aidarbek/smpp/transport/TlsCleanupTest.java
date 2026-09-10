@@ -11,7 +11,6 @@ import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.time.Duration;
-import java.util.Arrays;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import javax.net.ssl.SSLSocket;
@@ -133,16 +132,18 @@ class TlsCleanupTest {
                 server.start(events);
                 client.startHandshake();
                 assertTrue(events.connected.get(2, TimeUnit.SECONDS));
-                TcpTransportTest.Writes active = new TcpTransportTest.Writes(() -> true);
+                TcpTransportTest.Writes control = new TcpTransportTest.Writes(() -> true);
+                byte[] controlFrame = TcpTransportTest.frame(16, 2);
+                TcpTransportTest.Writes active = new TcpTransportTest.Writes(() -> {
+                    server.write(controlFrame, WriteClass.CONTROL, TcpTransportTest.deadline(), control);
+                    return true;
+                });
                 byte[] frame = TcpTransportTest.frame(size, 1);
                 server.write(frame, WriteClass.ORDINARY, System.nanoTime() + TimeUnit.SECONDS.toNanos(1), active);
-                assertArrayEquals(
-                        Arrays.copyOf(frame, 16), client.getInputStream().readNBytes(16));
-                TcpTransportTest.Writes control = new TcpTransportTest.Writes(() -> true);
-                server.write(TcpTransportTest.frame(16, 2), WriteClass.CONTROL, TcpTransportTest.deadline(), control);
                 TransportFailure failed = active.result.get(3, TimeUnit.SECONDS);
                 assertEquals(TransportFailure.Kind.WRITE_TIMEOUT, failed.kind());
                 assertTrue(failed.writeStarted());
+                assertEquals(1, active.guards.get());
                 assertEquals(0, control.guards.get());
                 assertFalse(control.result.get(2, TimeUnit.SECONDS).writeStarted());
                 server.termination().toCompletableFuture().get(2, TimeUnit.SECONDS);
